@@ -75,7 +75,8 @@
   .modal .top{padding:20px 24px;border-bottom:1px solid var(--line);
     background:linear-gradient(120deg,var(--green-deep),transparent)}
   .modal .top h2{margin:0 0 4px;color:#fff;font-size:20px}
-  .modal .top .sub{color:var(--muted);font-family:'Courier New',monospace;font-size:13px}
+  .modal .top .sub{color:#bfe9d4;font-family:'Courier New',monospace;font-size:13px;font-weight:600;letter-spacing:.3px}
+  .modal .top .sub b{color:var(--green)}
   .modal .body{padding:22px 24px}
   .badges{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
   .badge{background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:5px 11px;font-size:12px;color:var(--text)}
@@ -276,6 +277,7 @@ async function abrir(cnpj){
   const d = await (await fetch("/empresas/"+cnpj)).json();
   const e = d.empresa, c = d.contato||{}, j = d.jucees, rz = d.resumo;
   const kv = (icon,k,v)=> `<div><div class="k">${icon} ${k}</div><div class="v">${esc(v)||"-"}</div></div>`;
+  const kvRaw = (icon,k,v)=> `<div><div class="k">${icon} ${k}</div><div class="v">${v||"-"}</div></div>`;
   const contatos = [];
   if(e.telefone) contatos.push(`<a href="tel:${esc(e.telefone)}">&#9742; ${esc(e.telefone)}</a>`);
   if(e.email) contatos.push(`<a href="mailto:${esc(e.email)}">&#9993; ${esc(e.email)}</a>`);
@@ -298,7 +300,7 @@ async function abrir(cnpj){
     <div class="top">
       <span class="close" onclick="fechar()">&#10005;</span>
       <h2>&#127970; ${esc(e.razao_social||e.nome_fantasia||"-")}</h2>
-      <div class="sub">&#127991; CNPJ ${esc(e.cnpj)} ${e.nome_fantasia?"&middot; "+esc(e.nome_fantasia):""}</div>
+      <div class="sub">&#127991; CNPJ <b>${esc(e.cnpj)}</b> ${e.nome_fantasia?"&middot; "+esc(e.nome_fantasia):""}</div>
       <div class="badges">
         <span class="badge">&#127991; Porte: <b>${esc(PORTE[e.porte]||e.porte||"-")}</b></span>
         <span class="badge">&#129534; Regime: <b>${esc(e.regime_tributario||"-")}</b></span>
@@ -314,7 +316,7 @@ async function abrir(cnpj){
 
       <div class="sec">&#127970; Cadastro</div>
       <div class="kv">
-        ${kv("&#127981;","Atividade principal (CNAE)", cnae)}
+        ${kvRaw("&#127981;","Atividade principal (CNAE)", cnae)}
         ${kv("&#128204;","Endere&ccedil;o", endereco)}
         ${kv("&#9989;","Situa&ccedil;&atilde;o cadastral", e.situacao_cadastral_desc||e.situacao_cadastral)}
         ${kv("&#128197;","Data da situa&ccedil;&atilde;o", fmtData(e.data_situacao))}
