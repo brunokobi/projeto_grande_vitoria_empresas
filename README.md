@@ -58,7 +58,30 @@ Este repositório está em **desenvolvimento ativo** — estrutura, endpoints e 
 | 🚩 **Triagem rápida** | Coluna `tem_pendencia_juridica_ou_fiscal` para filtrar em segundos |
 | 🔌 **Acesso** | API REST (FastAPI), servidor MCP (Claude e afins), CSV e XLSX consolidados |
 
-**Fontes públicas oficiais:** Receita Federal · PGFN · IBAMA · TCEES · DataJud/CNJ · JUCEES.
+---
+
+## 🔗 Fontes de dados cruzadas
+
+Todo o dataset é montado **exclusivamente a partir de fontes públicas oficiais**, cruzadas pelo **CNPJ**. Abaixo, todas as fontes já integradas e as planejadas.
+
+**Legenda:** ✅ integrada · 🚧 em processamento · ⚙️ opcional (requer configurar o link do arquivo) · 🔭 planejada (ainda não implementada)
+
+| Fonte | Órgão / Portal | O que agrega ao dataset | Status |
+|---|---|---|:--:|
+| **Cadastro Nacional CNPJ** | Receita Federal — [dados abertos CNPJ](https://arquivos.receitafederal.gov.br/) | Razão social, nome fantasia, CNAE, porte, capital social, endereço, situação cadastral, **sócios**, opção Simples/MEI | ✅ |
+| **Registro comercial (JUCEES)** | Junta Comercial do ES — [dados.es.gov.br](https://dados.es.gov.br/dataset/empresas) | NIRE, data de constituição, natureza jurídica | ✅ |
+| **Dívida Ativa da União** | PGFN — [dadosabertos.pgfn.gov.br](https://dadosabertos.pgfn.gov.br/) | Inscrições em dívida ativa, valor consolidado, situação | ✅ |
+| **Sanções estaduais** | TCEES — Tribunal de Contas do ES | Empresas inidôneas, proibidas de contratar, inabilitadas e com contas irregulares | ✅ |
+| **Infrações ambientais** | IBAMA — [dados abertos](https://dadosabertos.ibama.gov.br/) | Autos de infração ambiental (federal) | ✅ |
+| **Geocodificação** | OpenStreetMap / Nominatim | Latitude e longitude a partir do endereço | 🚧 |
+| **Processos judiciais** | DataJud / CNJ — [API pública](https://datajud-wiki.cnj.jus.br/api-publica/) | Processos por CNPJ (TJES, TRT17, TRF2) | 🚧 |
+| **Contato & redes sociais** | Derivado do próprio cadastro | Telefone → **WhatsApp**; e-mail → **site**; site → **Instagram/Facebook/LinkedIn** | 🧪 implementado |
+| **Sanções federais** | CGU — Portal da Transparência ([CEIS](https://portaldatransparencia.gov.br/download-de-dados/ceis) / [CNEP](https://portaldatransparencia.gov.br/download-de-dados/cnep) / CEPIM) | Empresas inidôneas/suspensas e punidas na esfera federal | ⚙️ |
+| **Ambiental estadual (IEMA-ES)** | IEMA — Instituto de Meio Ambiente do ES | Infrações ambientais estaduais | 🔭 |
+| **Justiça estadual (TJES / e-SAJ)** | Tribunal de Justiça do ES | Processos estaduais direto na origem | 🔭 |
+| **Vínculos de emprego (RAIS/CAGED)** | Ministério do Trabalho e Emprego | Nº de empregados por empresa (porte real) | 🔭 |
+
+> As fontes marcadas com ⚙️ dependem de colar o link do arquivo do período desejado (ver `.env.example` / `config.py`); as 🔭 são extensões previstas para próximas versões.
 
 ---
 
