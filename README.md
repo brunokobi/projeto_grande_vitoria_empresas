@@ -12,11 +12,14 @@ de fontes públicas.
 
 Este é um projeto aberto que consolida dados públicos em um dataset útil para
 prospecção. Se ele te ajuda, considere apoiar — isso custeia o tempo de
-manutenção e a atualização periódica das bases:
+manutenção e a atualização periódica das bases (a Receita Federal publica
+dados novos todo mês):
 
 **→ [github.com/sponsors/brunokobi](https://github.com/sponsors/brunokobi)**
 
-(O botão **♥ Sponsor** no topo do repositório também leva pra cá.)
+Há níveis de apoio (mensal e único) com recompensas — veja
+[**SPONSORS.md**](SPONSORS.md). O botão **♥ Sponsor** no topo do repositório
+também leva pra lá.
 
 ## Setup rápido (plug-and-play)
 
@@ -253,3 +256,17 @@ Ver `.env.example` para a lista completa e comentada.
   documentada — verificar termos de uso antes de automatizar.
 - **RAIS/CAGED**: para número de empregados por empresa (proxy de porte
   real), como camada adicional de enriquecimento.
+
+## Apoiadores
+
+Quem apoia o projeto via [GitHub Sponsors](https://github.com/sponsors/brunokobi)
+aparece aqui. Detalhes dos níveis em [SPONSORS.md](SPONSORS.md).
+
+### 🏢 Patrocinadores
+_Seja o primeiro — [torne-se um patrocinador](https://github.com/sponsors/brunokobi)._
+
+### 🚀 Apoiadores+
+_Ainda não há apoiadores neste nível._
+
+### ☕ Apoiadores
+_Ainda não há apoiadores neste nível._
