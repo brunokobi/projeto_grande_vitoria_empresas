@@ -6,6 +6,18 @@ Guarapari), cruzando dados cadastrais, jurídicos, sanções, dívida ativa,
 infrações ambientais e enriquecimento geográfico/comercial — tudo a partir
 de fontes públicas.
 
+[![Sponsor](https://img.shields.io/badge/Apoie%20o%20projeto-%E2%9D%A4-ff69b4?logo=githubsponsors)](https://github.com/sponsors/brunokobi)
+
+## 💛 Apoie o projeto
+
+Este é um projeto aberto que consolida dados públicos em um dataset útil para
+prospecção. Se ele te ajuda, considere apoiar — isso custeia o tempo de
+manutenção e a atualização periódica das bases:
+
+**→ [github.com/sponsors/brunokobi](https://github.com/sponsors/brunokobi)**
+
+(O botão **♥ Sponsor** no topo do repositório também leva pra cá.)
+
 ## Setup rápido (plug-and-play)
 
 O banco já consolidado vem versionado **comprimido** (`data/grande_vitoria.db.gz`,
