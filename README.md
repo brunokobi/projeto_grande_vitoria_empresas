@@ -15,6 +15,7 @@ Mais de **344 mil empresas ativas** de **7 municípios**, cruzando dados cadastr
 [![API](https://img.shields.io/badge/API-FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)](#api-rest-fastapi)
 [![MCP](https://img.shields.io/badge/MCP-compat%C3%ADvel-8A2BE2?style=flat-square)](#servidor-mcp)
 [![Setup](https://img.shields.io/badge/setup-plug--and--play-f59e0b?style=flat-square)](#setup-r%C3%A1pido-plug-and-play)
+[![Status](https://img.shields.io/badge/status-%F0%9F%9A%A7%20em%20constru%C3%A7%C3%A3o-f59e0b?style=flat-square)](#-projeto-em-construção)
 [![Sponsor](https://img.shields.io/badge/apoie%20o%20projeto-%E2%9D%A4-ea4aaa?style=flat-square&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/brunokobi)
 
 <br>
@@ -26,6 +27,23 @@ Mais de **344 mil empresas ativas** de **7 municípios**, cruzando dados cadastr
 <sub>Projeto aberto e sem fins lucrativos — seu apoio custeia a atualização mensal das bases.</sub>
 
 </div>
+
+---
+
+## 🚧 Projeto em construção
+
+Este repositório está em **desenvolvimento ativo** — estrutura, endpoints e dados ainda podem mudar. Estado atual:
+
+| Componente | Status |
+|---|---|
+| Base cadastral (Receita Federal) | ✅ pronta — 344.130 empresas |
+| JUCEES · Dívida ativa (PGFN) · Sanções (TCEES) · Infrações (IBAMA) | ✅ prontos |
+| Processos judiciais (DataJud/CNJ) | 🚧 em processamento (rate limit — dias, retomável) |
+| Geocodificação (OpenStreetMap) | 🚧 em processamento (rate limit — dias, retomável) |
+| Contato & redes sociais (WhatsApp, site, Instagram…) | 🧪 implementado, ainda não rodado na base completa |
+| Dashboard web · API REST · MCP · export Excel/PDF | ✅ funcionais (em ajuste de layout) |
+
+> Contribuições, sugestões e apoio são bem-vindos enquanto o projeto amadurece. 💛
 
 ---
 
