@@ -44,6 +44,8 @@ def buscar_empresas(
     tem_pendencia: bool = None,
     com_telefone: bool = None,
     com_email: bool = None,
+    com_whatsapp: bool = None,
+    com_rede_social: bool = None,
     capital_min: float = None,
     capital_max: float = None,
     ordenar_por: str = "razao_social",
@@ -62,6 +64,8 @@ def buscar_empresas(
     - tem_pendencia: True = só com pendência jurídico-fiscal; False = só
       "limpas" (bom filtro de prospecção); None = ignora.
     - com_telefone / com_email: True exige o contato preenchido.
+    - com_whatsapp: True exige link de WhatsApp (requer a etapa `contato`).
+    - com_rede_social: True exige Instagram/Facebook/LinkedIn (etapa `contato`).
     - capital_min / capital_max: faixa de capital social (R$).
     - ordenar_por: razao_social | capital_social | municipio | porte | cnpj.
     - limite (máx. 500) e offset para paginação.
@@ -72,8 +76,10 @@ def buscar_empresas(
         municipio=municipio, cnae=cnae, porte=porte,
         regime_tributario=regime_tributario, texto=texto,
         tem_pendencia=tem_pendencia, com_telefone=com_telefone,
-        com_email=com_email, capital_min=capital_min, capital_max=capital_max,
-        ordenar_por=ordenar_por, limite=limite, offset=offset,
+        com_email=com_email, com_whatsapp=com_whatsapp,
+        com_rede_social=com_rede_social, capital_min=capital_min,
+        capital_max=capital_max, ordenar_por=ordenar_por,
+        limite=limite, offset=offset,
     )
 
 

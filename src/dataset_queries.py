@@ -37,6 +37,12 @@ _ORDENAR_POR = {
 }
 
 
+def _tabela_existe(conn, nome: str) -> bool:
+    return conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (nome,)
+    ).fetchone() is not None
+
+
 def estatisticas() -> dict:
     """Panorama geral do dataset — totais e distribuições."""
     with _conn() as conn:
@@ -105,6 +111,8 @@ def buscar_empresas(
     tem_pendencia: bool = None,
     com_telefone: bool = None,
     com_email: bool = None,
+    com_whatsapp: bool = None,
+    com_rede_social: bool = None,
     capital_min: float = None,
     capital_max: float = None,
     ordenar_por: str = "razao_social",
@@ -139,6 +147,25 @@ def buscar_empresas(
         where.append("telefone IS NOT NULL AND telefone != ''")
     if com_email:
         where.append("email IS NOT NULL AND email != ''")
+    # Filtros de contato/redes: só aplicáveis se a etapa `contato` já rodou
+    # (tabela existe). Se ainda não existe, o filtro não retorna nada.
+    if com_whatsapp or com_rede_social:
+        with _conn() as _c:
+            tem_contato = _tabela_existe(_c, "enriquecimento_contato")
+        if not tem_contato:
+            where.append("0")  # nenhum resultado até a etapa `contato` rodar
+        else:
+            if com_whatsapp:
+                where.append(
+                    "EXISTS (SELECT 1 FROM enriquecimento_contato ec "
+                    "WHERE ec.cnpj_empresa = e.cnpj AND ec.whatsapp IS NOT NULL)"
+                )
+            if com_rede_social:
+                where.append(
+                    "EXISTS (SELECT 1 FROM enriquecimento_contato ec "
+                    "WHERE ec.cnpj_empresa = e.cnpj AND (ec.instagram IS NOT NULL "
+                    "OR ec.facebook IS NOT NULL OR ec.linkedin IS NOT NULL))"
+                )
     if capital_min is not None:
         where.append("capital_social >= ?")
         params.append(capital_min)
@@ -219,6 +246,12 @@ def obter_empresa(cnpj: str) -> dict:
             "SELECT latitude, longitude FROM enriquecimento_places WHERE cnpj_empresa = ?",
             (cnpj,),
         ).fetchone()
+        contato = None
+        if _tabela_existe(conn, "enriquecimento_contato"):
+            contato = conn.execute(
+                "SELECT whatsapp, site, instagram, facebook, linkedin "
+                "FROM enriquecimento_contato WHERE cnpj_empresa = ?", (cnpj,)
+            ).fetchone()
 
     valor_divida = sum(d["valor"] for d in dividas if d.get("valor"))
     return {
@@ -226,6 +259,7 @@ def obter_empresa(cnpj: str) -> dict:
         "socios": socios,
         "jucees": dict(jucees) if jucees else None,
         "geolocalizacao": dict(geo) if geo else None,
+        "contato": dict(contato) if contato else None,
         "processos_judiciais": processos,
         "sancoes_administrativas": sancoes,
         "infracoes_ambientais": ambiental,

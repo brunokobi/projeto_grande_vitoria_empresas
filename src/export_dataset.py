@@ -37,6 +37,11 @@ def gerar_dataset_consolidado():
     ambiental = _query_df(conn, "SELECT * FROM infracoes_ambientais")
     dividas = _query_df(conn, "SELECT * FROM dividas_ativas")
     places = _query_df(conn, "SELECT * FROM enriquecimento_places")
+    contato = _query_df(
+        conn,
+        "SELECT cnpj_empresa, whatsapp, site, instagram, facebook, linkedin, "
+        "data_enriquecimento AS data_enriquecimento_contato FROM enriquecimento_contato",
+    )
 
     conn.close()
 
@@ -80,6 +85,11 @@ def gerar_dataset_consolidado():
     if not places.empty:
         consolidado = consolidado.merge(
             places.rename(columns={"cnpj_empresa": "cnpj"}), on="cnpj", how="left"
+        )
+
+    if not contato.empty:
+        consolidado = consolidado.merge(
+            contato.rename(columns={"cnpj_empresa": "cnpj"}), on="cnpj", how="left"
         )
 
     # Preenche contagens com 0 (empresa sem nenhum registro na categoria)

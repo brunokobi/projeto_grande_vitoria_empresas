@@ -29,6 +29,7 @@ python main.py --etapa tcees
 python main.py --etapa ibama
 python main.py --etapa datajud   # rate-limited, MUITO lento (dias)
 python main.py --etapa geo       # rate-limited, lento (dias)
+python main.py --etapa contato   # WhatsApp + site + redes sociais (grátis, retomável)
 python main.py --etapa exportar  # gera output/*.csv e *.xlsx
 ```
 
@@ -114,6 +115,16 @@ APIs públicas (CNJ, Nominatim), não do código.
 - Ambos usam `src/dataset_queries.py` (SQLite somente-leitura) — sem duplicar
   SQL. Testados contra a base real.
 - Doação: `.github/FUNDING.yml` → GitHub Sponsors (`brunokobi`).
+
+## Etapa `contato` (WhatsApp + site + redes sociais) — grátis
+
+`src/contato_enrich.py`: deriva WhatsApp do telefone (link wa.me, só celular),
+site do domínio do e-mail corporativo, e extrai Instagram/Facebook/LinkedIn do
+HTML do próprio site da empresa (não raspa as redes direto — evita ToS). Grava
+em `enriquecimento_contato`. Retomável (checkpoint em lote a cada 200). Só há
+requisição de rede para empresas com site inferido. Filtros novos na API/MCP:
+`com_whatsapp`, `com_rede_social`. Testada em amostra; ainda NÃO rodada na base
+completa (é lenta, roda na outra máquina).
 
 ## Continuar em outra máquina
 

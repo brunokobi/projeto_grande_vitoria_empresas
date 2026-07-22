@@ -184,6 +184,25 @@ NOMINATIM_USER_AGENT = os.environ.get(
 NOMINATIM_RATE_LIMIT_SLEEP_SECONDS = 1.1  # política exige no máx. 1 req/s
 
 # ---------------------------------------------------------------------------
+# Enriquecimento de contato / redes sociais (etapa `contato`) — 100% grátis:
+#   - WhatsApp: derivado do telefone (link wa.me, não verificado)
+#   - Site: inferido do domínio do e-mail corporativo
+#   - Redes sociais: extraídas do HTML do site da PRÓPRIA empresa (legítimo;
+#     não raspa Instagram/Facebook/LinkedIn direto, o que violaria os ToS)
+# ---------------------------------------------------------------------------
+CONTATO_HTTP_TIMEOUT = 10           # timeout por site (segundos)
+CONTATO_RATE_LIMIT_SLEEP_SECONDS = 0.3  # pausa educada entre fetches de site
+CONTATO_USER_AGENT = NOMINATIM_USER_AGENT  # reaproveita o UA identificado
+# Provedores de e-mail genéricos — NÃO servem para inferir o site da empresa.
+EMAIL_DOMINIOS_GENERICOS = {
+    "gmail.com", "hotmail.com", "hotmail.com.br", "outlook.com", "outlook.com.br",
+    "yahoo.com", "yahoo.com.br", "bol.com.br", "uol.com.br", "terra.com.br",
+    "ig.com.br", "live.com", "icloud.com", "globo.com", "globomail.com",
+    "r7.com", "msn.com", "aol.com", "zipmail.com.br", "me.com", "gmx.com",
+    "protonmail.com", "yahoo.com.mx", "hotmail.es",
+}
+
+# ---------------------------------------------------------------------------
 # Matching fuzzy (para sanções/processos sem CNPJ explícito)
 # ---------------------------------------------------------------------------
 FUZZY_MATCH_THRESHOLD = 90  # 0-100, usado com rapidfuzz.fuzz.token_sort_ratio

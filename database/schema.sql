@@ -101,6 +101,16 @@ CREATE TABLE IF NOT EXISTS enriquecimento_places (
     data_enriquecimento TEXT
 );
 
+CREATE TABLE IF NOT EXISTS enriquecimento_contato (
+    cnpj_empresa        TEXT PRIMARY KEY REFERENCES empresas(cnpj),
+    whatsapp            TEXT,   -- link wa.me derivado do telefone (não verificado)
+    site                TEXT,   -- inferido do domínio do e-mail corporativo
+    instagram           TEXT,
+    facebook            TEXT,
+    linkedin            TEXT,
+    data_enriquecimento TEXT
+);
+
 -- Índices para acelerar os cruzamentos
 CREATE INDEX IF NOT EXISTS idx_empresas_municipio ON empresas(municipio);
 CREATE INDEX IF NOT EXISTS idx_empresas_cnae ON empresas(cnae_principal);
@@ -110,3 +120,4 @@ CREATE INDEX IF NOT EXISTS idx_processos_cnpj ON processos_judiciais(cnpj_empres
 CREATE INDEX IF NOT EXISTS idx_sancoes_cnpj ON sancoes_administrativas(cnpj_empresa);
 CREATE INDEX IF NOT EXISTS idx_ambiental_cnpj ON infracoes_ambientais(cnpj_empresa);
 CREATE INDEX IF NOT EXISTS idx_dividas_cnpj ON dividas_ativas(cnpj_empresa);
+CREATE INDEX IF NOT EXISTS idx_contato_cnpj ON enriquecimento_contato(cnpj_empresa);

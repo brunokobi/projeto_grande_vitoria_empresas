@@ -19,7 +19,7 @@ import argparse
 
 from src import (
     db_utils, cnpj_ingest, jucees_ingest, sanctions_ingest, tcees_ingest,
-    ibama_ingest, datajud_client, geo_enrich, export_dataset,
+    ibama_ingest, datajud_client, geo_enrich, contato_enrich, export_dataset,
 )
 
 
@@ -31,10 +31,11 @@ ETAPAS = {
     "ibama": ibama_ingest.executar,
     "datajud": datajud_client.executar,
     "geo": geo_enrich.executar,
+    "contato": contato_enrich.executar,
     "exportar": export_dataset.gerar_dataset_consolidado,
 }
 
-ORDEM_TUDO = ["cnpj", "jucees", "sancoes", "tcees", "ibama", "datajud", "geo", "exportar"]
+ORDEM_TUDO = ["cnpj", "jucees", "sancoes", "tcees", "ibama", "datajud", "geo", "contato", "exportar"]
 
 
 def main():
@@ -54,12 +55,12 @@ def main():
     if args.etapa == "tudo":
         for nome in ORDEM_TUDO:
             print(f"\n{'='*60}\nEtapa: {nome}\n{'='*60}")
-            if nome in ("datajud", "geo"):
+            if nome in ("datajud", "geo", "contato"):
                 ETAPAS[nome](limite_cnpjs=args.limite)
             else:
                 ETAPAS[nome]()
     else:
-        if args.etapa in ("datajud", "geo"):
+        if args.etapa in ("datajud", "geo", "contato"):
             ETAPAS[args.etapa](limite_cnpjs=args.limite)
         else:
             ETAPAS[args.etapa]()
