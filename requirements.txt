@@ -4,7 +4,8 @@ pandas>=2.0
 rapidfuzz>=3.5
 openpyxl>=3.1
 
-# --- Servidor MCP e API REST (consumo do dataset) ---
+# --- Servidor MCP, API REST e Dashboard (consumo do dataset) ---
 mcp>=1.2
 fastapi>=0.110
 uvicorn>=0.29
+reportlab>=4.0      # geração de PDF da lista filtrada no dashboard

@@ -79,9 +79,22 @@ python main.py --etapa exportar    # gera output/ consolidado
 
 ---
 
-## Consumir o dataset (MCP e API)
+## Consumir o dataset (Dashboard, MCP e API)
 
-Além do CSV/XLSX da etapa `exportar`, o dataset pode ser consultado ao vivo — lê direto o SQLite consolidado, em modo **somente-leitura**. A lógica de consulta é compartilhada (`src/dataset_queries.py`) entre a API e o MCP.
+Além do CSV/XLSX da etapa `exportar`, o dataset pode ser consultado ao vivo — lê direto o SQLite consolidado, em modo **somente-leitura**. A lógica de consulta é compartilhada (`src/dataset_queries.py`) entre o dashboard, a API e o MCP.
+
+### 🖥️ Dashboard web
+
+Interface visual (tema verde-matrix) para explorar a base, servida pela própria API:
+
+```bash
+source .venv/bin/activate
+uvicorn api:app          # abre o dashboard em http://localhost:8000
+```
+
+- **Filtros de prospecção**: segmento (divisão CNAE), município, porte, regime, situação jurídico-fiscal (com/sem pendência), capital, busca por nome e exigência de contato (telefone, e-mail, WhatsApp, rede social).
+- **Visão 360º por empresa**: card destacado com cadastro, contato/redes, sócios, pendências (processos, sanções, dívida ativa, ambiental) e mapa.
+- **Exportar** a lista filtrada em **Excel** e **PDF** (botões no topo).
 
 ### API REST (FastAPI)
 

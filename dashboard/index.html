@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Empresas · Grande Vitória — Dashboard</title>
+<style>
+  :root{
+    --bg:#04060a; --bg2:#080d12; --panel:#0a1119; --panel2:#0d1620;
+    --green:#00ff88; --green-dim:#12b866; --green-deep:#0a3d28;
+    --line:#123322; --text:#d6f5e4; --muted:#6f8a7c; --danger:#ff5470;
+    --amber:#ffcf4d;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:'Segoe UI',system-ui,sans-serif;font-size:14px;
+    background-image:radial-gradient(circle at 20% -10%,rgba(0,255,136,.06),transparent 40%),
+      radial-gradient(circle at 90% 0,rgba(0,255,136,.04),transparent 35%);}
+  a{color:var(--green)}
+  .mono{font-family:'Courier New',ui-monospace,monospace}
+  header{position:sticky;top:0;z-index:20;background:rgba(4,6,10,.92);
+    border-bottom:1px solid var(--line);backdrop-filter:blur(6px);
+    padding:14px 22px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .logo{font-family:'Courier New',monospace;font-weight:bold;font-size:18px;
+    letter-spacing:1px;color:var(--green);text-shadow:0 0 12px rgba(0,255,136,.5)}
+  .logo small{color:var(--muted);font-size:11px;letter-spacing:2px;display:block;font-weight:normal}
+  .spacer{flex:1}
+  .btn{background:var(--green-deep);color:var(--green);border:1px solid var(--green-dim);
+    padding:9px 15px;border-radius:7px;cursor:pointer;font-weight:600;font-size:13px;
+    transition:.15s;display:inline-flex;align-items:center;gap:6px}
+  .btn:hover{background:var(--green-dim);color:#04060a;box-shadow:0 0 14px rgba(0,255,136,.4)}
+  .btn.ghost{background:transparent}
+  main{max-width:1500px;margin:0 auto;padding:20px}
+  /* stat cards */
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:18px}
+  .stat{background:linear-gradient(160deg,var(--panel),var(--bg2));border:1px solid var(--line);
+    border-radius:12px;padding:16px 18px;position:relative;overflow:hidden}
+  .stat::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--green)}
+  .stat .n{font-size:26px;font-weight:700;color:var(--green);font-family:'Courier New',monospace}
+  .stat .l{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-top:4px}
+  /* layout */
+  .grid{display:grid;grid-template-columns:290px 1fr;gap:18px;align-items:start}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .card h3{margin:0 0 12px;font-size:13px;letter-spacing:1px;text-transform:uppercase;color:var(--green);
+    border-bottom:1px solid var(--line);padding-bottom:8px}
+  label.f{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:12px 0 4px}
+  input,select{width:100%;background:var(--bg2);border:1px solid var(--line);color:var(--text);
+    padding:9px;border-radius:7px;font-size:13px;font-family:inherit}
+  input:focus,select:focus{outline:none;border-color:var(--green-dim);box-shadow:0 0 0 2px rgba(0,255,136,.15)}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .chk{display:flex;align-items:center;gap:8px;margin:9px 0;font-size:13px;color:var(--text);cursor:pointer}
+  .chk input{width:auto}
+  /* table */
+  .toolbar{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+  .toolbar .count{color:var(--muted);font-size:13px}
+  .toolbar .count b{color:var(--green);font-family:'Courier New',monospace;font-size:16px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px;
+    padding:10px;border-bottom:1px solid var(--line);position:sticky;top:64px;background:var(--panel)}
+  td{padding:10px;border-bottom:1px solid #0c1a12}
+  tbody tr{cursor:pointer;transition:.1s}
+  tbody tr:hover{background:rgba(0,255,136,.06)}
+  .tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
+  .tag.ok{background:rgba(0,255,136,.12);color:var(--green);border:1px solid var(--green-dim)}
+  .tag.pend{background:rgba(255,84,112,.12);color:var(--danger);border:1px solid var(--danger)}
+  .pager{display:flex;justify-content:center;gap:10px;margin:18px 0;align-items:center}
+  .empty{text-align:center;color:var(--muted);padding:40px}
+  /* modal */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:50;display:none;
+    align-items:flex-start;justify-content:center;padding:30px 16px;overflow-y:auto}
+  .overlay.open{display:flex}
+  .modal{background:var(--panel);border:1px solid var(--green-dim);border-radius:14px;
+    max-width:960px;width:100%;box-shadow:0 0 40px rgba(0,255,136,.15)}
+  .modal .top{padding:20px 24px;border-bottom:1px solid var(--line);
+    background:linear-gradient(120deg,var(--green-deep),transparent)}
+  .modal .top h2{margin:0 0 4px;color:#fff;font-size:20px}
+  .modal .top .sub{color:var(--muted);font-family:'Courier New',monospace;font-size:13px}
+  .modal .body{padding:22px 24px}
+  .badges{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+  .badge{background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:5px 11px;font-size:12px;color:var(--text)}
+  .badge b{color:var(--green)}
+  .sec{margin:20px 0 8px;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--green);
+    border-bottom:1px solid var(--line);padding-bottom:6px}
+  .kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+  .kv div{background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:9px 12px}
+  .kv .k{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+  .kv .v{color:var(--text);margin-top:2px;word-break:break-word}
+  .contatos{display:flex;flex-wrap:wrap;gap:8px}
+  .contatos a{background:var(--green-deep);border:1px solid var(--green-dim);color:var(--green);
+    text-decoration:none;padding:8px 13px;border-radius:8px;font-size:13px;font-weight:600}
+  .contatos a:hover{background:var(--green-dim);color:#04060a}
+  .lista{font-size:13px}
+  .lista .item{background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin-bottom:6px}
+  .close{float:right;cursor:pointer;color:var(--muted);font-size:22px;line-height:1}
+  .close:hover{color:var(--danger)}
+  .loading{color:var(--green);text-align:center;padding:30px;font-family:'Courier New',monospace}
+  @media(max-width:900px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">◢ EMPRESAS · GRANDE VITÓRIA<small>DATASET DE PROSPECÇÃO — ES</small></div>
+  <div class="spacer"></div>
+  <button class="btn" onclick="exportar('xlsx')">⬇ Excel</button>
+  <button class="btn" onclick="exportar('pdf')">⬇ PDF</button>
+</header>
+
+<main>
+  <div class="stats" id="stats"></div>
+
+  <div class="grid">
+    <!-- FILTROS -->
+    <div class="card" style="position:sticky;top:80px">
+      <h3>⚙ Filtros</h3>
+      <label class="f">Busca (razão social / fantasia)</label>
+      <input id="f_texto" placeholder="Ex.: construtora, restaurante...">
+      <label class="f">Segmento</label>
+      <select id="f_segmento"><option value="">Todos os segmentos</option></select>
+      <label class="f">Município</label>
+      <select id="f_municipio"><option value="">Todos</option></select>
+      <div class="row2">
+        <div><label class="f">Porte</label><select id="f_porte"><option value="">Todos</option></select></div>
+        <div><label class="f">Regime</label><select id="f_regime"><option value="">Todos</option></select></div>
+      </div>
+      <label class="f">Situação jurídico-fiscal</label>
+      <select id="f_pendencia">
+        <option value="">Todas</option>
+        <option value="false">Sem pendência (mais "limpas")</option>
+        <option value="true">Com pendência</option>
+      </select>
+      <div class="row2">
+        <div><label class="f">Capital mín. (R$)</label><input id="f_capmin" type="number" min="0"></div>
+        <div><label class="f">Capital máx. (R$)</label><input id="f_capmax" type="number" min="0"></div>
+      </div>
+      <label class="f">Exigir contato</label>
+      <label class="chk"><input type="checkbox" id="f_tel"> Com telefone</label>
+      <label class="chk"><input type="checkbox" id="f_email"> Com e-mail</label>
+      <label class="chk"><input type="checkbox" id="f_wpp"> Com WhatsApp</label>
+      <label class="chk"><input type="checkbox" id="f_rede"> Com rede social</label>
+      <label class="f">Ordenar por</label>
+      <select id="f_ordem">
+        <option value="razao_social">Razão social</option>
+        <option value="capital_social">Capital social</option>
+        <option value="municipio">Município</option>
+        <option value="porte">Porte</option>
+      </select>
+      <div style="margin-top:16px;display:flex;gap:8px">
+        <button class="btn" style="flex:1" onclick="buscar(true)">Aplicar</button>
+        <button class="btn ghost" onclick="limpar()">Limpar</button>
+      </div>
+    </div>
+
+    <!-- RESULTADOS -->
+    <div class="card">
+      <div class="toolbar">
+        <span class="count"><b id="total">0</b> empresas encontradas</span>
+        <div class="spacer" style="flex:1"></div>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr>
+            <th>Razão social</th><th>Município</th><th>CNAE</th><th>Porte</th>
+            <th>Contato</th><th>Situação</th>
+          </tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <div id="vazio" class="empty" style="display:none">Nenhuma empresa com esses filtros.</div>
+      <div class="pager" id="pager"></div>
+    </div>
+  </div>
+</main>
+
+<div class="overlay" id="overlay" onclick="if(event.target===this)fechar()">
+  <div class="modal" id="modal"></div>
+</div>
+
+<script>
+const PORTE = {"00":"Não informado","01":"Microempresa","03":"Peq. porte (EPP)","05":"Demais","":"—",null:"—"};
+let pagina = 0; const PP = 50; let ultTotal = 0;
+const $ = id => document.getElementById(id);
+const fmtBRL = v => v==null?"—":Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const esc = s => (s==null?"":String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function query(){
+  const p = new URLSearchParams();
+  const add=(k,v)=>{ if(v!==""&&v!=null&&v!==false) p.set(k,v); };
+  add("texto",$("f_texto").value.trim());
+  add("cnae_prefix",$("f_segmento").value);
+  add("municipio",$("f_municipio").value);
+  add("porte",$("f_porte").value);
+  add("regime_tributario",$("f_regime").value);
+  add("tem_pendencia",$("f_pendencia").value);
+  add("capital_min",$("f_capmin").value);
+  add("capital_max",$("f_capmax").value);
+  if($("f_tel").checked) p.set("com_telefone","true");
+  if($("f_email").checked) p.set("com_email","true");
+  if($("f_wpp").checked) p.set("com_whatsapp","true");
+  if($("f_rede").checked) p.set("com_rede_social","true");
+  add("ordenar_por",$("f_ordem").value);
+  return p;
+}
+
+async function initEstat(){
+  const s = await (await fetch("/estatisticas")).json();
+  const cards = [
+    ["Total de empresas", s.total_empresas],
+    ["Com e-mail", s.empresas_com_email],
+    ["Com telefone", s.empresas_com_telefone],
+    ["Com pendência", s.empresas_com_pendencia],
+  ];
+  $("stats").innerHTML = cards.map(([l,n])=>
+    `<div class="stat"><div class="n">${Number(n).toLocaleString('pt-BR')}</div><div class="l">${l}</div></div>`).join("");
+  const mun = $("f_municipio");
+  Object.keys(s.por_municipio).forEach(m=> mun.innerHTML += `<option value="${esc(m)}">${esc(m)} (${s.por_municipio[m]})</option>`);
+  const pt = $("f_porte");
+  Object.keys(s.por_porte).forEach(p=> pt.innerHTML += `<option value="${esc(p)}">${esc(PORTE[p]||p)}</option>`);
+  const rg = $("f_regime");
+  Object.keys(s.por_regime_tributario).forEach(r=> rg.innerHTML += `<option value="${esc(r)}">${esc(r)}</option>`);
+}
+
+async function initSegmentos(){
+  const segs = await (await fetch("/segmentos")).json();
+  const sel = $("f_segmento");
+  segs.forEach(s=> sel.innerHTML += `<option value="${s.prefixo}">${esc(s.nome)} (${s.total.toLocaleString('pt-BR')})</option>`);
+}
+
+async function buscar(reset){
+  if(reset) pagina = 0;
+  const p = query();
+  p.set("limite",PP); p.set("offset",pagina*PP);
+  $("rows").innerHTML = `<tr><td colspan="6" class="loading">carregando…</td></tr>`;
+  const r = await (await fetch("/empresas?"+p.toString())).json();
+  ultTotal = r.total;
+  $("total").textContent = r.total.toLocaleString('pt-BR');
+  $("vazio").style.display = r.itens.length? "none":"block";
+  $("rows").innerHTML = r.itens.map(e=>{
+    const contato = [e.telefone?"☎":"", e.email?"✉":""].filter(Boolean).join(" ")||"—";
+    const sit = e.tem_pendencia? `<span class="tag pend">pendência</span>`:`<span class="tag ok">ok</span>`;
+    const nome = esc(e.razao_social||e.nome_fantasia||"(sem nome)");
+    return `<tr onclick="abrir('${e.cnpj}')">
+      <td><b>${nome}</b>${e.nome_fantasia&&e.nome_fantasia!==e.razao_social?`<br><span style="color:var(--muted);font-size:12px">${esc(e.nome_fantasia)}</span>`:""}</td>
+      <td>${esc(e.municipio||"—")}</td><td class="mono">${esc(e.cnae_principal||"—")}</td>
+      <td>${esc(PORTE[e.porte]||e.porte||"—")}</td><td>${contato}</td><td>${sit}</td></tr>`;
+  }).join("");
+  const tp = Math.ceil(r.total/PP);
+  $("pager").innerHTML = r.total? `
+    <button class="btn ghost" ${pagina<=0?"disabled":""} onclick="pagina--;buscar()">‹ Anterior</button>
+    <span class="count">página ${pagina+1} de ${tp||1}</span>
+    <button class="btn ghost" ${pagina>=tp-1?"disabled":""} onclick="pagina++;buscar()">Próxima ›</button>`:"";
+}
+
+async function abrir(cnpj){
+  $("overlay").classList.add("open");
+  $("modal").innerHTML = `<div class="body loading">carregando empresa…</div>`;
+  const d = await (await fetch("/empresas/"+cnpj)).json();
+  const e = d.empresa, c = d.contato||{}, j = d.jucees, rz = d.resumo;
+  const kv = (k,v)=> `<div><div class="k">${k}</div><div class="v">${esc(v)||"—"}</div></div>`;
+  const contatos = [];
+  if(e.telefone) contatos.push(`<a href="tel:${esc(e.telefone)}">☎ ${esc(e.telefone)}</a>`);
+  if(e.email) contatos.push(`<a href="mailto:${esc(e.email)}">✉ ${esc(e.email)}</a>`);
+  if(c.whatsapp) contatos.push(`<a href="${esc(c.whatsapp)}" target="_blank">🟢 WhatsApp</a>`);
+  if(c.site) contatos.push(`<a href="${esc(c.site)}" target="_blank">🌐 Site</a>`);
+  if(c.instagram) contatos.push(`<a href="${esc(c.instagram)}" target="_blank">📷 Instagram</a>`);
+  if(c.facebook) contatos.push(`<a href="${esc(c.facebook)}" target="_blank">📘 Facebook</a>`);
+  if(c.linkedin) contatos.push(`<a href="${esc(c.linkedin)}" target="_blank">💼 LinkedIn</a>`);
+  if(d.geolocalizacao) contatos.push(`<a href="https://www.openstreetmap.org/?mlat=${d.geolocalizacao.latitude}&mlon=${d.geolocalizacao.longitude}#map=17/${d.geolocalizacao.latitude}/${d.geolocalizacao.longitude}" target="_blank">🗺 Mapa</a>`);
+  const endereco = [e.logradouro,e.numero,e.bairro,e.cep,e.municipio+"/"+e.uf].filter(Boolean).join(", ");
+  const pend = rz.tem_pendencia_juridica_ou_fiscal
+    ? `<span class="tag pend">⚠ tem pendência jurídico-fiscal</span>` : `<span class="tag ok">✓ sem pendências</span>`;
+
+  const secPend = (titulo,arr,render)=> arr&&arr.length
+    ? `<div class="sec">${titulo} (${arr.length})</div><div class="lista">${arr.slice(0,15).map(render).join("")}</div>` : "";
+
+  $("modal").innerHTML = `
+    <div class="top">
+      <span class="close" onclick="fechar()">✕</span>
+      <h2>${esc(e.razao_social||e.nome_fantasia||"—")}</h2>
+      <div class="sub">CNPJ ${esc(e.cnpj)} ${e.nome_fantasia?"· "+esc(e.nome_fantasia):""}</div>
+      <div class="badges">
+        <span class="badge">Porte: <b>${esc(PORTE[e.porte]||e.porte||"—")}</b></span>
+        <span class="badge">Regime: <b>${esc(e.regime_tributario||"—")}</b></span>
+        <span class="badge">Município: <b>${esc(e.municipio||"—")}</b></span>
+        <span class="badge">Capital: <b>${fmtBRL(e.capital_social)}</b></span>
+        ${pend}
+      </div>
+    </div>
+    <div class="body">
+      <div class="sec">📇 Contato &amp; redes</div>
+      <div class="contatos">${contatos.length?contatos.join(""):'<span style="color:var(--muted)">Sem contato/redes capturados. Rode a etapa <code>contato</code>.</span>'}</div>
+
+      <div class="sec">🏢 Cadastro</div>
+      <div class="kv">
+        ${kv("CNAE principal", e.cnae_principal)}
+        ${kv("Endereço", endereco)}
+        ${kv("Situação cadastral", e.situacao_cadastral)}
+        ${kv("Data da situação", e.data_situacao)}
+        ${j?kv("NIRE (JUCEES)", j.nire):""}
+        ${j?kv("Natureza jurídica", j.natureza_juridica):""}
+        ${j?kv("Constituição", j.data_constituicao):""}
+      </div>
+
+      ${d.socios&&d.socios.length?`<div class="sec">👥 Sócios (${d.socios.length})</div>
+        <div class="lista">${d.socios.map(s=>`<div class="item"><b>${esc(s.nome_socio)}</b> — ${esc(s.qualificacao||"")} ${s.cpf_parcial?`<span style="color:var(--muted)">(${esc(s.cpf_parcial)})</span>`:""}</div>`).join("")}</div>`:""}
+
+      <div class="sec">⚖ Situação jurídico-fiscal</div>
+      <div class="kv">
+        ${kv("Processos judiciais", rz.qtd_processos)}
+        ${kv("Sanções", rz.qtd_sancoes)}
+        ${kv("Infrações ambientais", rz.qtd_infracoes_ambientais)}
+        ${kv("Dívidas ativas", rz.qtd_dividas_ativas)}
+        ${kv("Total em dívida ativa", fmtBRL(rz.valor_total_divida_ativa))}
+      </div>
+      ${secPend("Dívida ativa", d.dividas_ativas, x=>`<div class="item">${fmtBRL(x.valor)} — ${esc(x.situacao||"")} <span style="color:var(--muted)">${esc(x.data_inscricao||"")}</span></div>`)}
+      ${secPend("Sanções", d.sancoes_administrativas, x=>`<div class="item"><b>${esc(x.tipo||"")}</b> — ${esc(x.motivo||"")} <span style="color:var(--muted)">${esc(x.orgao_sancionador||"")}</span></div>`)}
+      ${secPend("Infrações ambientais", d.infracoes_ambientais, x=>`<div class="item">${esc(x.tipo_infracao||"")} <span style="color:var(--muted)">${esc(x.data_auto||"")}</span></div>`)}
+      ${secPend("Processos judiciais", d.processos_judiciais, x=>`<div class="item">${esc(x.numero_processo||"")} — ${esc(x.tribunal||"")} ${esc(x.classe||"")}</div>`)}
+    </div>`;
+}
+function fechar(){ $("overlay").classList.remove("open"); }
+function exportar(fmt){ window.location = `/export/empresas.${fmt}?`+query().toString(); }
+function limpar(){
+  ["f_texto","f_capmin","f_capmax"].forEach(id=>$(id).value="");
+  ["f_segmento","f_municipio","f_porte","f_regime","f_pendencia"].forEach(id=>$(id).value="");
+  ["f_tel","f_email","f_wpp","f_rede"].forEach(id=>$(id).checked=false);
+  $("f_ordem").value="razao_social"; buscar(true);
+}
+document.addEventListener("keydown",e=>{ if(e.key==="Escape")fechar(); });
+$("f_texto").addEventListener("keydown",e=>{ if(e.key==="Enter")buscar(true); });
+
+(async ()=>{ await initEstat(); await initSegmentos(); buscar(true); })();
+</script>
+</body>
+</html>

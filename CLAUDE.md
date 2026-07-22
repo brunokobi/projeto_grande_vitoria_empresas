@@ -110,8 +110,15 @@ APIs públicas (CNJ, Nominatim), não do código.
 - **Servidor MCP** (`mcp_server.py`, FastMCP): ferramentas `estatisticas`,
   `buscar_empresas`, `obter_empresa`. `.mcp.json` na raiz para o Claude Code
   detectar automaticamente.
-- **API REST** (`api.py`, FastAPI): `GET /estatisticas`, `/empresas` (com
-  filtros de prospecção), `/empresas/{cnpj}`. Docs em `/docs`.
+- **API REST** (`api.py`, FastAPI): `GET /estatisticas`, `/segmentos`,
+  `/empresas` (com filtros), `/empresas/{cnpj}`, `/export/empresas.xlsx` e
+  `/export/empresas.pdf`. Docs em `/docs`.
+- **Dashboard web** (`dashboard/index.html`, servido em `/` pela API):
+  visual verde-matrix/preto, filtros (segmento CNAE, município, porte, regime,
+  contato/redes, pendência, capital, texto), visão 360º por empresa em modal, e
+  export Excel/PDF da lista filtrada. Roda com `uvicorn api:app` → abre em
+  `http://localhost:8000`. Export usa openpyxl (xlsx) e reportlab (pdf).
+  Filtro de segmento = prefixo CNAE de 2 dígitos (`config.SEGMENTOS_CNAE`).
 - Ambos usam `src/dataset_queries.py` (SQLite somente-leitura) — sem duplicar
   SQL. Testados contra a base real.
 - Doação: `.github/FUNDING.yml` → GitHub Sponsors (`brunokobi`).

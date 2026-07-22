@@ -38,6 +38,7 @@ def estatisticas() -> dict:
 def buscar_empresas(
     municipio: str = None,
     cnae: str = None,
+    cnae_prefix: str = None,
     porte: str = None,
     regime_tributario: str = None,
     texto: str = None,
@@ -73,7 +74,7 @@ def buscar_empresas(
     Retorna {'total', 'limite', 'offset', 'itens': [...]}.
     """
     return dataset_queries.buscar_empresas(
-        municipio=municipio, cnae=cnae, porte=porte,
+        municipio=municipio, cnae=cnae, cnae_prefix=cnae_prefix, porte=porte,
         regime_tributario=regime_tributario, texto=texto,
         tem_pendencia=tem_pendencia, com_telefone=com_telefone,
         com_email=com_email, com_whatsapp=com_whatsapp,

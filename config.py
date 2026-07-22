@@ -203,6 +203,34 @@ EMAIL_DOMINIOS_GENERICOS = {
 }
 
 # ---------------------------------------------------------------------------
+# Segmentos de mercado (dashboard) — agrupam empresas pela divisão CNAE (2
+# primeiros dígitos do CNAE principal). Nomes amigáveis para o filtro de
+# "segmento" do dashboard; a ordem segue a relevância na Grande Vitória.
+# ---------------------------------------------------------------------------
+SEGMENTOS_CNAE = {
+    "47": "Comércio varejista",
+    "56": "Restaurantes e alimentação",
+    "43": "Construção — serviços especializados",
+    "41": "Construção de edifícios",
+    "49": "Transporte terrestre",
+    "53": "Correio e entregas",
+    "96": "Serviços pessoais (beleza, estética)",
+    "82": "Serviços administrativos e de escritório",
+    "85": "Educação",
+    "86": "Saúde",
+    "73": "Publicidade e marketing",
+    "45": "Veículos — comércio e reparação",
+    "46": "Comércio atacadista",
+    "81": "Serviços para edifícios e paisagismo",
+    "62": "Tecnologia da informação (software)",
+    "68": "Atividades imobiliárias",
+    "69": "Serviços jurídicos e contábeis",
+    "71": "Arquitetura e engenharia",
+    "10": "Indústria de alimentos",
+    "94": "Organizações associativas",
+}
+
+# ---------------------------------------------------------------------------
 # Matching fuzzy (para sanções/processos sem CNPJ explícito)
 # ---------------------------------------------------------------------------
 FUZZY_MATCH_THRESHOLD = 90  # 0-100, usado com rapidfuzz.fuzz.token_sort_ratio
