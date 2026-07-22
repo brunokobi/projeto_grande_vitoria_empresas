@@ -1,0 +1,4 @@
+requests>=2.31
+pandas>=2.0
+rapidfuzz>=3.5
+openpyxl>=3.1
