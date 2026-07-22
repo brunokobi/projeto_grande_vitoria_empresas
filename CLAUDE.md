@@ -104,12 +104,16 @@ APIs públicas (CNJ, Nominatim), não do código.
 - `data/raw/` chega a ~10 GB. Depois que cnpj+jucees gravam no banco, os
   zips/CSVs extraídos podem ser apagados para liberar espaço.
 
-## Roadmap (ainda não implementado)
+## Consumo do dataset (implementado)
 
-- **Servidor MCP** expondo o dataset como ferramentas (buscar por
-  CNAE/município/pendências, obter por CNPJ).
-- **API REST (FastAPI)** para consulta externa.
-- Ambos consultam o SQLite em `data/grande_vitoria.db`.
+- **Servidor MCP** (`mcp_server.py`, FastMCP): ferramentas `estatisticas`,
+  `buscar_empresas`, `obter_empresa`. `.mcp.json` na raiz para o Claude Code
+  detectar automaticamente.
+- **API REST** (`api.py`, FastAPI): `GET /estatisticas`, `/empresas` (com
+  filtros de prospecção), `/empresas/{cnpj}`. Docs em `/docs`.
+- Ambos usam `src/dataset_queries.py` (SQLite somente-leitura) — sem duplicar
+  SQL. Testados contra a base real.
+- Doação: `.github/FUNDING.yml` → GitHub Sponsors (`brunokobi`).
 
 ## Continuar em outra máquina
 

@@ -1,4 +1,10 @@
+# --- Pipeline ETL ---
 requests>=2.31
 pandas>=2.0
 rapidfuzz>=3.5
 openpyxl>=3.1
+
+# --- Servidor MCP e API REST (consumo do dataset) ---
+mcp>=1.2
+fastapi>=0.110
+uvicorn>=0.29

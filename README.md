@@ -33,6 +33,45 @@ python main.py --etapa exportar    # gera output/ consolidado
 > dados descomprimidos (`data/*.db`, `data/raw/`, `output/`) **não** são
 > versionados — só o banco comprimido entra no repositório.
 
+## Consumir o dataset (MCP e API)
+
+Além do CSV/XLSX da etapa `exportar`, o dataset pode ser consultado ao vivo
+— lê direto o SQLite consolidado, em modo **somente-leitura**. A lógica de
+consulta é compartilhada (`src/dataset_queries.py`) entre a API e o MCP.
+
+### API REST (FastAPI)
+
+```bash
+source .venv/bin/activate
+uvicorn api:app --reload      # http://localhost:8000
+```
+
+- `GET /estatisticas` — panorama do dataset (totais, por município/porte/CNAE)
+- `GET /empresas` — busca com filtros: `municipio`, `cnae`, `porte`,
+  `regime_tributario`, `texto`, `tem_pendencia`, `com_telefone`, `com_email`,
+  `capital_min`, `capital_max`, `ordenar_por`, `limite`, `offset`
+- `GET /empresas/{cnpj}` — visão 360º (cadastro, sócios, JUCEES, geo, pendências)
+- Documentação interativa: `http://localhost:8000/docs`
+
+### Servidor MCP
+
+Expõe as mesmas consultas como ferramentas MCP (`estatisticas`,
+`buscar_empresas`, `obter_empresa`) para o Claude e outros clientes MCP.
+O repositório já traz um **`.mcp.json`** — o Claude Code detecta
+automaticamente ao abrir a pasta (após rodar o `setup.sh`). Para outros
+clientes (ex.: Claude Desktop), use caminhos absolutos:
+
+```json
+{
+  "mcpServers": {
+    "grande-vitoria-empresas": {
+      "command": "/CAMINHO/ABSOLUTO/.venv/bin/python",
+      "args": ["/CAMINHO/ABSOLUTO/mcp_server.py"]
+    }
+  }
+}
+```
+
 ## Estrutura
 
 ```
