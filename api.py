@@ -111,7 +111,8 @@ def get_empresa(cnpj: str):
 _COLUNAS_EXPORT = [
     ("cnpj", "CNPJ"), ("razao_social", "Razão social"),
     ("nome_fantasia", "Nome fantasia"), ("municipio", "Município"),
-    ("bairro", "Bairro"), ("cnae_principal", "CNAE"), ("porte", "Porte"),
+    ("bairro", "Bairro"), ("cnae_principal", "CNAE"),
+    ("cnae_desc", "Atividade (CNAE)"), ("porte", "Porte"),
     ("capital_social", "Capital social"), ("regime_tributario", "Regime"),
     ("telefone", "Telefone"), ("email", "E-mail"), ("whatsapp", "WhatsApp"),
     ("site", "Site"), ("instagram", "Instagram"), ("facebook", "Facebook"),

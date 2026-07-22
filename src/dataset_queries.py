@@ -5,11 +5,31 @@ Camada de consultas do dataset consolidado — usada pelo servidor MCP
 Todas as funções abrem o SQLite em modo somente-leitura e usam queries
 parametrizadas (sem interpolação de input do usuário) para evitar injeção.
 """
+import json
 import sqlite3
 import unicodedata
 from contextlib import contextmanager
 
 import config
+
+# Tabela CNAE (código de 7 dígitos -> descrição), extraída da base oficial
+# da Receita Federal e versionada em reference/cnaes.json.
+try:
+    _CNAE = json.loads((config.BASE_DIR / "reference" / "cnaes.json").read_text(encoding="utf-8"))
+except Exception:
+    _CNAE = {}
+
+# Situação cadastral (código da Receita -> nome).
+_SITUACAO = {"01": "Nula", "02": "Ativa", "03": "Suspensa",
+             "04": "Inapta", "08": "Baixada"}
+
+
+def cnae_desc(codigo):
+    return _CNAE.get(str(codigo or "").strip())
+
+
+def situacao_desc(codigo):
+    return _SITUACAO.get(str(codigo or "").strip())
 
 
 def _sem_acento(texto: str) -> str:
@@ -171,8 +191,12 @@ def buscar_empresas(municipio=None, cnae=None, cnae_prefix=None, porte=None,
             f"{_PENDENCIA_EXPR} AS tem_pendencia "
             f"FROM empresas e{where_sql} ORDER BY e.{ordem} LIMIT ? OFFSET ?",
             params + [limite, offset]).fetchall()
-    return {"total": total, "limite": limite, "offset": offset,
-            "itens": [dict(r) for r in rows]}
+    itens = []
+    for r in rows:
+        d = dict(r)
+        d["cnae_desc"] = cnae_desc(d.get("cnae_principal"))
+        itens.append(d)
+    return {"total": total, "limite": limite, "offset": offset, "itens": itens}
 
 
 def exportar_empresas(max_linhas=20000, **filtros) -> list:
@@ -197,7 +221,12 @@ def exportar_empresas(max_linhas=20000, **filtros) -> list:
                f"{_PENDENCIA_EXPR} AS tem_pendencia "
                f"FROM empresas e{join}{where_sql} ORDER BY e.{ordem} LIMIT ?")
         rows = conn.execute(sql, params + [int(max_linhas)]).fetchall()
-    return [dict(r) for r in rows]
+    saida = []
+    for r in rows:
+        d = dict(r)
+        d["cnae_desc"] = cnae_desc(d.get("cnae_principal"))
+        saida.append(d)
+    return saida
 
 
 def obter_empresa(cnpj: str) -> dict:
@@ -233,8 +262,11 @@ def obter_empresa(cnpj: str) -> dict:
                 "SELECT whatsapp, site, instagram, facebook, linkedin "
                 "FROM enriquecimento_contato WHERE cnpj_empresa = ?", (cnpj,)).fetchone()
     valor_divida = sum(d["valor"] for d in dividas if d.get("valor"))
+    emp = dict(empresa)
+    emp["cnae_principal_desc"] = cnae_desc(emp.get("cnae_principal"))
+    emp["situacao_cadastral_desc"] = situacao_desc(emp.get("situacao_cadastral"))
     return {
-        "empresa": dict(empresa),
+        "empresa": emp,
         "socios": socios,
         "jucees": dict(jucees) if jucees else None,
         "geolocalizacao": dict(geo) if geo else None,
