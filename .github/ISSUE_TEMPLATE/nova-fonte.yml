@@ -1,0 +1,44 @@
+name: 🔗 Sugerir nova fonte de dados
+description: Indique uma base pública que poderia ser cruzada no dataset.
+title: "[Fonte] "
+labels: ["nova-fonte"]
+body:
+  - type: markdown
+    attributes:
+      value: "Obrigado por ajudar a enriquecer o dataset! Quanto mais detalhes, melhor. 💛"
+  - type: input
+    id: fonte
+    attributes:
+      label: Nome da fonte / órgão
+      placeholder: "Ex.: IEMA-ES, RAIS/CAGED, Sefaz-ES, TJES..."
+    validations:
+      required: true
+  - type: input
+    id: link
+    attributes:
+      label: Link da fonte (se souber)
+      placeholder: "https://..."
+  - type: dropdown
+    id: esfera
+    attributes:
+      label: Esfera
+      options:
+        - Federal
+        - Estadual (ES)
+        - Municipal
+        - Outra / não sei
+    validations:
+      required: true
+  - type: textarea
+    id: agrega
+    attributes:
+      label: O que essa fonte agregaria?
+      description: Que informação nova ela traria sobre as empresas?
+      placeholder: "Ex.: número de funcionários, débitos estaduais, alvarás..."
+    validations:
+      required: true
+  - type: input
+    id: chave
+    attributes:
+      label: A fonte tem CNPJ para cruzamento?
+      placeholder: "Sim / Não / Não sei"

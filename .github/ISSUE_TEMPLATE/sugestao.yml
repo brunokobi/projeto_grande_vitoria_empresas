@@ -1,0 +1,27 @@
+name: 💡 Sugestão, melhoria ou pedido
+description: Propor uma melhoria, novo filtro, recurso no dashboard/API, etc.
+title: "[Sugestão] "
+labels: ["sugestão"]
+body:
+  - type: textarea
+    id: sugestao
+    attributes:
+      label: Sua sugestão ou pedido
+      placeholder: "Ex.: adicionar filtro por bairro; exportar em CSV; novo campo..."
+    validations:
+      required: true
+  - type: textarea
+    id: motivo
+    attributes:
+      label: Por que isso ajudaria?
+      description: Qual problema resolve ou qual uso facilita?
+  - type: dropdown
+    id: area
+    attributes:
+      label: Onde se aplica?
+      options:
+        - Dashboard
+        - API / MCP
+        - Dados (novos campos, cobertura)
+        - Exportação (Excel/PDF)
+        - Outro

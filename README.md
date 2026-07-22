@@ -275,6 +275,21 @@ Ver `.env.example` para a lista completa e comentada.
 
 ---
 
+## 💬 Contato, sugestões e contribuições
+
+Todo feedback é bem-vindo — sugerir uma **nova fonte de dados**, propor melhorias, pedir recursos ou reportar problemas. Escolha o canal:
+
+| Quero... | Como |
+|---|---|
+| 🔗 **Sugerir nova fonte de dados** | [Abrir issue →](https://github.com/brunokobi/projeto_grande_vitoria_empresas/issues/new?template=nova-fonte.yml) |
+| 💡 **Sugestão, melhoria ou pedido** | [Abrir issue →](https://github.com/brunokobi/projeto_grande_vitoria_empresas/issues/new?template=sugestao.yml) |
+| 🐞 **Problema ou reclamação** | [Abrir issue →](https://github.com/brunokobi/projeto_grande_vitoria_empresas/issues/new?template=problema.yml) |
+| 📧 **Falar direto / outros assuntos** | [bruno.kobi@vennx.com.br](mailto:bruno.kobi@vennx.com.br) |
+
+> As **issues** são públicas e permitem acompanhar o andamento do pedido. Não tem conta no GitHub? Manda um **e-mail**. Toda sugestão de fonte entra na avaliação para as próximas versões (ver [Fontes de dados](#-fontes-de-dados-cruzadas)).
+
+---
+
 ## Apoiadores
 
 Quem apoia o projeto via [GitHub Sponsors](https://github.com/sponsors/brunokobi) aparece aqui. Detalhes dos níveis em [SPONSORS.md](SPONSORS.md).

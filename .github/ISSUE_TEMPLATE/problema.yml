@@ -1,0 +1,28 @@
+name: 🐞 Problema ou reclamação
+description: Algo errado nos dados, no dashboard, na API ou no pipeline.
+title: "[Problema] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: descricao
+    attributes:
+      label: O que aconteceu?
+      description: Descreva o problema. Se for sobre uma empresa específica, informe o CNPJ.
+    validations:
+      required: true
+  - type: textarea
+    id: esperado
+    attributes:
+      label: O que você esperava?
+  - type: dropdown
+    id: onde
+    attributes:
+      label: Onde ocorreu?
+      options:
+        - Dashboard
+        - API / MCP
+        - Pipeline (ingestão de dados)
+        - Dados incorretos/desatualizados
+        - Outro
+    validations:
+      required: true
