@@ -284,9 +284,10 @@ Todo feedback é bem-vindo — sugerir uma **nova fonte de dados**, propor melho
 | 🔗 **Sugerir nova fonte de dados** | [Abrir issue →](https://github.com/brunokobi/projeto_grande_vitoria_empresas/issues/new?template=nova-fonte.yml) |
 | 💡 **Sugestão, melhoria ou pedido** | [Abrir issue →](https://github.com/brunokobi/projeto_grande_vitoria_empresas/issues/new?template=sugestao.yml) |
 | 🐞 **Problema ou reclamação** | [Abrir issue →](https://github.com/brunokobi/projeto_grande_vitoria_empresas/issues/new?template=problema.yml) |
-| 📧 **Falar direto / outros assuntos** | [bruno.kobi@vennx.com.br](mailto:bruno.kobi@vennx.com.br) |
+| 📧 **Falar direto / outros assuntos** | [brunokobi2@hotmail.com](mailto:brunokobi2@hotmail.com) |
+| 🌐 **Site / portfólio** | [brunokobi.netlify.app](https://brunokobi.netlify.app) |
 
-> As **issues** são públicas e permitem acompanhar o andamento do pedido. Não tem conta no GitHub? Manda um **e-mail**. Toda sugestão de fonte entra na avaliação para as próximas versões (ver [Fontes de dados](#-fontes-de-dados-cruzadas)).
+> As **issues** são públicas e permitem acompanhar o andamento do pedido. Não tem conta no GitHub? Manda um **e-mail** ou fale pelo [site](https://brunokobi.netlify.app). Toda sugestão de fonte entra na avaliação para as próximas versões (ver [Fontes de dados](#-fontes-de-dados-cruzadas)).
 
 ---
 
