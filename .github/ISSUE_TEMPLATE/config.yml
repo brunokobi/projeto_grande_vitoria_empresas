@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📧 Contato direto por e-mail
+    url: mailto:brunokobi2@hotmail.com
+    about: Para outros assuntos, parcerias ou contato privado (sem conta no GitHub).
+  - name: 🌐 Site / portfólio (Bruno Kobi)
+    url: https://brunokobi.netlify.app
+    about: Mais projetos e formas de contato.
