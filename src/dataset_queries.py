@@ -23,6 +23,25 @@ except Exception:
 _SITUACAO = {"01": "Nula", "02": "Ativa", "03": "Suspensa",
              "04": "Inapta", "08": "Baixada"}
 
+# Qualificação do sócio (código -> nome), da base oficial da RF.
+try:
+    _QUALIF = json.loads((config.BASE_DIR / "reference" / "qualificacoes.json").read_text(encoding="utf-8"))
+except Exception:
+    _QUALIF = {}
+
+# Faixa etária (código da RF -> descrição).
+_FAIXA = {"0": "Não informada", "1": "0 a 12", "2": "13 a 20", "3": "21 a 30",
+          "4": "31 a 40", "5": "41 a 50", "6": "51 a 60", "7": "61 a 70",
+          "8": "71 a 80", "9": "acima de 80"}
+
+
+def qualif_desc(codigo):
+    return _QUALIF.get(str(codigo or "").strip())
+
+
+def faixa_desc(codigo):
+    return _FAIXA.get(str(codigo or "").strip())
+
 
 def cnae_desc(codigo):
     return _CNAE.get(str(codigo or "").strip())
@@ -249,9 +268,25 @@ def obter_empresa(cnpj: str) -> dict:
         empresa = conn.execute("SELECT * FROM empresas WHERE cnpj = ?", (cnpj,)).fetchone()
         if empresa is None:
             return None
-        socios = [dict(r) for r in conn.execute(
-            "SELECT nome_socio, cpf_parcial, qualificacao, data_entrada "
-            "FROM socios WHERE cnpj_empresa = ?", (cnpj,))]
+        socios = []
+        for r in conn.execute(
+                "SELECT nome_socio, cpf_parcial, qualificacao, data_entrada, faixa_etaria "
+                "FROM socios WHERE cnpj_empresa = ?", (cnpj,)):
+            s = dict(r)
+            s["qualificacao_desc"] = qualif_desc(s.get("qualificacao"))
+            s["faixa_etaria_desc"] = faixa_desc(s.get("faixa_etaria"))
+            # Rede de participações: outras empresas da base onde a mesma
+            # pessoa (mesmo CPF mascarado) também é sócia.
+            cpf = (s.get("cpf_parcial") or "").strip()
+            outras = []
+            if cpf:
+                outras = [dict(x) for x in conn.execute(
+                    "SELECT DISTINCT s2.cnpj_empresa AS cnpj, e.razao_social "
+                    "FROM socios s2 JOIN empresas e ON e.cnpj = s2.cnpj_empresa "
+                    "WHERE s2.cpf_parcial = ? AND s2.cnpj_empresa != ? LIMIT 30",
+                    (cpf, cnpj))]
+            s["outras_empresas"] = outras
+            socios.append(s)
         jucees = conn.execute(
             "SELECT * FROM registros_jucees WHERE cnpj_empresa = ?", (cnpj,)).fetchone()
         processos = [dict(r) for r in conn.execute(

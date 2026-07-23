@@ -337,6 +337,28 @@ function mapaEmbed(e, geo){
   return `<iframe class="mapa" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
      src="https://maps.google.com/maps?q=${encodeURIComponent(q)}&z=16&output=embed"></iframe>`;
 }
+function renderSocios(arr){
+  if(!arr||!arr.length) return "";
+  const cards = arr.map(s=>{
+    const q = s.qualificacao_desc||s.qualificacao||"";
+    const outras = s.outras_empresas||[];
+    const kv=(k,v)=>v?`<div><span class="k">${k}</span><span class="val">${v}</span></div>`:"";
+    const rede = outras.length
+      ? `<div style="margin-top:8px"><span class="k">Também sócio(a) em ${outras.length} empresa(s) da base</span>${outras.map(o=>`<div style="margin-top:3px">↳ <a href="#" onclick="abrir('${o.cnpj}');return false;">${esc(o.razao_social||o.cnpj)}</a></div>`).join("")}</div>`
+      : "";
+    return `<details class="divida">
+      <summary>👤 <b>${esc(s.nome_socio||'—')}</b> <span style="color:var(--muted)">${esc(q)}</span>${outras.length?` <span class="tag ok">rede: ${outras.length}</span>`:""}</summary>
+      <div class="divida-det">
+        ${kv("Qualificação", esc(q))}
+        ${kv("CPF (mascarado)", esc(s.cpf_parcial))}
+        ${kv("Faixa etária", esc(s.faixa_etaria_desc))}
+        ${kv("Desde", fmtData(s.data_entrada))}
+      </div>
+      ${rede}
+    </details>`;
+  }).join("");
+  return `<div class="sec">👥 Sócios (${arr.length})</div>${cards}`;
+}
 function renderInfracoes(arr){
   if(!arr||!arr.length) return "";
   const cards = arr.map(x=>{
@@ -433,8 +455,7 @@ async function abrir(cnpj){
         ${j?kv("&#128198;","Constitui&ccedil;&atilde;o", fmtData(j.data_constituicao)):""}
       </div>
 
-      ${d.socios&&d.socios.length?`<div class="sec">&#128101; S&oacute;cios (${d.socios.length})</div>
-        <div class="lista">${d.socios.map(s=>`<div class="item"><b>${esc(s.nome_socio)}</b> - ${esc(s.qualificacao||"")} ${s.cpf_parcial?`<span style="color:var(--muted)">(${esc(s.cpf_parcial)})</span>`:""} ${s.data_entrada?`<span style="color:var(--muted)">&middot; desde ${fmtData(s.data_entrada)}</span>`:""}</div>`).join("")}</div>`:""}
+      ${renderSocios(d.socios)}
 
       <div class="sec">&#9878; Situa&ccedil;&atilde;o jur&iacute;dico-fiscal</div>
       <div class="kv">
