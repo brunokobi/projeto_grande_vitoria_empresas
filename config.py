@@ -160,12 +160,15 @@ DATAJUD_API_KEY_FALLBACK = "cDZHYzlZa0JadVREZDJCendQbXY6SkJlTzNjLV9TRENyQk1RdnFK
 DATAJUD_API_KEY = os.environ.get("DATAJUD_API_KEY") or DATAJUD_API_KEY_FALLBACK
 DATAJUD_WIKI_URL = "https://datajud-wiki.cnj.jus.br/api-publica/acesso/"
 DATAJUD_BASE_URL = "https://api-publica.datajud.cnj.jus.br"
-# Tribunais relevantes para empresas sediadas no ES (adicionar TRTs/TRFs
-# conforme o tipo de processo que se busca — trabalhista, federal, etc.)
+# Tribunais consultados. Mantido só o TJES (Justiça Estadual do ES) porque o
+# DataJud é fortemente rate-limited (429) e consultar os 3 tribunais para
+# 344 mil empresas levaria ~2 meses. Só o TJES cobre a maioria dos processos
+# de empresas locais em ~1/3 do tempo. Para cobertura completa (trabalhista/
+# federal), descomente TRT17/TRF2 abaixo — mas conte com semanas a mais.
 DATAJUD_TRIBUNAIS = {
-    "tjes": "api_publica_tjes",   # Justiça Estadual ES
-    "trt17": "api_publica_trt17",  # Justiça do Trabalho ES
-    "trf2": "api_publica_trf2",   # Justiça Federal (ES pertence à 2ª Região)
+    "tjes": "api_publica_tjes",     # Justiça Estadual ES
+    # "trt17": "api_publica_trt17",  # Justiça do Trabalho ES
+    # "trf2": "api_publica_trf2",    # Justiça Federal (ES, 2ª Região)
 }
 DATAJUD_RATE_LIMIT_SLEEP_SECONDS = 1.2  # ajustar conforme limite documentado
 

@@ -101,12 +101,21 @@ def executar(limite_cnpjs: int = None):
     with db_utils.get_conn() as conn:
         empresas = db_utils.listar_cnpjs(conn)
 
-    processados = checkpoint.carregar(CHECKPOINT_NAME)
+    processados = set(checkpoint.carregar(CHECKPOINT_NAME))
     pendentes = [e for e in empresas if e["cnpj"] not in processados]
     if limite_cnpjs:
         pendentes = pendentes[:limite_cnpjs]
 
     print(f"[datajud_client] {len(pendentes)} CNPJs pendentes de consulta (de {len(empresas)} totais).")
+
+    # Commit + checkpoint em lote a cada N — durável a quedas (não usa uma
+    # transação única pro loop inteiro, que perderia tudo num crash). Lote
+    # pequeno porque o datajud é lento (rate limit do CNJ).
+    LOTE = 25
+
+    def _persistir(conn):
+        conn.commit()
+        checkpoint.salvar(CHECKPOINT_NAME, processados)
 
     with db_utils.get_conn() as conn:
         for i, empresa in enumerate(pendentes):
@@ -115,6 +124,7 @@ def executar(limite_cnpjs: int = None):
                 try:
                     hits = _consultar_tribunal(tribunal_key, alias, cnpj)
                 except DataJudAuthError as e:
+                    _persistir(conn)  # salva o que já foi feito antes de parar
                     print(f"[datajud_client] {e}")
                     print(
                         f"[datajud_client] Interrompendo a etapa — {i} de "
@@ -128,9 +138,11 @@ def executar(limite_cnpjs: int = None):
                     db_utils.insert_generic(conn, "processos_judiciais", registro)
                 time.sleep(config.DATAJUD_RATE_LIMIT_SLEEP_SECONDS)
 
-            checkpoint.marcar_processado(CHECKPOINT_NAME, cnpj)
-            if (i + 1) % 50 == 0:
-                print(f"[datajud_client] {i+1}/{len(pendentes)} CNPJs consultados.")
+            processados.add(cnpj)
+            if (i + 1) % LOTE == 0:
+                _persistir(conn)
+                print(f"[datajud_client] {i+1}/{len(pendentes)} CNPJs consultados (salvo).")
+        _persistir(conn)
 
     print("[datajud_client] Consulta concluída.")
 

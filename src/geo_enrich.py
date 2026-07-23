@@ -53,7 +53,7 @@ def executar(limite_cnpjs: int = None):
         )
         empresas = cur.fetchall()
 
-    processados = checkpoint.carregar(CHECKPOINT_NAME)
+    processados = set(checkpoint.carregar(CHECKPOINT_NAME))
     pendentes = [e for e in empresas if e["cnpj"] not in processados]
     if limite_cnpjs:
         pendentes = pendentes[:limite_cnpjs]
@@ -61,6 +61,11 @@ def executar(limite_cnpjs: int = None):
     print(f"[geo_enrich] {len(pendentes)} empresas pendentes de geocodificação "
           f"(~{len(pendentes) * config.NOMINATIM_RATE_LIMIT_SLEEP_SECONDS / 3600:.1f}h estimadas).")
 
+    # Commit + checkpoint em lote a cada N — durável: se o processo cair, o
+    # que já foi gravado no banco continua lá e o checkpoint bate com ele
+    # (perde-se no máximo N itens, que são refeitos). NÃO usar uma transação
+    # única pro loop inteiro (perderia tudo num crash antes do fim).
+    LOTE = 100
     with db_utils.get_conn() as conn:
         for i, empresa in enumerate(pendentes):
             endereco = (
@@ -88,11 +93,15 @@ def executar(limite_cnpjs: int = None):
             except requests.RequestException as e:
                 print(f"[geo_enrich] Erro em {empresa['cnpj']}: {e}")
 
-            checkpoint.marcar_processado(CHECKPOINT_NAME, empresa["cnpj"])
+            processados.add(empresa["cnpj"])
             time.sleep(config.NOMINATIM_RATE_LIMIT_SLEEP_SECONDS)
 
-            if (i + 1) % 100 == 0:
-                print(f"[geo_enrich] {i+1}/{len(pendentes)} empresas geocodificadas.")
+            if (i + 1) % LOTE == 0:
+                conn.commit()
+                checkpoint.salvar(CHECKPOINT_NAME, processados)
+                print(f"[geo_enrich] {i+1}/{len(pendentes)} empresas geocodificadas (salvo).")
+        conn.commit()
+    checkpoint.salvar(CHECKPOINT_NAME, processados)
 
     print("[geo_enrich] Geocodificação concluída.")
 
