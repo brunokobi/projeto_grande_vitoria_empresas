@@ -110,6 +110,32 @@ def get_empresa(cnpj: str):
     return resultado
 
 
+@app.get("/classificar", summary="Classifica/pontua empresas por objetivo de prospecção")
+def get_classificar(
+    objetivo: str = Query("generico"),
+    pref_telefone: bool = Query(None),
+    pref_email: bool = Query(None),
+    pref_whatsapp: bool = Query(None),
+    pref_rede: bool = Query(None),
+    portes: list[str] = Query(None),
+    presenca: str = Query("indiferente"),
+    fiscal: str = Query("indiferente"),
+    municipio: str = Query(None),
+    cnae_prefix: str = Query(None),
+    texto: str = Query(None),
+    capital_min: float = Query(None),
+    capital_max: float = Query(None),
+    limite: int = Query(50, ge=1, le=500),
+):
+    return dataset_queries.classificar_empresas(
+        objetivo=objetivo, pref_telefone=pref_telefone, pref_email=pref_email,
+        pref_whatsapp=pref_whatsapp, pref_rede=pref_rede, portes=portes,
+        presenca=presenca, fiscal=fiscal, municipio=municipio,
+        cnae_prefix=cnae_prefix, texto=texto, capital_min=capital_min,
+        capital_max=capital_max, limite=limite,
+    )
+
+
 # --------------------------------------------------------------------------
 # Exports
 # --------------------------------------------------------------------------

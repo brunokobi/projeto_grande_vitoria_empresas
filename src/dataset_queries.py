@@ -231,6 +231,77 @@ def buscar_empresas(municipio=None, cnae=None, cnae_prefix=None, porte=None,
     return {"total": total, "limite": limite, "offset": offset, "itens": itens}
 
 
+def classificar_empresas(objetivo="generico", pref_telefone=None, pref_email=None,
+                         pref_whatsapp=None, pref_rede=None, portes=None,
+                         presenca="indiferente", fiscal="indiferente",
+                         municipio=None, cnae_prefix=None, texto=None,
+                         capital_min=None, capital_max=None, limite=50) -> dict:
+    """Classifica/pontua empresas conforme um 'questionário' de prospecção.
+    Cada critério ativo soma pontos; o score é normalizado 0-100 e recebe um
+    rótulo (Quente/Morno/Frio). O peso é definido pelas respostas — o objetivo
+    comercial ajusta o que conta como bom lead."""
+    with _conn() as conn:
+        tem_contato = _tabela_existe(conn, "enriquecimento_contato")
+        divida = "EXISTS (SELECT 1 FROM dividas_ativas d WHERE d.cnpj_empresa = e.cnpj)"
+        tel = "(e.telefone IS NOT NULL AND e.telefone != '')"
+        eml = "(e.email IS NOT NULL AND e.email != '')"
+        if tem_contato:
+            site = ("EXISTS (SELECT 1 FROM enriquecimento_contato ec WHERE ec.cnpj_empresa = e.cnpj "
+                    "AND (ec.site IS NOT NULL OR ec.instagram IS NOT NULL OR ec.facebook IS NOT NULL OR ec.linkedin IS NOT NULL))")
+            wpp = "EXISTS (SELECT 1 FROM enriquecimento_contato ec WHERE ec.cnpj_empresa = e.cnpj AND ec.whatsapp IS NOT NULL)"
+        else:
+            site, wpp = "0", "0"
+
+        termos, score_params = [], []          # (expr, peso)
+        if pref_telefone: termos.append((tel, 15))
+        if pref_email: termos.append((eml, 15))
+        if pref_whatsapp: termos.append((wpp, 15))
+        if pref_rede: termos.append((site, 15))
+        if portes:
+            ph = ",".join("?" * len(portes))
+            termos.append((f"e.porte IN ({ph})", 20)); score_params.extend(portes)
+        if presenca == "com": termos.append((site, 20))
+        elif presenca == "sem": termos.append((f"NOT {site}", 20))
+        if fiscal == "limpas": termos.append((f"NOT {_PENDENCIA_EXPR}", 25))
+        elif fiscal == "com_pendencia": termos.append((divida, 25))
+        # Presets por objetivo comercial:
+        if objetivo == "regularizacao": termos.append((divida, 30))
+        elif objetivo == "marketing":
+            termos.append((f"NOT {site}", 25)); termos.append((tel, 10))
+        elif objetivo == "credito": termos.append((f"NOT {_PENDENCIA_EXPR}", 25))
+        elif objetivo == "software":
+            termos.append((site, 15)); termos.append(("e.capital_social >= 100000", 10))
+
+        max_pts = sum(p for _, p in termos)
+        score_sql = ("(" + " + ".join(f"CASE WHEN {e} THEN {p} ELSE 0 END" for e, p in termos) + ")") if termos else "0"
+
+        where_sql, where_params = _filtros_sql(
+            tem_contato=tem_contato, municipio=municipio, cnae_prefix=cnae_prefix,
+            texto=texto, capital_min=capital_min, capital_max=capital_max)
+        limite = max(1, min(int(limite), 500))
+        rows = conn.execute(
+            f"SELECT e.cnpj, e.razao_social, e.nome_fantasia, e.municipio, e.porte, "
+            f"e.cnae_principal, e.capital_social, {_PENDENCIA_EXPR} AS tem_pendencia, "
+            f"{score_sql} AS score FROM empresas e{where_sql} "
+            f"ORDER BY score DESC, e.razao_social LIMIT ?",
+            score_params + where_params + [limite]).fetchall()
+
+    def rotular(pct):
+        if pct >= 70: return "🔥 Quente (A)"
+        if pct >= 40: return "🙂 Morno (B)"
+        return "❄️ Frio (C)"
+
+    itens = []
+    for r in rows:
+        d = dict(r)
+        d["cnae_desc"] = cnae_desc(d.get("cnae_principal"))
+        d["score_pct"] = round(d["score"] / max_pts * 100) if max_pts else 0
+        d["classificacao"] = rotular(d["score_pct"])
+        itens.append(d)
+    return {"total": len(itens), "pontos_maximos": max_pts,
+            "criterios_ativos": len(termos), "itens": itens}
+
+
 def exportar_empresas(max_linhas=20000, **filtros) -> list:
     """Retorna TODAS as empresas que batem com os filtros (até max_linhas),
     com colunas úteis de prospecção incluindo contato/redes se disponíveis."""
