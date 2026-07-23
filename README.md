@@ -45,6 +45,22 @@ Pronto: **dashboard** em `http://localhost:8000`, **API** em `/docs`, e o **MCP*
 
 ---
 
+## 📸 Telas
+
+<div align="center">
+
+**Dashboard — lista, filtros e classificação de leads**
+
+<img src="docs/dashboard.png" alt="Dashboard" width="100%">
+
+**Visão 360º da empresa** — cadastro, sócios + rede, pendências detalhadas e mapa
+
+<img src="docs/empresa-360.png" alt="Visão 360º da empresa" width="70%">
+
+</div>
+
+---
+
 ## 🚧 Projeto em construção
 
 Em desenvolvimento ativo. Estado atual:
@@ -101,7 +117,7 @@ Lógica de consulta compartilhada (`src/dataset_queries.py`) entre dashboard, AP
 
 ### API REST (FastAPI) — docs em `/docs`
 - `GET /estatisticas` · `GET /segmentos`
-- `GET /empresas` — busca com filtros (município, `cnae_prefix`, porte, regime, `tem_pendencia`, `com_processos`/`com_sancoes`/`com_ambiental`/`com_divida`, `com_telefone`/`com_email`/`com_whatsapp`/`com_rede_social`, capital, ordenação, paginação)
+- `GET /empresas` — busca com filtros (município, `cnae_prefix`, porte, regime, `socio` (nome), `tem_pendencia`, `com_processos`/`com_sancoes`/`com_ambiental`/`com_divida`, `com_telefone`/`com_email`/`com_whatsapp`/`com_rede_social`, capital, ordenação, paginação)
 - `GET /empresas/{cnpj}` — visão 360º (cadastro, sócios+rede, pendências detalhadas, geo)
 - `GET /classificar` — pontua e ranqueia leads por objetivo comercial
 - `GET /export/empresas.xlsx` · `GET /export/empresas.pdf`
