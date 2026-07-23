@@ -258,11 +258,13 @@ def obter_empresa(cnpj: str) -> dict:
             "SELECT numero_processo, tribunal, classe, assunto, data_ultima_movimentacao "
             "FROM processos_judiciais WHERE cnpj_empresa = ? LIMIT 100", (cnpj,))]
         sancoes = [dict(r) for r in conn.execute(
-            "SELECT tipo, motivo, orgao_sancionador, data_inicio, data_fim "
+            "SELECT tipo, motivo, orgao_sancionador, data_inicio, data_fim, "
+            "fundamentacao, numero_processo, ano_processo, numero_deliberacao, ano_deliberacao "
             "FROM sancoes_administrativas WHERE cnpj_empresa = ? LIMIT 100", (cnpj,))]
         ambiental = [dict(r) for r in conn.execute(
-            "SELECT tipo_infracao, status, data_auto FROM infracoes_ambientais "
-            "WHERE cnpj_empresa = ? LIMIT 100", (cnpj,))]
+            "SELECT tipo_infracao, status, data_auto, valor_multa, gravidade, tipo_multa, "
+            "numero_auto, municipio_infracao, uf_infracao, enquadramento "
+            "FROM infracoes_ambientais WHERE cnpj_empresa = ? ORDER BY valor_multa DESC LIMIT 100", (cnpj,))]
         dividas = [dict(r) for r in conn.execute(
             "SELECT valor, situacao, data_inscricao, tipo_tributo, numero_inscricao, "
             "ajuizada, tipo_devedor, unidade_responsavel FROM dividas_ativas "

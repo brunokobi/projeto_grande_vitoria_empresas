@@ -337,6 +337,48 @@ function mapaEmbed(e, geo){
   return `<iframe class="mapa" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
      src="https://maps.google.com/maps?q=${encodeURIComponent(q)}&z=16&output=embed"></iframe>`;
 }
+function renderInfracoes(arr){
+  if(!arr||!arr.length) return "";
+  const cards = arr.map(x=>{
+    const kv=(k,v)=>v?`<div><span class="k">${k}</span><span class="val">${v}</span></div>`:"";
+    const local=[x.municipio_infracao,x.uf_infracao].filter(Boolean).join("/");
+    const valTxt = x.valor_multa? fmtBRL(x.valor_multa) : "valor n/d";
+    return `<details class="divida">
+      <summary><b>${valTxt}</b> <span style="color:var(--muted)">${esc((x.tipo_infracao||'').slice(0,55))}</span> <span style="color:var(--muted)">${idadeTexto(x.data_auto)}</span></summary>
+      <div class="divida-det">
+        ${kv("Infração", esc(x.tipo_infracao))}
+        ${kv("Gravidade", esc(x.gravidade))}
+        ${kv("Situação do auto", esc(x.status))}
+        ${kv("Tipo de multa", esc(x.tipo_multa))}
+        ${kv("Nº do auto", x.numero_auto?`<span class="mono">${esc(x.numero_auto)}</span>`:"")}
+        ${kv("Local da infração", esc(local))}
+        ${kv("Data", fmtData(x.data_auto))}
+        ${kv("Enquadramento", esc(x.enquadramento))}
+      </div>
+    </details>`;
+  }).join("");
+  return `<div class="sec">🌱 Infrações ambientais (${arr.length})</div>${cards}`;
+}
+function renderSancoes(arr){
+  if(!arr||!arr.length) return "";
+  const cards = arr.map(x=>{
+    const kv=(k,v)=>v?`<div><span class="k">${k}</span><span class="val">${v}</span></div>`:"";
+    const periodo=[fmtData(x.data_inicio),fmtData(x.data_fim)].filter(Boolean).join(" — ");
+    const proc = x.numero_processo? esc(x.numero_processo)+(x.ano_processo?"/"+esc(x.ano_processo):"") : "";
+    const delib = x.numero_deliberacao? esc(x.numero_deliberacao)+(x.ano_deliberacao?"/"+esc(x.ano_deliberacao):"") : "";
+    return `<details class="divida">
+      <summary><span class="tag pend">${esc(x.tipo||'Sanção')}</span> <span style="color:var(--muted)">${esc(x.motivo||'')}</span></summary>
+      <div class="divida-det">
+        ${kv("Órgão sancionador", esc(x.orgao_sancionador))}
+        ${kv("Fundamentação legal", esc(x.fundamentacao))}
+        ${kv("Período", periodo)}
+        ${kv("Processo", proc)}
+        ${kv("Deliberação", delib)}
+      </div>
+    </details>`;
+  }).join("");
+  return `<div class="sec">🚫 Sanções (${arr.length})</div>${cards}`;
+}
 async function abrir(cnpj){
   $("overlay").classList.add("open");
   $("modal").innerHTML = `<div class="body loading">carregando empresa...</div>`;
@@ -403,8 +445,8 @@ async function abrir(cnpj){
         ${kv("&#128184;","Total em d&iacute;vida ativa", fmtBRL(rz.valor_total_divida_ativa))}
       </div>
       ${renderDividas(d.dividas_ativas, e.capital_social)}
-      ${secPend("&#128683; San&ccedil;&otilde;es", d.sancoes_administrativas, x=>`<div class="item"><b>${esc(x.tipo||"")}</b> - ${esc(x.motivo||"")} <span style="color:var(--muted)">${esc(x.orgao_sancionador||"")}</span></div>`)}
-      ${secPend("&#127793; Infra&ccedil;&otilde;es ambientais", d.infracoes_ambientais, x=>`<div class="item">${esc(x.tipo_infracao||"")} <span style="color:var(--muted)">${fmtData(x.data_auto)}</span></div>`)}
+      ${renderSancoes(d.sancoes_administrativas)}
+      ${renderInfracoes(d.infracoes_ambientais)}
       ${secPend("&#128194; Processos judiciais", d.processos_judiciais, x=>`<div class="item">${esc(x.numero_processo||"")} - ${esc(x.tribunal||"")} ${esc(x.classe||"")}</div>`)}
 
       <div class="sec">&#128205; Localiza&ccedil;&atilde;o</div>
