@@ -42,6 +42,7 @@ def buscar_empresas(
     porte: str = None,
     regime_tributario: str = None,
     texto: str = None,
+    socio: str = None,
     tem_pendencia: bool = None,
     com_telefone: bool = None,
     com_email: bool = None,
@@ -79,7 +80,7 @@ def buscar_empresas(
     """
     return dataset_queries.buscar_empresas(
         municipio=municipio, cnae=cnae, cnae_prefix=cnae_prefix, porte=porte,
-        regime_tributario=regime_tributario, texto=texto,
+        regime_tributario=regime_tributario, texto=texto, socio=socio,
         tem_pendencia=tem_pendencia, com_telefone=com_telefone,
         com_email=com_email, com_whatsapp=com_whatsapp,
         com_rede_social=com_rede_social, com_processos=com_processos,

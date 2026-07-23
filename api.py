@@ -36,6 +36,7 @@ def filtros_comuns(
     porte: str = Query(None),
     regime_tributario: str = Query(None),
     texto: str = Query(None),
+    socio: str = Query(None, description="Nome (ou parte) do sócio"),
     tem_pendencia: bool = Query(None),
     com_telefone: bool = Query(None),
     com_email: bool = Query(None),
@@ -51,7 +52,7 @@ def filtros_comuns(
 ) -> dict:
     return dict(
         municipio=municipio, cnae=cnae, cnae_prefix=cnae_prefix, porte=porte,
-        regime_tributario=regime_tributario, texto=texto, tem_pendencia=tem_pendencia,
+        regime_tributario=regime_tributario, texto=texto, socio=socio, tem_pendencia=tem_pendencia,
         com_telefone=com_telefone, com_email=com_email, com_whatsapp=com_whatsapp,
         com_rede_social=com_rede_social, com_processos=com_processos,
         com_sancoes=com_sancoes, com_ambiental=com_ambiental, com_divida=com_divida,

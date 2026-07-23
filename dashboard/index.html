@@ -129,6 +129,8 @@
       <h3>⚙ Filtros</h3>
       <label class="f">Busca (razão social / fantasia)</label>
       <input id="f_texto" placeholder="Ex.: construtora, restaurante...">
+      <label class="f">Sócio (nome)</label>
+      <input id="f_socio" placeholder="Ex.: nome de um sócio">
       <label class="f">Segmento</label>
       <select id="f_segmento"><option value="">Todos os segmentos</option></select>
       <label class="f">Município</label>
@@ -238,6 +240,7 @@ function query(){
   const p = new URLSearchParams();
   const add=(k,v)=>{ if(v!==""&&v!=null&&v!==false) p.set(k,v); };
   add("texto",$("f_texto").value.trim());
+  add("socio",$("f_socio").value.trim());
   add("cnae_prefix",$("f_segmento").value);
   add("municipio",$("f_municipio").value);
   add("porte",$("f_porte").value);
@@ -539,7 +542,7 @@ async function abrir(cnpj){
 function fechar(){ $("overlay").classList.remove("open"); }
 function exportar(fmt){ window.location = `/export/empresas.${fmt}?`+query().toString(); }
 function limpar(){
-  ["f_texto","f_capmin","f_capmax"].forEach(id=>$(id).value="");
+  ["f_texto","f_socio","f_capmin","f_capmax"].forEach(id=>$(id).value="");
   ["f_segmento","f_municipio","f_porte","f_regime","f_pendencia"].forEach(id=>$(id).value="");
   ["f_tel","f_email","f_wpp","f_rede","f_proc","f_sanc","f_amb","f_div","q_tel","q_email","q_wpp","q_rede","q_p1","q_p3","q_p5"].forEach(id=>$(id).checked=false);
   ["q_objetivo"].forEach(id=>$(id).value="generico");
