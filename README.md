@@ -109,6 +109,8 @@ Lógica de consulta compartilhada (`src/dataset_queries.py`) entre dashboard, AP
 ### Servidor MCP
 Ferramentas `estatisticas`, `buscar_empresas`, `obter_empresa`, `classificar_empresas` para o Claude e outros clientes MCP. O `.mcp.json` é detectado automaticamente após o `setup.sh`.
 
+📘 **Tutorial completo de conexão** (Claude Desktop, Claude Code, Cursor, Windsurf, VS Code/Copilot, Cline): **[MCP.md](MCP.md)**.
+
 ---
 
 ## 💛 Apoie o projeto
