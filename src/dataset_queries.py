@@ -346,16 +346,20 @@ def obter_empresa(cnpj: str) -> dict:
             s = dict(r)
             s["qualificacao_desc"] = qualif_desc(s.get("qualificacao"))
             s["faixa_etaria_desc"] = faixa_desc(s.get("faixa_etaria"))
-            # Rede de participações: outras empresas da base onde a mesma
-            # pessoa (mesmo CPF mascarado) também é sócia.
+            # Rede de participações: outras empresas da base onde a MESMA
+            # pessoa também é sócia. Exige CPF mascarado + NOME idênticos —
+            # o CPF vem mascarado (só 6 dígitos do meio) e sozinho colide
+            # entre pessoas diferentes; nome + CPF mascarado é discriminante.
             cpf = (s.get("cpf_parcial") or "").strip()
+            nome = (s.get("nome_socio") or "").strip()
             outras = []
-            if cpf:
+            if cpf and nome:
                 outras = [dict(x) for x in conn.execute(
                     "SELECT DISTINCT s2.cnpj_empresa AS cnpj, e.razao_social "
                     "FROM socios s2 JOIN empresas e ON e.cnpj = s2.cnpj_empresa "
-                    "WHERE s2.cpf_parcial = ? AND s2.cnpj_empresa != ? LIMIT 30",
-                    (cpf, cnpj))]
+                    "WHERE s2.cpf_parcial = ? AND s2.nome_socio = ? "
+                    "AND s2.cnpj_empresa != ? LIMIT 30",
+                    (cpf, nome, cnpj))]
             s["outras_empresas"] = outras
             socios.append(s)
         jucees = conn.execute(
