@@ -63,6 +63,15 @@
   tbody tr:hover{background:rgba(0,255,136,.06)}
   .tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
   .tag.ok{background:rgba(0,255,136,.12);color:var(--green);border:1px solid var(--green-dim)}
+  .tag.warn{background:rgba(255,207,77,.12);color:var(--amber);border:1px solid var(--amber)}
+  details.divida{background:var(--bg2);border:1px solid var(--line);border-radius:8px;margin-bottom:6px;padding:8px 12px}
+  details.divida summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px}
+  details.divida summary::-webkit-details-marker{display:none}
+  details.divida summary::before{content:'▸';color:var(--green)}
+  details.divida[open] summary::before{content:'▾'}
+  .divida-det{margin-top:8px;padding-top:8px;border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px}
+  .divida-det .k{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.5px;display:block}
+  .divida-det .val{color:var(--text)}
   .tag.pend{background:rgba(255,84,112,.12);color:var(--danger);border:1px solid var(--danger)}
   .pager{display:flex;justify-content:center;gap:10px;margin:18px 0;align-items:center}
   .empty{text-align:center;color:var(--muted);padding:40px}
@@ -263,6 +272,55 @@ function fmtData(v){
   if((m = v.match(/^(\d{4})-(\d{2})-(\d{2})/))) return `${m[3]}/${m[2]}/${m[1]}`;
   return v;
 }
+function parseData(v){
+  if(!v) return null; v=String(v).trim(); let m;
+  if((m=v.match(/^(\d{2})\/(\d{2})\/(\d{4})$/))) return new Date(+m[3],+m[2]-1,+m[1]);
+  if((m=v.match(/^(\d{4})(\d{2})(\d{2})$/))) return new Date(+m[1],+m[2]-1,+m[3]);
+  if((m=v.match(/^(\d{4})-(\d{2})-(\d{2})/))) return new Date(+m[1],+m[2]-1,+m[3]);
+  return null;
+}
+function idadeTexto(v){
+  const d=parseData(v); if(!d) return "";
+  const meses=Math.floor((Date.now()-d.getTime())/(30.44*864e5));
+  if(meses<1) return "recente";
+  if(meses<12) return `há ${meses} ${meses>1?'meses':'mês'}`;
+  const anos=Math.floor(meses/12);
+  return `há ${anos} ${anos>1?'anos':'ano'}`;
+}
+function ehAjuizada(x){
+  const a=(x.ajuizada||"").toUpperCase();
+  if(a==="SIM") return true;
+  if(a==="NAO"||a==="NÃO") return false;
+  const s=(x.situacao||"").toUpperCase();
+  return /AJUIZAD/.test(s) && !/A SER AJUIZAD/.test(s);
+}
+function renderDividas(arr, capital){
+  if(!arr||!arr.length) return "";
+  const cards = arr.map(x=>{
+    const aj=ehAjuizada(x), idade=idadeTexto(x.data_inscricao);
+    const vezes=(capital&&capital>0)? x.valor/capital : null;
+    const alto=(x.valor||0)>=100000;
+    let risco="BAIXO", rcls="ok";
+    if(aj&&alto){risco="ALTO";rcls="pend";} else if(aj||alto){risco="MÉDIO";rcls="warn";}
+    const badgeAj = aj?`<span class="tag pend">🔴 Ajuizada</span>`:`<span class="tag warn">🟡 A ajuizar</span>`;
+    const kv=(k,v)=>v?`<div><span class="k">${k}</span><span class="val">${v}</span></div>`:"";
+    const vezesTxt = vezes==null?"":(vezes>=1? vezes.toLocaleString('pt-BR',{maximumFractionDigits:1})+"× o capital social" : (vezes*100).toFixed(0)+"% do capital social");
+    return `<details class="divida">
+      <summary><b>${fmtBRL(x.valor)}</b> ${badgeAj} <span style="color:var(--muted)">${idade}</span></summary>
+      <div class="divida-det">
+        ${kv("Tributo", esc(x.tipo_tributo))}
+        ${kv("Situação", esc(x.situacao))}
+        ${kv("Risco fiscal", `<span class="tag ${rcls}">${risco}</span>`)}
+        ${kv("Peso na empresa", vezesTxt)}
+        ${kv("Inscrita em", fmtData(x.data_inscricao))}
+        ${kv("Nº da inscrição", `<span class="mono">${esc(x.numero_inscricao)}</span>`)}
+        ${kv("Devedor", esc(x.tipo_devedor))}
+        ${kv("Unidade PGFN", esc(x.unidade_responsavel))}
+      </div>
+    </details>`;
+  }).join("");
+  return `<div class="sec">💸 Dívida ativa (${arr.length})</div>${cards}`;
+}
 function mapaEmbed(e, geo){
   let q;
   if(geo && geo.latitude && geo.longitude) q = geo.latitude + "," + geo.longitude;
@@ -336,7 +394,7 @@ async function abrir(cnpj){
         ${kv("&#128209;","D&iacute;vidas ativas", rz.qtd_dividas_ativas)}
         ${kv("&#128184;","Total em d&iacute;vida ativa", fmtBRL(rz.valor_total_divida_ativa))}
       </div>
-      ${secPend("&#128184; D&iacute;vida ativa", d.dividas_ativas, x=>`<div class="item">${fmtBRL(x.valor)} - ${esc(x.situacao||"")} <span style="color:var(--muted)">${fmtData(x.data_inscricao)}</span></div>`)}
+      ${renderDividas(d.dividas_ativas, e.capital_social)}
       ${secPend("&#128683; San&ccedil;&otilde;es", d.sancoes_administrativas, x=>`<div class="item"><b>${esc(x.tipo||"")}</b> - ${esc(x.motivo||"")} <span style="color:var(--muted)">${esc(x.orgao_sancionador||"")}</span></div>`)}
       ${secPend("&#127793; Infra&ccedil;&otilde;es ambientais", d.infracoes_ambientais, x=>`<div class="item">${esc(x.tipo_infracao||"")} <span style="color:var(--muted)">${fmtData(x.data_auto)}</span></div>`)}
       ${secPend("&#128194; Processos judiciais", d.processos_judiciais, x=>`<div class="item">${esc(x.numero_processo||"")} - ${esc(x.tribunal||"")} ${esc(x.classe||"")}</div>`)}

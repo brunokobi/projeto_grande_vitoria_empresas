@@ -251,8 +251,9 @@ def obter_empresa(cnpj: str) -> dict:
             "SELECT tipo_infracao, status, data_auto FROM infracoes_ambientais "
             "WHERE cnpj_empresa = ? LIMIT 100", (cnpj,))]
         dividas = [dict(r) for r in conn.execute(
-            "SELECT valor, situacao, data_inscricao FROM dividas_ativas "
-            "WHERE cnpj_empresa = ? LIMIT 100", (cnpj,))]
+            "SELECT valor, situacao, data_inscricao, tipo_tributo, numero_inscricao, "
+            "ajuizada, tipo_devedor, unidade_responsavel FROM dividas_ativas "
+            "WHERE cnpj_empresa = ? ORDER BY valor DESC LIMIT 100", (cnpj,))]
         geo = conn.execute(
             "SELECT latitude, longitude FROM enriquecimento_places WHERE cnpj_empresa = ?",
             (cnpj,)).fetchone()
