@@ -69,9 +69,15 @@ Em desenvolvimento ativo. Estado atual:
 |---|---|
 | Cadastro (Receita) · **Sócios** · JUCEES | ✅ pronto (344k empresas · 231k sócios) |
 | Dívida ativa PGFN (detalhada) · Sanções federais **CEIS/CNEP** + estaduais **TCEES** · Infrações **IBAMA** (detalhadas) | ✅ pronto |
-| Geocodificação (mapa) · Processos judiciais (DataJud/CNJ) | 🚧 em processamento (rate limit — dias) |
+| Geocodificação (mapa, OpenStreetMap) | 🚧 em processamento — **previsão ~30/07/2026** |
+| Processos judiciais (DataJud/CNJ, TJES) | 🚧 em processamento — **previsão ~20/09/2026** |
 | Contato & redes sociais (WhatsApp, site, Instagram…) | 🧪 implementado |
 | Dashboard · API · MCP · export Excel/PDF · **classificação de leads** | ✅ funcionais |
+
+> ⏳ As previsões acima são **estimativas** com base no ritmo atual — essas duas
+> etapas dependem de APIs públicas com limite de requisições (OpenStreetMap ~1/s;
+> CNJ com throttling), por isso levam dias/semanas. O restante do dataset já está
+> completo e disponível; geo e processos vão sendo incorporados conforme concluem.
 
 ---
 
