@@ -72,7 +72,8 @@ _PENDENCIA_EXPR = (
 def _filtros_sql(*, tem_contato=False, municipio=None, cnae=None, cnae_prefix=None,
                  porte=None, regime_tributario=None, texto=None, tem_pendencia=None,
                  com_telefone=None, com_email=None, com_whatsapp=None,
-                 com_rede_social=None, capital_min=None, capital_max=None):
+                 com_rede_social=None, capital_min=None, capital_max=None,
+                 com_processos=None, com_sancoes=None, com_ambiental=None, com_divida=None):
     """Monta a cláusula WHERE (sobre o alias `e` = empresas) e os parâmetros."""
     where, params = [], []
     if municipio:
@@ -107,6 +108,15 @@ def _filtros_sql(*, tem_contato=False, municipio=None, cnae=None, cnae_prefix=No
         where.append(_PENDENCIA_EXPR)
     elif tem_pendencia is False:
         where.append("NOT " + _PENDENCIA_EXPR)
+    # Filtros por tipo específico de pendência jurídico-fiscal.
+    if com_processos:
+        where.append("EXISTS (SELECT 1 FROM processos_judiciais p WHERE p.cnpj_empresa = e.cnpj)")
+    if com_sancoes:
+        where.append("EXISTS (SELECT 1 FROM sancoes_administrativas s WHERE s.cnpj_empresa = e.cnpj)")
+    if com_ambiental:
+        where.append("EXISTS (SELECT 1 FROM infracoes_ambientais i WHERE i.cnpj_empresa = e.cnpj)")
+    if com_divida:
+        where.append("EXISTS (SELECT 1 FROM dividas_ativas d WHERE d.cnpj_empresa = e.cnpj)")
     if com_whatsapp or com_rede_social:
         if not tem_contato:
             where.append("0")  # etapa `contato` ainda não rodou → sem resultados
@@ -171,7 +181,8 @@ def buscar_empresas(municipio=None, cnae=None, cnae_prefix=None, porte=None,
                     regime_tributario=None, texto=None, tem_pendencia=None,
                     com_telefone=None, com_email=None, com_whatsapp=None,
                     com_rede_social=None, capital_min=None, capital_max=None,
-                    ordenar_por="razao_social", limite=50, offset=0) -> dict:
+                    com_processos=None, com_sancoes=None, com_ambiental=None,
+                    com_divida=None, ordenar_por="razao_social", limite=50, offset=0) -> dict:
     """Busca empresas com filtros combináveis. Retorna {'total','itens',...}."""
     ordem = ordenar_por if ordenar_por in _ORDENAR_POR else "razao_social"
     limite = max(1, min(int(limite), 500))
@@ -183,7 +194,9 @@ def buscar_empresas(municipio=None, cnae=None, cnae_prefix=None, porte=None,
             cnae_prefix=cnae_prefix, porte=porte, regime_tributario=regime_tributario,
             texto=texto, tem_pendencia=tem_pendencia, com_telefone=com_telefone,
             com_email=com_email, com_whatsapp=com_whatsapp,
-            com_rede_social=com_rede_social, capital_min=capital_min, capital_max=capital_max)
+            com_rede_social=com_rede_social, capital_min=capital_min, capital_max=capital_max,
+            com_processos=com_processos, com_sancoes=com_sancoes,
+            com_ambiental=com_ambiental, com_divida=com_divida)
         total = conn.execute(f"SELECT COUNT(*) FROM empresas e{where_sql}", params).fetchone()[0]
         rows = conn.execute(
             f"SELECT e.cnpj, e.razao_social, e.nome_fantasia, e.cnae_principal, e.porte, "

@@ -141,8 +141,12 @@
       <select id="f_pendencia">
         <option value="">Todas</option>
         <option value="false">Sem pendência (mais "limpas")</option>
-        <option value="true">Com pendência</option>
+        <option value="true">Com pendência (qualquer)</option>
       </select>
+      <label class="chk"><input type="checkbox" id="f_proc"> 📂 Com processos judiciais</label>
+      <label class="chk"><input type="checkbox" id="f_sanc"> 🚫 Com sanções</label>
+      <label class="chk"><input type="checkbox" id="f_amb"> 🌱 Com infração ambiental</label>
+      <label class="chk"><input type="checkbox" id="f_div"> 💸 Com dívida ativa</label>
       <div class="row2">
         <div><label class="f">Capital mín. (R$)</label><input id="f_capmin" type="number" min="0"></div>
         <div><label class="f">Capital máx. (R$)</label><input id="f_capmax" type="number" min="0"></div>
@@ -212,6 +216,10 @@ function query(){
   if($("f_email").checked) p.set("com_email","true");
   if($("f_wpp").checked) p.set("com_whatsapp","true");
   if($("f_rede").checked) p.set("com_rede_social","true");
+  if($("f_proc").checked) p.set("com_processos","true");
+  if($("f_sanc").checked) p.set("com_sancoes","true");
+  if($("f_amb").checked) p.set("com_ambiental","true");
+  if($("f_div").checked) p.set("com_divida","true");
   add("ordenar_por",$("f_ordem").value);
   return p;
 }
@@ -409,7 +417,7 @@ function exportar(fmt){ window.location = `/export/empresas.${fmt}?`+query().toS
 function limpar(){
   ["f_texto","f_capmin","f_capmax"].forEach(id=>$(id).value="");
   ["f_segmento","f_municipio","f_porte","f_regime","f_pendencia"].forEach(id=>$(id).value="");
-  ["f_tel","f_email","f_wpp","f_rede"].forEach(id=>$(id).checked=false);
+  ["f_tel","f_email","f_wpp","f_rede","f_proc","f_sanc","f_amb","f_div"].forEach(id=>$(id).checked=false);
   $("f_ordem").value="razao_social"; buscar(true);
 }
 document.addEventListener("keydown",e=>{ if(e.key==="Escape")fechar(); });

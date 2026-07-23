@@ -41,6 +41,10 @@ def filtros_comuns(
     com_email: bool = Query(None),
     com_whatsapp: bool = Query(None),
     com_rede_social: bool = Query(None),
+    com_processos: bool = Query(None, description="Só empresas com processos judiciais"),
+    com_sancoes: bool = Query(None, description="Só empresas com sanções"),
+    com_ambiental: bool = Query(None, description="Só empresas com infração ambiental"),
+    com_divida: bool = Query(None, description="Só empresas com dívida ativa"),
     capital_min: float = Query(None),
     capital_max: float = Query(None),
     ordenar_por: str = Query("razao_social"),
@@ -49,8 +53,9 @@ def filtros_comuns(
         municipio=municipio, cnae=cnae, cnae_prefix=cnae_prefix, porte=porte,
         regime_tributario=regime_tributario, texto=texto, tem_pendencia=tem_pendencia,
         com_telefone=com_telefone, com_email=com_email, com_whatsapp=com_whatsapp,
-        com_rede_social=com_rede_social, capital_min=capital_min,
-        capital_max=capital_max, ordenar_por=ordenar_por,
+        com_rede_social=com_rede_social, com_processos=com_processos,
+        com_sancoes=com_sancoes, com_ambiental=com_ambiental, com_divida=com_divida,
+        capital_min=capital_min, capital_max=capital_max, ordenar_por=ordenar_por,
     )
 
 
