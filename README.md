@@ -29,13 +29,25 @@
 
 ## ⚡ Começar em 1 comando
 
-O dataset é distribuído como **GitHub Release** (não fica versionado no repo — mantém tudo leve). O `setup.sh` cria o ambiente, instala dependências e **baixa o dataset**:
+O dataset é distribuído como **GitHub Release** (não fica versionado no repo — mantém tudo leve). O script de setup usa o [uv](https://docs.astral.sh/uv/) para criar o ambiente com um Python 3.12 isolado (instalando o próprio uv se preciso), instalar dependências e **baixar o dataset** — **não precisa ter Python pré-instalado**, nem depende da versão que o sistema operacional já traz.
+
+**Linux, macOS ou WSL:**
 
 ```bash
 git clone https://github.com/brunokobi/projeto_grande_vitoria_empresas.git
 cd projeto_grande_vitoria_empresas
 bash setup.sh
 source .venv/bin/activate
+uvicorn api:app        # http://localhost:8000
+```
+
+**Windows (PowerShell nativo, sem precisar de WSL):**
+
+```powershell
+git clone https://github.com/brunokobi/projeto_grande_vitoria_empresas.git
+cd projeto_grande_vitoria_empresas
+powershell -ExecutionPolicy Bypass -File setup.ps1
+.venv\Scripts\Activate.ps1
 uvicorn api:app        # http://localhost:8000
 ```
 
