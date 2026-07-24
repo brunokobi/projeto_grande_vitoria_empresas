@@ -5,12 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Empresas · Grande Vitória — Dashboard</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='88'>🛸</text></svg>">
-<!-- Mapa: Leaflet + agrupamento de marcadores (CDN) -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
-<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<!-- Mapa: MapLibre GL (WebGL + clustering nativo) — tiles CARTO dark, sem API key -->
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <style>
   :root{
     --bg:#04060a; --bg2:#080d12; --panel:#0a1119; --panel2:#0d1620;
@@ -574,13 +571,54 @@ function limpar(){
 document.addEventListener("keydown",e=>{ if(e.key==="Escape")fechar(); });
 $("f_texto").addEventListener("keydown",e=>{ if(e.key==="Enter")buscar(true); });
 
-let MAPA=null, CLUSTER=null;
+let MAPA=null, MAPA_READY=false, _pendentes=null;
+const _ESTILO = {
+  version: 8,
+  glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
+  sources: {
+    carto: { type:"raster", tileSize:256,
+      tiles:["https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+             "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+             "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+             "https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"],
+      attribution:"© OpenStreetMap © CARTO" }
+  },
+  layers: [{ id:"carto", type:"raster", source:"carto" }]
+};
 function initMapa(){
-  MAPA = L.map('mapa',{preferCanvas:true}).setView([-20.30,-40.32],11);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
-    attribution:'&copy; OpenStreetMap &copy; CARTO', subdomains:'abcd', maxZoom:19}).addTo(MAPA);
-  CLUSTER = L.markerClusterGroup({chunkedLoading:true, maxClusterRadius:50});
-  MAPA.addLayer(CLUSTER);
+  MAPA = new maplibregl.Map({container:"mapa", style:_ESTILO, center:[-40.32,-20.30], zoom:10, attributionControl:true});
+  MAPA.addControl(new maplibregl.NavigationControl(), "top-right");
+  const popup = new maplibregl.Popup({closeButton:false, closeOnClick:false});
+  MAPA.on("load", ()=>{
+    MAPA.addSource("empresas", {type:"geojson", data:{type:"FeatureCollection",features:[]},
+      cluster:true, clusterRadius:50, clusterMaxZoom:14});
+    MAPA.addLayer({id:"clusters", type:"circle", source:"empresas", filter:["has","point_count"],
+      paint:{"circle-color":"#1f7a45","circle-opacity":0.85,
+        "circle-stroke-width":1, "circle-stroke-color":"#39ff14",
+        "circle-radius":["step",["get","point_count"],14,50,20,200,28,1000,36]}});
+    MAPA.addLayer({id:"cluster-count", type:"symbol", source:"empresas", filter:["has","point_count"],
+      layout:{"text-field":["get","point_count_abbreviated"],"text-font":["Open Sans Regular"],"text-size":12},
+      paint:{"text-color":"#dfffe8"}});
+    MAPA.addLayer({id:"ponto", type:"circle", source:"empresas", filter:["!",["has","point_count"]],
+      paint:{"circle-radius":5, "circle-stroke-width":1, "circle-stroke-color":"#0b3d1a",
+        "circle-color":["case",["get","pend"],"#ff5470","#39ff14"]}});
+    // clique no cluster -> zoom in
+    MAPA.on("click","clusters",(e)=>{
+      const f=MAPA.queryRenderedFeatures(e.point,{layers:["clusters"]})[0];
+      MAPA.getSource("empresas").getClusterExpansionZoom(f.properties.cluster_id)
+        .then(z=> MAPA.easeTo({center:f.geometry.coordinates, zoom:z}));
+    });
+    // clique no ponto -> abre a empresa
+    MAPA.on("click","ponto",(e)=>{ const p=e.features[0].properties; if(p.cnpj) abrir(p.cnpj); });
+    // hover: cursor + tooltip
+    for(const l of ["clusters","ponto"]){
+      MAPA.on("mouseenter",l,(e)=>{ MAPA.getCanvas().style.cursor="pointer";
+        if(l==="ponto"){ popup.setLngLat(e.features[0].geometry.coordinates.slice()).setText(e.features[0].properties.nome).addTo(MAPA);} });
+      MAPA.on("mouseleave",l,()=>{ MAPA.getCanvas().style.cursor=""; popup.remove(); });
+    }
+    MAPA_READY=true;
+    if(_pendentes){ MAPA.getSource("empresas").setData(_pendentes); _pendentes=null; }
+  });
 }
 async function carregarMapa(){
   if(!MAPA) return;
@@ -588,19 +626,15 @@ async function carregarMapa(){
   let d;
   try{ d = await (await fetch("/mapa?"+query().toString())).json(); }
   catch(e){ $("mapinfo").textContent = "erro ao carregar o mapa"; return; }
-  CLUSTER.clearLayers();
-  const markers = (d.pontos||[]).map(e=>{
-    const cor = e.tem_pendencia ? '#ff5470' : '#39ff14';
-    const m = L.circleMarker([e.lat,e.lng],{radius:5,weight:1,color:cor,fillColor:cor,fillOpacity:.75});
-    m.bindTooltip(esc(e.razao_social||e.nome_fantasia||e.cnpj));
-    m.on('click',()=>abrir(e.cnpj));
-    return m;
-  });
-  CLUSTER.addLayers(markers);
+  const fc = {type:"FeatureCollection", features:(d.pontos||[]).map(e=>({
+    type:"Feature", geometry:{type:"Point", coordinates:[e.lng, e.lat]},
+    properties:{cnpj:e.cnpj, nome:e.razao_social||e.nome_fantasia||e.cnpj, pend: !!e.tem_pendencia}
+  }))};
+  if(MAPA_READY) MAPA.getSource("empresas").setData(fc); else _pendentes = fc;
   const cap = (d.total>d.limite) ? ` (mostrando ${d.limite.toLocaleString('pt-BR')} de ${d.total.toLocaleString('pt-BR')})` : "";
   $("mapinfo").textContent = `${(d.total||0).toLocaleString('pt-BR')} empresas geolocalizadas${cap}`;
 }
-(async ()=>{ await initEstat(); await initSegmentos(); initMapa(); buscar(true); carregarMapa(); })();
+(async ()=>{ await initEstat(); await initSegmentos(); initMapa(); buscar(true); })();
 </script>
 </body>
 </html>
