@@ -251,6 +251,29 @@ def buscar_empresas(municipio=None, cnae=None, cnae_prefix=None, porte=None,
     return {"total": total, "limite": limite, "offset": offset, "itens": itens}
 
 
+def pontos_mapa(limite=20000, **filtros):
+    """Empresas geocodificadas (lat/long) que batem nos filtros — para o mapa
+    do dashboard. Retorna {'total', 'limite', 'pontos':[{cnpj,razao_social,
+    nome_fantasia,municipio,lat,lng,tem_pendencia}]}. `total` é quantas batem
+    (pode passar do limite; o mapa mostra até `limite`)."""
+    filtros.pop("ordenar_por", None)
+    limite = max(1, min(int(limite), 50000))
+    with _conn() as conn:
+        tem_contato = _tabela_existe(conn, "enriquecimento_contato")
+        where_sql, params = _filtros_sql(tem_contato=tem_contato, **filtros)
+        cond = "ep.latitude IS NOT NULL"
+        if where_sql:
+            cond += " AND " + where_sql[len(" WHERE "):]
+        base = ("FROM empresas e JOIN enriquecimento_places ep "
+                "ON ep.cnpj_empresa = e.cnpj WHERE " + cond)
+        total = conn.execute(f"SELECT COUNT(*) {base}", params).fetchone()[0]
+        rows = conn.execute(
+            f"SELECT e.cnpj, e.razao_social, e.nome_fantasia, e.municipio, "
+            f"ep.latitude AS lat, ep.longitude AS lng, {_PENDENCIA_EXPR} AS tem_pendencia "
+            f"{base} LIMIT ?", params + [limite]).fetchall()
+    return {"total": total, "limite": limite, "pontos": [dict(r) for r in rows]}
+
+
 def classificar_empresas(objetivo="generico", pref_telefone=None, pref_email=None,
                          pref_whatsapp=None, pref_rede=None, portes=None,
                          presenca="indiferente", fiscal="indiferente",

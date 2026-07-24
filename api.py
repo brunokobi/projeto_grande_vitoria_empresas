@@ -107,6 +107,14 @@ def get_empresas(
     return dataset_queries.buscar_empresas(limite=limite, offset=offset, **filtros)
 
 
+@app.get("/mapa", summary="Pontos geocodificados (lat/long) para o mapa, com os mesmos filtros")
+def get_mapa(
+    filtros: dict = Depends(filtros_comuns),
+    limite: int = Query(20000, ge=1, le=50000),
+):
+    return dataset_queries.pontos_mapa(limite=limite, **filtros)
+
+
 @app.get("/empresas/{cnpj}", summary="Visão 360º de uma empresa pelo CNPJ")
 def get_empresa(cnpj: str):
     resultado = dataset_queries.obter_empresa(cnpj)
