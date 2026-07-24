@@ -4,7 +4,7 @@
 
 ### A base aberta mais completa de empresas ativas do Espírito Santo — pronta para prospecção, pesquisa e análise de mercado.
 
-**344 mil empresas ativas** de **7 municípios**, cruzando dados cadastrais, **sócios**, jurídicos, sanções, dívida ativa e infrações ambientais — tudo de **fontes públicas oficiais**. Com **dashboard**, **API REST**, **MCP** (Claude) e **classificação de leads**.
+**344 mil empresas ativas** de **7 municípios**, cruzando dados cadastrais, **sócios**, jurídicos, sanções, dívida ativa, infrações ambientais e **flags de risco** (trabalho escravo, CEPIM, leniência) — tudo de **fontes públicas oficiais**. Com **mapa interativo**, **dashboard**, **API REST**, **MCP** (Claude) e **classificação de leads**.
 
 <br>
 
@@ -87,15 +87,22 @@ Em desenvolvimento ativo. Estado atual:
 | Dívida ativa **PGFN** (detalhada) | ✅ pronto |
 | Sanções federais **CEIS/CNEP** + estaduais **TCEES** | ✅ pronto |
 | Infrações **IBAMA** (detalhadas) | ✅ pronto |
-| Geocodificação (mapa, OpenStreetMap) | 🚧 em processamento — **previsão ~30/07/2026** |
-| Processos judiciais (DataJud/CNJ, TJES) | 🚧 em processamento — **previsão ~20/09/2026** |
+| **CEPIM** (impedidas de verba federal) · **Acordos de Leniência** (CGU) | ✅ pronto |
+| **Lista Suja do trabalho escravo** (MTE) | ✅ pronto |
+| **Mapa interativo** (MapLibre) + **satélite** na visão 360º | ✅ pronto |
+| Geocodificação (coordenadas de todas as empresas) | 🚧 em processamento — **previsão ~30/07/2026** |
+| Processos judiciais (**DJEN/CNJ**, por nome da parte) | 🧪 sob demanda (ver nota) |
 | Contato & redes sociais (WhatsApp, site, Instagram…) | 🧪 implementado |
 | Dashboard · API · MCP · export Excel/PDF · **classificação de leads** | ✅ funcionais |
 
-> ⏳ As previsões acima são **estimativas** com base no ritmo atual — essas duas
-> etapas dependem de APIs públicas com limite de requisições (OpenStreetMap ~1/s;
-> CNJ com throttling), por isso levam dias/semanas. O restante do dataset já está
-> completo e disponível; geo e processos vão sendo incorporados conforme concluem.
+> ⏳ **Geocodificação** depende do OpenStreetMap (~1 req/s), por isso leva dias — o
+> restante do dataset já está completo. No mapa, empresas ainda sem coordenada são
+> localizadas **na hora pelo endereço**.
+>
+> ⚖️ **Processos judiciais:** a API pública do DataJud **não expõe as partes**
+> (CPF/CNPJ), então é impossível achar processos por empresa por ela. Em vez disso
+> usamos o **DJEN / Comunica API do CNJ** (busca por nome da parte), de forma
+> **sob demanda** — cobre litígio recente (era do DJEN, ~2022+).
 
 ---
 
@@ -105,8 +112,10 @@ Em desenvolvimento ativo. Estado atual:
 |---|---|
 | 🏢 **Cadastro** | CNPJ, razão social, CNAE (por nome), porte, regime, capital, endereço, situação |
 | 👥 **Sócios + rede** | Quadro societário (nome, qualificação, faixa etária) e **em quais outras empresas o mesmo sócio aparece** |
-| ⚖️ **Situação jurídico-fiscal detalhada** | Dívida ativa (tipo de tributo, ajuizamento, risco), sanções federais/estaduais (fundamentação), infrações IBAMA (valor, gravidade), processos |
-| 🧭 **Enriquecimento** | Geolocalização (mapa) e contato/redes sociais |
+| ⚖️ **Situação jurídico-fiscal detalhada** | Dívida ativa (tipo de tributo, ajuizamento, risco), sanções federais/estaduais (fundamentação), infrações IBAMA (valor, gravidade), processos (DJEN) |
+| 🚩 **Flags de risco** | **Lista Suja do trabalho escravo** (MTE), **CEPIM** (impedidas de verba federal), **acordos de leniência** — filtráveis |
+| 🗺️ **Mapa interativo** | Mapa geral da Grande Vitória com todos os pontos (clique → empresa) e **satélite** na visão 360º; filtros recortam o mapa |
+| 🧭 **Enriquecimento** | Geolocalização e contato/redes sociais |
 | 🎯 **Classificação de leads** | Questionário por objetivo comercial → score 0–100 (🔥 Quente / 🙂 Morno / ❄️ Frio) |
 | 🔌 **Acesso** | Dashboard web, API REST, servidor MCP (Claude), export Excel e PDF |
 
@@ -121,11 +130,12 @@ Tudo cruzado pelo **CNPJ**, exclusivamente de **fontes públicas oficiais**:
 | **Receita Federal** (CNPJ) | Cadastro, **sócios**, CNAE, porte, capital, endereço | ✅ |
 | **JUCEES** (dados.es.gov.br) | NIRE, constituição, natureza jurídica | ✅ |
 | **PGFN** | Dívida ativa (tipo de tributo, valor, ajuizamento) | ✅ |
-| **CGU** — Portal da Transparência | Sanções federais **CEIS/CNEP** (fundamentação legal) | ✅ |
+| **CGU** — Portal da Transparência | Sanções **CEIS/CNEP**, **CEPIM**, **Acordos de Leniência** | ✅ |
 | **TCEES** | Sanções estaduais (processo/deliberação) | ✅ |
 | **IBAMA** | Infrações ambientais (valor da multa, gravidade, situação) | ✅ |
-| **OpenStreetMap** | Geolocalização (latitude/longitude) | 🚧 |
-| **DataJud / CNJ** | Processos judiciais (TJES) | 🚧 |
+| **MTE** — Cadastro de Empregadores | **Lista Suja** do trabalho escravo | ✅ |
+| **OpenStreetMap / Nominatim** | Geolocalização (mapa; fallback por endereço) | 🚧 |
+| **DJEN / CNJ** (Comunica API) | Processos judiciais (por nome da parte, sob demanda) | 🧪 |
 | IEMA-ES · RAIS/CAGED | Ambiental estadual · nº de empregados | 🔭 planejado |
 
 > A construção/atualização do dataset é feita por um pipeline de extração mantido em repositório separado. Este é o **produto de consumo**.
@@ -137,12 +147,14 @@ Tudo cruzado pelo **CNPJ**, exclusivamente de **fontes públicas oficiais**:
 Lógica de consulta compartilhada (`src/dataset_queries.py`) entre dashboard, API e MCP — todos leem o SQLite em **somente-leitura**.
 
 ### Dashboard web
-`uvicorn api:app` → **http://localhost:8000**. Filtros (segmento CNAE, município, porte, regime, tipo de pendência, capital, contato/redes, busca), **visão 360º** por empresa com **cards expansíveis** (dívida, sanção, infração e sócios detalhados) + mapa, **classificação de leads** (questionário) e **export Excel/PDF**.
+`uvicorn api:app` → **http://localhost:8000**. **Mapa geral** da Grande Vitória (MapLibre GL) com todos os pontos geolocalizados — clique num ponto abre a empresa, e os filtros recortam o mapa. Filtros (segmento CNAE, município, porte, regime, tipo de pendência, **flags de risco**: trabalho escravo/CEPIM/leniência, capital, contato/redes, busca), **visão 360º** por empresa com **cards expansíveis** (dívida, sanção, infração e sócios detalhados) + **mapa por satélite**, **classificação de leads** (questionário) e **export Excel/PDF**.
 
 ### API REST (FastAPI) — docs em `/docs`
 - `GET /estatisticas` · `GET /segmentos`
-- `GET /empresas` — busca com filtros (município, `cnae_prefix`, porte, regime, `socio` (nome), `tem_pendencia`, `com_processos`/`com_sancoes`/`com_ambiental`/`com_divida`, `com_telefone`/`com_email`/`com_whatsapp`/`com_rede_social`, capital, ordenação, paginação)
+- `GET /empresas` — busca com filtros (município, `cnae_prefix`, porte, regime, `socio` (nome), `tem_pendencia`, `com_processos`/`com_sancoes`/`com_ambiental`/`com_divida`, `com_trabalho_escravo`/`com_cepim`/`com_leniencia`, `com_telefone`/`com_email`/`com_whatsapp`/`com_rede_social`, capital, ordenação, paginação)
+- `GET /mapa` — pontos geolocalizados (lat/lng) com os mesmos filtros, para o mapa
 - `GET /empresas/{cnpj}` — visão 360º (cadastro, sócios+rede, pendências detalhadas, geo)
+- `GET /geocode` — resolve um endereço em lat/lng (fallback do mapa quando a empresa ainda não tem coordenada)
 - `GET /classificar` — pontua e ranqueia leads por objetivo comercial
 - `GET /export/empresas.xlsx` · `GET /export/empresas.pdf`
 
