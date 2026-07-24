@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Empresas · Grande Vitória — Dashboard</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='88'>🛸</text></svg>">
-<!-- Mapa: MapLibre GL (WebGL + clustering nativo) — tiles CARTO dark, sem API key -->
+<!-- Mapa: MapLibre GL (WebGL, todos os pontos sem clustering) — tiles CARTO dark, sem API key -->
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <style>
@@ -112,6 +112,11 @@
   .mapa{width:100%;height:280px;border:1px solid var(--green-dim);border-radius:10px;
     filter:invert(.92) hue-rotate(180deg) brightness(.95) contrast(.92)}
   .maplink{margin-top:8px;display:inline-block;font-size:13px}
+  /* Tooltip/popup dos pontos do mapa (MapLibre) no tema escuro */
+  .maplibregl-popup-content{background:#0b1a0f;color:#39ff14;border:1px solid #1f7a45;
+    border-radius:6px;font-size:12px;font-weight:600;padding:6px 10px;
+    box-shadow:0 2px 12px rgba(0,0,0,.55)}
+  .maplibregl-popup-tip{display:none}
   @media(max-width:900px){.grid{grid-template-columns:1fr}}
 </style>
 </head>
@@ -590,32 +595,19 @@ function initMapa(){
   MAPA.addControl(new maplibregl.NavigationControl(), "top-right");
   const popup = new maplibregl.Popup({closeButton:false, closeOnClick:false});
   MAPA.on("load", ()=>{
-    MAPA.addSource("empresas", {type:"geojson", data:{type:"FeatureCollection",features:[]},
-      cluster:true, clusterRadius:50, clusterMaxZoom:14});
-    MAPA.addLayer({id:"clusters", type:"circle", source:"empresas", filter:["has","point_count"],
-      paint:{"circle-color":"#1f7a45","circle-opacity":0.85,
-        "circle-stroke-width":1, "circle-stroke-color":"#39ff14",
-        "circle-radius":["step",["get","point_count"],14,50,20,200,28,1000,36]}});
-    MAPA.addLayer({id:"cluster-count", type:"symbol", source:"empresas", filter:["has","point_count"],
-      layout:{"text-field":["get","point_count_abbreviated"],"text-font":["Open Sans Regular"],"text-size":12},
-      paint:{"text-color":"#dfffe8"}});
-    MAPA.addLayer({id:"ponto", type:"circle", source:"empresas", filter:["!",["has","point_count"]],
-      paint:{"circle-radius":5, "circle-stroke-width":1, "circle-stroke-color":"#0b3d1a",
-        "circle-color":["case",["get","pend"],"#ff5470","#39ff14"]}});
-    // clique no cluster -> zoom in
-    MAPA.on("click","clusters",(e)=>{
-      const f=MAPA.queryRenderedFeatures(e.point,{layers:["clusters"]})[0];
-      MAPA.getSource("empresas").getClusterExpansionZoom(f.properties.cluster_id)
-        .then(z=> MAPA.easeTo({center:f.geometry.coordinates, zoom:z}));
-    });
-    // clique no ponto -> abre a empresa
+    // Sem clustering: todos os pontos renderizados direto no WebGL (visíveis em
+    // qualquer zoom). O raio cresce suavemente com o zoom pra não virar um borrão.
+    MAPA.addSource("empresas", {type:"geojson", data:{type:"FeatureCollection",features:[]}});
+    MAPA.addLayer({id:"ponto", type:"circle", source:"empresas",
+      paint:{
+        "circle-radius":["interpolate",["linear"],["zoom"], 8,2.2, 11,3.5, 14,5.5, 17,8],
+        "circle-stroke-width":1, "circle-stroke-color":"#0b3d1a",
+        "circle-color":["case",["get","pend"],"#ff5470","#39ff14"],
+        "circle-opacity":0.85}});
     MAPA.on("click","ponto",(e)=>{ const p=e.features[0].properties; if(p.cnpj) abrir(p.cnpj); });
-    // hover: cursor + tooltip
-    for(const l of ["clusters","ponto"]){
-      MAPA.on("mouseenter",l,(e)=>{ MAPA.getCanvas().style.cursor="pointer";
-        if(l==="ponto"){ popup.setLngLat(e.features[0].geometry.coordinates.slice()).setText(e.features[0].properties.nome).addTo(MAPA);} });
-      MAPA.on("mouseleave",l,()=>{ MAPA.getCanvas().style.cursor=""; popup.remove(); });
-    }
+    MAPA.on("mouseenter","ponto",(e)=>{ MAPA.getCanvas().style.cursor="pointer";
+      popup.setLngLat(e.features[0].geometry.coordinates.slice()).setText(e.features[0].properties.nome).addTo(MAPA); });
+    MAPA.on("mouseleave","ponto",()=>{ MAPA.getCanvas().style.cursor=""; popup.remove(); });
     MAPA_READY=true;
     if(_pendentes){ MAPA.getSource("empresas").setData(_pendentes); _pendentes=null; }
   });
