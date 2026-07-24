@@ -23,6 +23,10 @@
 
 <sub>Projeto aberto e sem fins lucrativos — seu apoio custeia a atualização mensal das bases.</sub>
 
+<br><br>
+
+### ⭐ Se este projeto te for útil, **deixe uma estrela** — leva 1 segundo, é de graça e ajuda demais a dar visibilidade ao trabalho!
+
 </div>
 
 ---
@@ -80,7 +84,9 @@ Em desenvolvimento ativo. Estado atual:
 | Componente | Status |
 |---|---|
 | Cadastro (Receita) · **Sócios** · JUCEES | ✅ pronto (344k empresas · 231k sócios) |
-| Dívida ativa PGFN (detalhada) · Sanções federais **CEIS/CNEP** + estaduais **TCEES** · Infrações **IBAMA** (detalhadas) | ✅ pronto |
+| Dívida ativa **PGFN** (detalhada) | ✅ pronto |
+| Sanções federais **CEIS/CNEP** + estaduais **TCEES** | ✅ pronto |
+| Infrações **IBAMA** (detalhadas) | ✅ pronto |
 | Geocodificação (mapa, OpenStreetMap) | 🚧 em processamento — **previsão ~30/07/2026** |
 | Processos judiciais (DataJud/CNJ, TJES) | 🚧 em processamento — **previsão ~20/09/2026** |
 | Contato & redes sociais (WhatsApp, site, Instagram…) | 🧪 implementado |
