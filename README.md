@@ -155,17 +155,17 @@ Ferramentas `estatisticas`, `buscar_empresas`, `obter_empresa`, `classificar_emp
 
 ## 💛 Apoie o projeto
 
-**→ [github.com/sponsors/brunokobi](https://github.com/sponsors/brunokobi)** · níveis em [SPONSORS.md](SPONSORS.md)
+[![GitHub Sponsors](https://img.shields.io/badge/❤%EF%B8%8F%20Apoiar-github.com%2Fsponsors%2Fbrunokobi-ea4aaa?style=flat-square&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/brunokobi) · níveis em [![SPONSORS.md](https://img.shields.io/badge/SPONSORS.md-24292e?style=flat-square&logo=markdown&logoColor=white)](SPONSORS.md)
 
 ## 💬 Contato, sugestões e contribuições
 
 | Quero... | Como |
 |---|---|
-| 🔗 Sugerir nova fonte de dados | [Abrir issue →](https://github.com/brunokobi/projeto_grande_vitoria_empresas/issues/new?template=nova-fonte.yml) |
-| 💡 Sugestão, melhoria ou pedido | [Abrir issue →](https://github.com/brunokobi/projeto_grande_vitoria_empresas/issues/new?template=sugestao.yml) |
-| 🐞 Problema ou reclamação | [Abrir issue →](https://github.com/brunokobi/projeto_grande_vitoria_empresas/issues/new?template=problema.yml) |
-| 📧 Falar direto | [brunokobi2@hotmail.com](mailto:brunokobi2@hotmail.com) |
-| 🌐 Site / portfólio | [brunokobi.netlify.app](https://brunokobi.netlify.app) |
+| 🔗 Sugerir nova fonte de dados | [![Abrir issue](https://img.shields.io/badge/Abrir%20issue-2563eb?style=flat-square&logo=github&logoColor=white)](https://github.com/brunokobi/projeto_grande_vitoria_empresas/issues/new?template=nova-fonte.yml) |
+| 💡 Sugestão, melhoria ou pedido | [![Abrir issue](https://img.shields.io/badge/Abrir%20issue-2563eb?style=flat-square&logo=github&logoColor=white)](https://github.com/brunokobi/projeto_grande_vitoria_empresas/issues/new?template=sugestao.yml) |
+| 🐞 Problema ou reclamação | [![Abrir issue](https://img.shields.io/badge/Abrir%20issue-2563eb?style=flat-square&logo=github&logoColor=white)](https://github.com/brunokobi/projeto_grande_vitoria_empresas/issues/new?template=problema.yml) |
+| 📧 Falar direto | [![E-mail](https://img.shields.io/badge/brunokobi2@hotmail.com-EA4335?style=flat-square&logo=maildotru&logoColor=white)](mailto:brunokobi2@hotmail.com) |
+| 🌐 Site / portfólio | [![Site](https://img.shields.io/badge/brunokobi.netlify.app-00C7B7?style=flat-square&logo=netlify&logoColor=white)](https://brunokobi.netlify.app) |
 
 ---
 
