@@ -109,8 +109,7 @@
   .close:hover{color:var(--danger)}
   .loading{color:var(--green);text-align:center;padding:30px;font-family:'Courier New',monospace}
   code{background:var(--bg2);padding:1px 6px;border-radius:4px;color:var(--green);font-family:'Courier New',monospace;font-size:12px}
-  .mapa{width:100%;height:280px;border:1px solid var(--green-dim);border-radius:10px;
-    filter:invert(.92) hue-rotate(180deg) brightness(.95) contrast(.92)}
+  .mapa{width:100%;height:280px;border:1px solid var(--green-dim);border-radius:10px;overflow:hidden}
   .maplink{margin-top:8px;display:inline-block;font-size:13px}
   /* Tooltip/popup dos pontos do mapa (MapLibre) no tema escuro */
   .maplibregl-popup-content{background:#0b1a0f;color:#39ff14;border:1px solid #1f7a45;
@@ -389,12 +388,25 @@ function renderDividas(arr, capital){
   return `<div class="sec">💸 Dívida ativa (${arr.length})</div>${cards}`;
 }
 function mapaEmbed(e, geo){
-  let q;
-  if(geo && geo.latitude && geo.longitude) q = geo.latitude + "," + geo.longitude;
-  else q = [e.logradouro, e.numero, e.bairro, e.cep,
-            (e.municipio||"") + " " + (e.uf||""), "Brasil"].filter(Boolean).join(", ");
-  return `<iframe class="mapa" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
-     src="https://maps.google.com/maps?q=${encodeURIComponent(q)}&z=16&output=embed"></iframe>`;
+  if(geo && geo.latitude && geo.longitude)
+    return `<div id="mapa_modal" class="mapa"></div>`;
+  return `<div class="mapa" style="display:flex;align-items:center;justify-content:center;
+    color:var(--muted);font-size:13px;text-align:center;padding:12px">
+    Sem coordenadas ainda — geolocaliza&ccedil;&atilde;o em processamento.</div>`;
+}
+let _modalMap = null;
+function initMapaModal(geo){
+  if(!geo || !geo.latitude || !geo.longitude || !document.getElementById("mapa_modal")) return;
+  if(_modalMap){ try{ _modalMap.remove(); }catch(_){} _modalMap=null; }
+  const lng = geo.longitude, lat = geo.latitude;
+  const estilo = { version:8, sources:{
+      sat:{ type:"raster", tileSize:256,
+        tiles:["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
+        attribution:"Esri, Maxar, Earthstar Geographics" }},
+    layers:[{ id:"sat", type:"raster", source:"sat" }] };
+  _modalMap = new maplibregl.Map({container:"mapa_modal", style:estilo, center:[lng,lat], zoom:17});
+  _modalMap.addControl(new maplibregl.NavigationControl(), "top-right");
+  new maplibregl.Marker({color:"#39ff14"}).setLngLat([lng,lat]).addTo(_modalMap);
 }
 async function classificar(){
   carregarMapa();                    // recorte também reflete no mapa
@@ -562,8 +574,12 @@ async function abrir(cnpj){
       ${mapaEmbed(e, d.geolocalizacao)}
       <a class="maplink" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(endereco)}" target="_blank">Abrir no Google Maps &#8599;</a>
     </div>`;
+  initMapaModal(d.geolocalizacao);
 }
-function fechar(){ $("overlay").classList.remove("open"); }
+function fechar(){
+  $("overlay").classList.remove("open");
+  if(_modalMap){ try{ _modalMap.remove(); }catch(_){} _modalMap=null; }
+}
 function exportar(fmt){ window.location = `/export/empresas.${fmt}?`+query().toString(); }
 function limpar(){
   ["f_texto","f_socio","f_capmin","f_capmax"].forEach(id=>$(id).value="");
