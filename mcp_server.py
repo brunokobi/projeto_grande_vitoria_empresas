@@ -52,6 +52,9 @@ def buscar_empresas(
     com_sancoes: bool = None,
     com_ambiental: bool = None,
     com_divida: bool = None,
+    com_trabalho_escravo: bool = None,
+    com_cepim: bool = None,
+    com_leniencia: bool = None,
     capital_min: float = None,
     capital_max: float = None,
     ordenar_por: str = "razao_social",
@@ -85,6 +88,8 @@ def buscar_empresas(
         com_email=com_email, com_whatsapp=com_whatsapp,
         com_rede_social=com_rede_social, com_processos=com_processos,
         com_sancoes=com_sancoes, com_ambiental=com_ambiental, com_divida=com_divida,
+        com_trabalho_escravo=com_trabalho_escravo, com_cepim=com_cepim,
+        com_leniencia=com_leniencia,
         capital_min=capital_min, capital_max=capital_max, ordenar_por=ordenar_por,
         limite=limite, offset=offset,
     )
