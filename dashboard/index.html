@@ -116,6 +116,10 @@
     border-radius:6px;font-size:12px;font-weight:600;padding:6px 10px;
     box-shadow:0 2px 12px rgba(0,0,0,.55)}
   .maplibregl-popup-tip{display:none}
+  .mapamsg{display:flex;align-items:center;justify-content:center;height:100%;
+    color:var(--muted);font-size:13px;text-align:center;padding:12px}
+  .mapaprox{position:absolute;bottom:6px;left:6px;z-index:2;background:#0b1a0f;color:#f5a623;
+    border:1px solid #f5a623;border-radius:5px;font-size:11px;padding:2px 6px}
   @media(max-width:900px){.grid{grid-template-columns:1fr}}
 </style>
 </head>
@@ -387,26 +391,38 @@ function renderDividas(arr, capital){
   }).join("");
   return `<div class="sec">💸 Dívida ativa (${arr.length})</div>${cards}`;
 }
-function mapaEmbed(e, geo){
-  if(geo && geo.latitude && geo.longitude)
-    return `<div id="mapa_modal" class="mapa"></div>`;
-  return `<div class="mapa" style="display:flex;align-items:center;justify-content:center;
-    color:var(--muted);font-size:13px;text-align:center;padding:12px">
-    Sem coordenadas ainda — geolocaliza&ccedil;&atilde;o em processamento.</div>`;
-}
+function mapaEmbed(e, geo){ return `<div id="mapa_modal" class="mapa"></div>`; }
 let _modalMap = null;
-function initMapaModal(geo){
-  if(!geo || !geo.latitude || !geo.longitude || !document.getElementById("mapa_modal")) return;
+const _ESTILO_SAT = { version:8, sources:{
+    sat:{ type:"raster", tileSize:256,
+      tiles:["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
+      attribution:"Esri, Maxar, Earthstar Geographics" }},
+  layers:[{ id:"sat", type:"raster", source:"sat" }] };
+async function initMapaModal(geo, e){
+  const cont = document.getElementById("mapa_modal");
+  if(!cont) return;
   if(_modalMap){ try{ _modalMap.remove(); }catch(_){} _modalMap=null; }
-  const lng = geo.longitude, lat = geo.latitude;
-  const estilo = { version:8, sources:{
-      sat:{ type:"raster", tileSize:256,
-        tiles:["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
-        attribution:"Esri, Maxar, Earthstar Geographics" }},
-    layers:[{ id:"sat", type:"raster", source:"sat" }] };
-  _modalMap = new maplibregl.Map({container:"mapa_modal", style:estilo, center:[lng,lat], zoom:17});
+  let lat=null, lng=null, aprox=false;
+  if(geo && geo.latitude && geo.longitude){ lat=+geo.latitude; lng=+geo.longitude; }
+  else {
+    // sem coordenadas da etapa geo → geocodifica o endereço na hora (Nominatim/OSM, grátis)
+    cont.innerHTML = `<div class="mapamsg">buscando o endere&ccedil;o no mapa…</div>`;
+    const q = [e.logradouro, e.numero, e.bairro, e.cep, e.municipio, e.uf, "Brasil"].filter(Boolean).join(", ");
+    try{
+      const j = await (await fetch("/geocode?q="+encodeURIComponent(q))).json();
+      if(j && j.lat!=null){ lat=+j.lat; lng=+j.lng; aprox=true; }
+    }catch(_){}
+    if(lat==null){ cont.innerHTML = `<div class="mapamsg">N&atilde;o foi poss&iacute;vel localizar o endere&ccedil;o no mapa. Use "Abrir no Google Maps" abaixo.</div>`; return; }
+  }
+  cont.innerHTML = "";
+  _modalMap = new maplibregl.Map({container:"mapa_modal", style:_ESTILO_SAT, center:[lng,lat], zoom: aprox?16:17});
   _modalMap.addControl(new maplibregl.NavigationControl(), "top-right");
-  new maplibregl.Marker({color:"#39ff14"}).setLngLat([lng,lat]).addTo(_modalMap);
+  new maplibregl.Marker({color: aprox?"#f5a623":"#39ff14"}).setLngLat([lng,lat]).addTo(_modalMap);
+  if(aprox){
+    cont.style.position="relative";
+    const b=document.createElement("div"); b.className="mapaprox"; b.textContent="📍 aprox. pelo endereço";
+    cont.appendChild(b);
+  }
 }
 async function classificar(){
   carregarMapa();                    // recorte também reflete no mapa
@@ -574,7 +590,7 @@ async function abrir(cnpj){
       ${mapaEmbed(e, d.geolocalizacao)}
       <a class="maplink" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(endereco)}" target="_blank">Abrir no Google Maps &#8599;</a>
     </div>`;
-  initMapaModal(d.geolocalizacao);
+  initMapaModal(d.geolocalizacao, e);
 }
 function fechar(){
   $("overlay").classList.remove("open");

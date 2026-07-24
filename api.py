@@ -10,6 +10,9 @@ Rodar:
 Docs da API: http://localhost:8000/docs
 """
 import io
+import json as _json
+import urllib.parse
+import urllib.request
 
 from fastapi import FastAPI, HTTPException, Query, Depends
 from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
@@ -113,6 +116,26 @@ def get_mapa(
     limite: int = Query(20000, ge=1, le=50000),
 ):
     return dataset_queries.pontos_mapa(limite=limite, **filtros)
+
+
+@app.get("/geocode", summary="Geocodifica um endereço (Nominatim/OSM) para o mapa do modal")
+def geocode(q: str = Query(..., min_length=4)):
+    """Fallback quando a empresa ainda não foi geocodificada pela etapa `geo`:
+    resolve o endereço em lat/lng via Nominatim (server-side, com User-Agent
+    identificado — evita bloqueio/CORS do acesso direto pelo navegador).
+    Retorna {'lat','lng'} ou {'lat':null} se não encontrar."""
+    url = "https://nominatim.openstreetmap.org/search?" + urllib.parse.urlencode(
+        {"q": q, "format": "jsonv2", "limit": 1, "countrycodes": "br"})
+    req = urllib.request.Request(url, headers={
+        "User-Agent": "grande-vitoria-empresas-dashboard/1.0 (mapa on-demand)"})
+    try:
+        with urllib.request.urlopen(req, timeout=25) as resp:
+            arr = _json.load(resp)
+    except Exception:
+        return {"lat": None, "lng": None}
+    if arr:
+        return {"lat": float(arr[0]["lat"]), "lng": float(arr[0]["lon"])}
+    return {"lat": None, "lng": None}
 
 
 @app.get("/empresas/{cnpj}", summary="Visão 360º de uma empresa pelo CNPJ")
