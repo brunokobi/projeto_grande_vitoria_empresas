@@ -26,6 +26,10 @@ from mcp_server import mcp
 # local via stdio (.mcp.json). streamable_http_path vira "/" porque o mount
 # abaixo já prefixa "/mcp" — sem isso o caminho final ficaria "/mcp/mcp".
 mcp.settings.streamable_http_path = "/"
+# Proteção anti DNS-rebinding do SDK só libera localhost por padrão — precisa
+# incluir o domínio público, senão toda requisição cai com "Invalid Host header".
+mcp.settings.transport_security.allowed_hosts.append("empresas.brunokobi.duckdns.org")
+mcp.settings.transport_security.allowed_origins.append("https://empresas.brunokobi.duckdns.org")
 mcp_app = mcp.streamable_http_app()
 
 
