@@ -1,12 +1,20 @@
 # Apoie o projeto 💛
 
 O **Dataset de Empresas da Grande Vitória** consolida dados públicos oficiais
-(Receita Federal, PGFN, TCEES, IBAMA, DataJud/CNJ, JUCEES) em uma base pronta
-para prospecção, pesquisa e análise de mercado — com acesso via API e MCP.
+— Receita Federal, PGFN, CGU (CEIS/CNEP, CEPIM, acordos de leniência), TCEES,
+IBAMA, MTE (Lista Suja do trabalho escravo), JUCEES e DJEN/CNJ — numa base
+pronta para prospecção, pesquisa e análise de mercado, com **mapa interativo**
+e **flags de risco** filtráveis.
+
+O projeto já está **online**, sem precisar instalar nada:
+- 🖥️ Dashboard: [empresas.brunokobi.duckdns.org](https://empresas.brunokobi.duckdns.org)
+- 🔌 API REST: [empresas.brunokobi.duckdns.org/docs](https://empresas.brunokobi.duckdns.org/docs)
+- 🤖 MCP (Claude e outros clientes compatíveis): `https://empresas.brunokobi.duckdns.org/mcp/`
 
 Manter isso dá trabalho contínuo: a Receita Federal publica dados novos todo
-mês, as fontes mudam de formato/URL, e o pipeline precisa de manutenção. Seu
-apoio custeia esse tempo e mantém a base atualizada e aberta para todos.
+mês, as fontes mudam de formato/URL, o pipeline precisa de manutenção e agora
+tem também o custo real de manter o serviço no ar. Seu apoio custeia esse
+tempo e mantém a base atualizada, hospedada e aberta para todos.
 
 **→ Apoie em [github.com/sponsors/brunokobi](https://github.com/sponsors/brunokobi)**
 
@@ -28,7 +36,7 @@ Também é possível fazer uma **doação única** ($5, $20, $50 ou valor livre)
 - ⏱️ Tempo de manutenção do pipeline (fontes mudam com frequência)
 - 🔄 Atualização periódica da base (mensal, acompanhando a Receita Federal)
 - 🧩 Novas fontes e campos de enriquecimento
-- 🖥️ Eventual hospedagem da API/MCP para acesso público
+- 🖥️ Hospedagem do dashboard/API/MCP para acesso público
 
 ## Apoiadores atuais
 
