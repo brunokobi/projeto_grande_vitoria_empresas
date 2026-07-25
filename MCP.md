@@ -15,7 +15,115 @@ Exemplos de perguntas: *"quantas empresas ativas há em Vila Velha?"*, *"restaur
 em Vitória com e-mail e sem dívida ativa"*, *"classifique como lead de contabilidade
 as empresas da Serra com dívida"*, *"mostre a visão 360 do CNPJ 12345678000190"*.
 
+Tem **duas formas** de conectar: usar o **servidor remoto** já publicado (nada pra
+instalar) ou rodar **localmente** (stdio, se quiser seu próprio dataset/instância).
+
 ---
+
+# 🌐 Opção A — Servidor remoto (recomendado, sem instalar nada)
+
+URL do servidor MCP (Streamable HTTP):
+
+```
+https://empresas.brunokobi.duckdns.org/mcp/
+```
+
+> Repare na **barra final** (`/mcp/`) — sem ela alguns clientes recebem um
+> redirect e podem não seguir automaticamente.
+
+### 🟢 Claude Code
+Arquivo `.mcp.json` (raiz do projeto ou `~/.claude/.mcp.json` para todos os projetos):
+```json
+{
+  "mcpServers": {
+    "grande-vitoria-empresas": {
+      "type": "http",
+      "url": "https://empresas.brunokobi.duckdns.org/mcp/"
+    }
+  }
+}
+```
+Ou via CLI, de qualquer lugar:
+```bash
+claude mcp add --transport http grande-vitoria-empresas https://empresas.brunokobi.duckdns.org/mcp/
+```
+
+### 🔵 Cursor
+`~/.cursor/mcp.json` (global) ou `.cursor/mcp.json` (no projeto):
+```json
+{
+  "mcpServers": {
+    "grande-vitoria-empresas": {
+      "url": "https://empresas.brunokobi.duckdns.org/mcp/"
+    }
+  }
+}
+```
+
+### 🌊 Windsurf (Codeium)
+`~/.codeium/windsurf/mcp_config.json` — repare que a chave é `serverUrl`, não `url`:
+```json
+{
+  "mcpServers": {
+    "grande-vitoria-empresas": {
+      "serverUrl": "https://empresas.brunokobi.duckdns.org/mcp/"
+    }
+  }
+}
+```
+
+### 🧩 VS Code (GitHub Copilot — agent mode)
+`.vscode/mcp.json` (raiz é `servers`, não `mcpServers`):
+```json
+{
+  "servers": {
+    "grande-vitoria-empresas": {
+      "type": "http",
+      "url": "https://empresas.brunokobi.duckdns.org/mcp/"
+    }
+  }
+}
+```
+
+### 🤖 Cline
+`cline_mcp_settings.json` — `type` explícito é obrigatório:
+```json
+{
+  "mcpServers": {
+    "grande-vitoria-empresas": {
+      "type": "streamableHttp",
+      "url": "https://empresas.brunokobi.duckdns.org/mcp/"
+    }
+  }
+}
+```
+
+### 🟣 Claude Desktop
+O app desktop **não** aceita servidor remoto direto no `claude_desktop_config.json`
+(esse formato é só para `stdio` local). Duas opções:
+- **Interface:** *Settings → Connectors → Add custom connector* → cole a URL acima
+  (precisa de plano Pro/Max/Team/Enterprise).
+- **Wrapper stdio** (`mcp-remote`), se preferir manter tudo no JSON:
+  ```json
+  {
+    "mcpServers": {
+      "grande-vitoria-empresas": {
+        "command": "npx",
+        "args": ["mcp-remote", "https://empresas.brunokobi.duckdns.org/mcp/"]
+      }
+    }
+  }
+  ```
+
+### 💬 ChatGPT
+Ainda não conecta servidores MCP como os acima. Use a **API REST**:
+`https://empresas.brunokobi.duckdns.org/docs`.
+
+---
+
+# 💻 Opção B — Rodar localmente (stdio)
+
+Para quem quer seu próprio dataset/instância, ou customizar o servidor.
 
 ## Passo 1 — Baixar e instalar
 
@@ -147,14 +255,20 @@ Se responder com os números do dataset, está conectado. 🎉
 ## Alternativa sem MCP: API REST
 
 Se seu cliente não suporta MCP, tudo também está disponível por HTTP:
-```bash
-source .venv/bin/activate
-uvicorn api:app      # http://localhost:8000/docs
-```
+- **Remoto (já no ar):** `https://empresas.brunokobi.duckdns.org/docs`
+- **Local:**
+  ```bash
+  source .venv/bin/activate
+  uvicorn api:app      # http://localhost:8000/docs
+  ```
 
 ## Problemas comuns
-- **Ferramentas não aparecem:** confira se os caminhos são **absolutos** e se
-  rodou o `bash setup.sh` (o `.venv` precisa existir). Reinicie o cliente.
+- **Servidor remoto — ferramentas não aparecem:** confira a **barra final** na
+  URL (`/mcp/`) e se o `type`/chave de transporte está certo pro seu cliente
+  (`http`, `sse` ou `streamableHttp` — varia por cliente, veja a Opção A acima).
+  Reinicie o cliente depois de editar o config.
+- **Local — ferramentas não aparecem:** confira se os caminhos são **absolutos**
+  e se rodou o `bash setup.sh` (o `.venv` precisa existir). Reinicie o cliente.
 - **"dataset não encontrado":** rode `bash setup.sh` de novo (ele baixa o
   `data/grande_vitoria.db` do Release).
 - **Windows:** use `...\.venv\Scripts\python.exe` e barras invertidas nos caminhos.

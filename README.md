@@ -31,6 +31,16 @@
 
 ---
 
+## 🌐 Acesse online (sem instalar nada)
+
+| | |
+|---|---|
+| 🖥️ **Dashboard** | **[empresas.brunokobi.duckdns.org](https://empresas.brunokobi.duckdns.org)** |
+| 🔌 **API REST** | [empresas.brunokobi.duckdns.org/docs](https://empresas.brunokobi.duckdns.org/docs) |
+| 🤖 **MCP** (Claude, Cursor, Windsurf, VS Code, Cline...) | `https://empresas.brunokobi.duckdns.org/mcp/` — instruções por cliente em **[MCP.md](MCP.md)** |
+
+---
+
 ## ⚡ Começar em 1 comando
 
 O dataset é distribuído como **GitHub Release** (não fica versionado no repo — mantém tudo leve). O script de setup usa o [uv](https://docs.astral.sh/uv/) para criar o ambiente com um Python 3.12 isolado (instalando o próprio uv se preciso), instalar dependências e **baixar o dataset** — **não precisa ter Python pré-instalado**, nem depende da versão que o sistema operacional já traz.
@@ -159,7 +169,7 @@ Lógica de consulta compartilhada (`src/dataset_queries.py`) entre dashboard, AP
 - `GET /export/empresas.xlsx` · `GET /export/empresas.pdf`
 
 ### Servidor MCP
-Ferramentas `estatisticas`, `buscar_empresas`, `obter_empresa`, `classificar_empresas` para o Claude e outros clientes MCP. O `.mcp.json` é detectado automaticamente após o `setup.sh`.
+Ferramentas `estatisticas`, `buscar_empresas`, `obter_empresa`, `classificar_empresas` para o Claude e outros clientes MCP. Duas formas de conectar: **remoto**, direto em `https://empresas.brunokobi.duckdns.org/mcp/` (sem instalar nada); ou **local**, via `.mcp.json` (detectado automaticamente pelo Claude Code após o `setup.sh`).
 
 📘 **Tutorial completo de conexão** (Claude Desktop, Claude Code, Cursor, Windsurf, VS Code/Copilot, Cline): **[MCP.md](MCP.md)**.
 

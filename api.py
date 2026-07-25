@@ -9,6 +9,7 @@ Rodar:
     uvicorn api:app --reload      # abre em http://localhost:8000
 Docs da API: http://localhost:8000/docs
 """
+import contextlib
 import io
 import json as _json
 import urllib.parse
@@ -19,12 +20,28 @@ from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
 
 import config
 from src import dataset_queries
+from mcp_server import mcp
+
+# Expõe o mesmo servidor MCP (mcp_server.py) por HTTP em /mcp, além do uso
+# local via stdio (.mcp.json). streamable_http_path vira "/" porque o mount
+# abaixo já prefixa "/mcp" — sem isso o caminho final ficaria "/mcp/mcp".
+mcp.settings.streamable_http_path = "/"
+mcp_app = mcp.streamable_http_app()
+
+
+@contextlib.asynccontextmanager
+async def lifespan(app: FastAPI):
+    async with mcp_app.router.lifespan_context(mcp_app):
+        yield
+
 
 app = FastAPI(
     title="Empresas da Grande Vitória — API + Dashboard",
     description="Dataset consolidado de empresas ativas da Grande Vitória (ES).",
     version="2.0.0",
+    lifespan=lifespan,
 )
+app.mount("/mcp", mcp_app)
 
 DASHBOARD_HTML = config.BASE_DIR / "dashboard" / "index.html"
 
@@ -87,6 +104,7 @@ def indice_api():
             "GET /empresas/{cnpj}": "Visão 360º",
             "GET /export/empresas.xlsx": "Lista filtrada em Excel",
             "GET /export/empresas.pdf": "Lista filtrada em PDF",
+            "POST /mcp/": "Servidor MCP (Streamable HTTP) — ver MCP.md",
         }
     }
 
