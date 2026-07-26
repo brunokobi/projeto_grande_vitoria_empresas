@@ -21,7 +21,7 @@
   <img src="https://img.shields.io/badge/%E2%9D%A4%EF%B8%8F%20Apoiar%20este%20projeto-GitHub%20Sponsors-ea4aaa?style=for-the-badge&logo=githubsponsors&logoColor=white" alt="Apoiar no GitHub Sponsors" height="42">
 </a>
 
-<sub>Projeto aberto e sem fins lucrativos — seu apoio custeia a atualização mensal das bases.</sub>
+<sub>Projeto aberto e sem fins lucrativos — seu apoio custeia o pipeline rodando 24/7 e o dataset atualizando sozinho a cada 2h.</sub>
 
 <br><br>
 
@@ -100,19 +100,25 @@ Em desenvolvimento ativo. Estado atual:
 | **CEPIM** (impedidas de verba federal) · **Acordos de Leniência** (CGU) | ✅ pronto |
 | **Lista Suja do trabalho escravo** (MTE) | ✅ pronto |
 | **Mapa interativo** (MapLibre) + **satélite** na visão 360º | ✅ pronto |
-| Geocodificação (coordenadas de todas as empresas) | 🚧 em processamento — **previsão ~30/07/2026** |
-| Processos judiciais (**DJEN/CNJ**, por nome da parte) | 🧪 sob demanda (ver nota) |
+| Geocodificação (coordenadas de todas as empresas) | 🚧 rodando 24/7 na VPS — **previsão ~30/07/2026** |
+| Processos judiciais (**DJEN/CNJ**, por nome da parte) | 🚧 rodando 24/7 na VPS (ver nota) |
 | Contato & redes sociais (WhatsApp, site, Instagram…) | 🧪 implementado |
 | Dashboard · API · MCP · export Excel/PDF · **classificação de leads** | ✅ funcionais |
 
-> ⏳ **Geocodificação** depende do OpenStreetMap (~1 req/s), por isso leva dias — o
-> restante do dataset já está completo. No mapa, empresas ainda sem coordenada são
-> localizadas **na hora pelo endereço**.
+> 🔄 **Atualização automática:** o pipeline de geocodificação e processos
+> judiciais roda continuamente numa VPS, e o dataset publicado (Release) é
+> atualizado **a cada 2 horas** — o dashboard/API baixam a versão nova sozinhos,
+> sem precisar de reinstalação. O cadastro base (Receita Federal) segue seu
+> próprio ritmo mensal, que é quando a RFB publica dados novos.
+>
+> ⏳ **Geocodificação** depende do OpenStreetMap (~1 req/s), por isso leva dias —
+> o restante do dataset já está completo. No mapa, empresas ainda sem coordenada
+> são localizadas **na hora pelo endereço**.
 >
 > ⚖️ **Processos judiciais:** a API pública do DataJud **não expõe as partes**
 > (CPF/CNPJ), então é impossível achar processos por empresa por ela. Em vez disso
-> usamos o **DJEN / Comunica API do CNJ** (busca por nome da parte), de forma
-> **sob demanda** — cobre litígio recente (era do DJEN, ~2022+).
+> usamos o **DJEN / Comunica API do CNJ** (busca por nome da parte) — cobre
+> litígio recente (era do DJEN, ~2022+).
 
 ---
 
@@ -145,7 +151,7 @@ Tudo cruzado pelo **CNPJ**, exclusivamente de **fontes públicas oficiais**:
 | **IBAMA** | Infrações ambientais (valor da multa, gravidade, situação) | ✅ |
 | **MTE** — Cadastro de Empregadores | **Lista Suja** do trabalho escravo | ✅ |
 | **OpenStreetMap / Nominatim** | Geolocalização (mapa; fallback por endereço) | 🚧 |
-| **DJEN / CNJ** (Comunica API) | Processos judiciais (por nome da parte, sob demanda) | 🧪 |
+| **DJEN / CNJ** (Comunica API) | Processos judiciais (por nome da parte) | 🚧 |
 | IEMA-ES · RAIS/CAGED | Ambiental estadual · nº de empregados | 🔭 planejado |
 
 > A construção/atualização do dataset é feita por um pipeline de extração mantido em repositório separado. Este é o **produto de consumo**.
