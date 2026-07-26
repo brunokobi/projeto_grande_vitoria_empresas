@@ -468,6 +468,28 @@ function renderInfracoes(arr){
   }).join("");
   return `<div class="sec">🌱 Infrações ambientais (${arr.length})</div>${cards}`;
 }
+const _POLO = {ATIVO:"Autor(a) (polo ativo)", PASSIVO:"Réu/Ré (polo passivo)"};
+function renderProcessos(arr){
+  if(!arr||!arr.length) return "";
+  const cards = arr.map(x=>{
+    const kv=(k,v)=>v?`<div><span class="k">${k}</span><span class="val">${v}</span></div>`:"";
+    const fuzzy = (x.match_confianca||"").toLowerCase()==="fuzzy";
+    const polo = _POLO[(x.polo||"").toUpperCase()] || esc(x.polo);
+    return `<details class="divida">
+      <summary><b>${esc(x.numero_processo||"—")}</b> <span style="color:var(--muted)">${esc(x.tribunal||"")}</span>
+        ${fuzzy?'<span class="tag warn">correspondência aproximada</span>':""}
+        <span style="color:var(--muted)">${idadeTexto(x.data_ultima_movimentacao)}</span></summary>
+      <div class="divida-det">
+        ${kv("Classe", esc(x.classe))}
+        ${kv("Assunto", esc(x.assunto))}
+        ${kv("Posição da empresa", polo)}
+        ${kv("Situação", esc(x.status))}
+        ${kv("Última movimentação", fmtData(x.data_ultima_movimentacao))}
+      </div>
+    </details>`;
+  }).join("");
+  return `<div class="sec">📂 Processos judiciais (${arr.length})</div>${cards}`;
+}
 function renderSancoes(arr){
   if(!arr||!arr.length) return "";
   const cards = arr.map(x=>{
@@ -510,8 +532,6 @@ async function abrir(cnpj){
     : esc(e.cnae_principal||"-");
   const pend = rz.tem_pendencia_juridica_ou_fiscal
     ? `<span class="tag pend">&#9888; tem pend&ecirc;ncia jur&iacute;dico-fiscal</span>` : `<span class="tag ok">&#10003; sem pend&ecirc;ncias</span>`;
-  const secPend = (titulo,arr,render)=> arr&&arr.length
-    ? `<div class="sec">${titulo} (${arr.length})</div><div class="lista">${arr.slice(0,15).map(render).join("")}</div>` : "";
 
   $("modal").innerHTML = `
     <div class="top">
@@ -552,10 +572,10 @@ async function abrir(cnpj){
         ${kv("&#128209;","D&iacute;vidas ativas", rz.qtd_dividas_ativas)}
         ${kv("&#128184;","Total em d&iacute;vida ativa", fmtBRL(rz.valor_total_divida_ativa))}
       </div>
+      ${renderProcessos(d.processos_judiciais)}
       ${renderDividas(d.dividas_ativas, e.capital_social)}
       ${renderSancoes(d.sancoes_administrativas)}
       ${renderInfracoes(d.infracoes_ambientais)}
-      ${secPend("&#128194; Processos judiciais", d.processos_judiciais, x=>`<div class="item">${esc(x.numero_processo||"")} - ${esc(x.tribunal||"")} ${esc(x.classe||"")}</div>`)}
 
       <div class="sec">&#128205; Localiza&ccedil;&atilde;o</div>
       ${mapaEmbed(e, d.geolocalizacao)}

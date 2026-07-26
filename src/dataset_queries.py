@@ -408,8 +408,10 @@ def obter_empresa(cnpj: str) -> dict:
         jucees = conn.execute(
             "SELECT * FROM registros_jucees WHERE cnpj_empresa = ?", (cnpj,)).fetchone()
         processos = [dict(r) for r in conn.execute(
-            "SELECT numero_processo, tribunal, classe, assunto, data_ultima_movimentacao "
-            "FROM processos_judiciais WHERE cnpj_empresa = ? LIMIT 100", (cnpj,))]
+            "SELECT numero_processo, tribunal, classe, assunto, polo, status, "
+            "data_ultima_movimentacao, match_confianca "
+            "FROM processos_judiciais WHERE cnpj_empresa = ? "
+            "ORDER BY data_ultima_movimentacao DESC LIMIT 100", (cnpj,))]
         sancoes = [dict(r) for r in conn.execute(
             "SELECT tipo, motivo, orgao_sancionador, data_inicio, data_fim, "
             "fundamentacao, numero_processo, ano_processo, numero_deliberacao, ano_deliberacao "
