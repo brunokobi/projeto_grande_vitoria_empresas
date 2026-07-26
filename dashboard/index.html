@@ -145,7 +145,7 @@
 
   <div class="grid">
     <!-- FILTROS -->
-    <div class="card" style="position:sticky;top:80px">
+    <div class="card" style="position:sticky;top:80px;max-height:calc(100vh - 96px);overflow-y:auto">
       <h3>⚙ Filtros</h3>
       <label class="f">Busca (razão social / fantasia)</label>
       <input id="f_texto" placeholder="Ex.: construtora, restaurante...">
@@ -192,39 +192,6 @@
         <button class="btn" style="flex:1" onclick="buscar(true)">Aplicar</button>
         <button class="btn ghost" onclick="limpar()">Limpar</button>
       </div>
-
-      <h3 style="margin-top:22px">🎯 Classificar leads</h3>
-      <label class="f">Objetivo comercial (o que você vende)</label>
-      <select id="q_objetivo">
-        <option value="generico">Prospecção geral (equilibrado)</option>
-        <option value="regularizacao">Contábil / jurídico / regularização</option>
-        <option value="marketing">Marketing / presença digital</option>
-        <option value="credito">Crédito / seguro / financeiro</option>
-        <option value="software">Software / ERP / tecnologia</option>
-      </select>
-      <label class="f">Priorizar quem tem contato</label>
-      <label class="chk"><input type="checkbox" id="q_tel"> Telefone</label>
-      <label class="chk"><input type="checkbox" id="q_email"> E-mail</label>
-      <label class="chk"><input type="checkbox" id="q_wpp"> WhatsApp</label>
-      <label class="chk"><input type="checkbox" id="q_rede"> Redes sociais</label>
-      <label class="f">Presença digital (site/redes)</label>
-      <select id="q_presenca">
-        <option value="indiferente">Indiferente</option>
-        <option value="com">Prioriza quem TEM</option>
-        <option value="sem">Prioriza quem NÃO tem (oportunidade)</option>
-      </select>
-      <label class="f">Situação fiscal</label>
-      <select id="q_fiscal">
-        <option value="indiferente">Indiferente</option>
-        <option value="limpas">Prioriza limpas</option>
-        <option value="com_pendencia">Prioriza com dívida/pendência</option>
-      </select>
-      <label class="f">Porte alvo (pontua se bater)</label>
-      <label class="chk"><input type="checkbox" id="q_p1" value="01"> Microempresa</label>
-      <label class="chk"><input type="checkbox" id="q_p3" value="03"> Pequeno porte (EPP)</label>
-      <label class="chk"><input type="checkbox" id="q_p5" value="05"> Demais/Grande</label>
-      <button class="btn" style="width:100%;margin-top:14px" onclick="classificar()">🎯 Classificar e pesquisar</button>
-      <div style="font-size:11px;color:var(--muted);margin-top:6px">Usa os filtros acima como recorte e pontua cada empresa (0–100).</div>
     </div>
 
     <!-- RESULTADOS -->
@@ -415,7 +382,7 @@ async function initMapaModal(geo, e){
     if(lat==null){ cont.innerHTML = `<div class="mapamsg">N&atilde;o foi poss&iacute;vel localizar o endere&ccedil;o no mapa. Use "Abrir no Google Maps" abaixo.</div>`; return; }
   }
   cont.innerHTML = "";
-  _modalMap = new maplibregl.Map({container:"mapa_modal", style:_ESTILO_SAT, center:[lng,lat], zoom: aprox?16:17});
+  _modalMap = new maplibregl.Map({container:"mapa_modal", style:_ESTILO_SAT, center:[lng,lat], zoom: aprox?16:17, cooperativeGestures:true, locale:_LOCALE_MAPA});
   _modalMap.addControl(new maplibregl.NavigationControl(), "top-right");
   new maplibregl.Marker({color: aprox?"#f5a623":"#39ff14"}).setLngLat([lng,lat]).addTo(_modalMap);
   if(aprox){
@@ -600,9 +567,7 @@ function exportar(fmt){ window.location = `/export/empresas.${fmt}?`+query().toS
 function limpar(){
   ["f_texto","f_socio","f_capmin","f_capmax"].forEach(id=>$(id).value="");
   ["f_segmento","f_municipio","f_porte","f_regime","f_pendencia"].forEach(id=>$(id).value="");
-  ["f_tel","f_email","f_wpp","f_rede","f_proc","f_sanc","f_amb","f_div","f_escravo","f_cepim","f_lenienc","q_tel","q_email","q_wpp","q_rede","q_p1","q_p3","q_p5"].forEach(id=>$(id).checked=false);
-  ["q_objetivo"].forEach(id=>$(id).value="generico");
-  ["q_presenca","q_fiscal"].forEach(id=>$(id).value="indiferente");
+  ["f_tel","f_email","f_wpp","f_rede","f_proc","f_sanc","f_amb","f_div","f_escravo","f_cepim","f_lenienc"].forEach(id=>$(id).checked=false);
   $("f_ordem").value="razao_social"; buscar(true);
 }
 document.addEventListener("keydown",e=>{ if(e.key==="Escape")fechar(); });
@@ -622,8 +587,15 @@ const _ESTILO = {
   },
   layers: [{ id:"carto", type:"raster", source:"carto" }]
 };
+// Textos do aviso de "cooperative gestures" (scroll normal não dá zoom no mapa,
+// evita capturar o scroll da página) — traduzidos, o padrão vem em inglês.
+const _LOCALE_MAPA = {
+  "ScrollZoomBlocker.CtrlMessage": "Use ctrl + scroll para zoom no mapa",
+  "ScrollZoomBlocker.CtrlMessageMac": "Use ⌘ + scroll para zoom no mapa",
+  "TouchPanBlocker.Message": "Use dois dedos para mover o mapa",
+};
 function initMapa(){
-  MAPA = new maplibregl.Map({container:"mapa", style:_ESTILO, center:[-40.32,-20.30], zoom:10, attributionControl:true});
+  MAPA = new maplibregl.Map({container:"mapa", style:_ESTILO, center:[-40.32,-20.30], zoom:10, attributionControl:true, cooperativeGestures:true, locale:_LOCALE_MAPA});
   MAPA.addControl(new maplibregl.NavigationControl(), "top-right");
   const popup = new maplibregl.Popup({closeButton:false, closeOnClick:false});
   MAPA.on("load", ()=>{
