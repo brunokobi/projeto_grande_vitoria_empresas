@@ -414,7 +414,8 @@ def obter_empresa(cnpj: str) -> dict:
             "ORDER BY data_ultima_movimentacao DESC LIMIT 100", (cnpj,))]
         sancoes = [dict(r) for r in conn.execute(
             "SELECT tipo, motivo, orgao_sancionador, data_inicio, data_fim, "
-            "fundamentacao, numero_processo, ano_processo, numero_deliberacao, ano_deliberacao "
+            "fundamentacao, numero_processo, ano_processo, numero_deliberacao, ano_deliberacao, "
+            "nome_socio_vinculado "
             "FROM sancoes_administrativas WHERE cnpj_empresa = ? LIMIT 100", (cnpj,))]
         ambiental = [dict(r) for r in conn.execute(
             "SELECT tipo_infracao, status, data_auto, valor_multa, gravidade, tipo_multa, "

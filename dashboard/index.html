@@ -497,14 +497,18 @@ function renderSancoes(arr){
     const periodo=[fmtData(x.data_inicio),fmtData(x.data_fim)].filter(Boolean).join(" — ");
     const proc = x.numero_processo? esc(x.numero_processo)+(x.ano_processo?"/"+esc(x.ano_processo):"") : "";
     const delib = x.numero_deliberacao? esc(x.numero_deliberacao)+(x.ano_deliberacao?"/"+esc(x.ano_deliberacao):"") : "";
+    const viaSocio = x.nome_socio_vinculado
+      ? ` <span class="tag pend" title="Sanção encontrada pelo nome do sócio, não da empresa">via sócio: ${esc(x.nome_socio_vinculado)}</span>`
+      : "";
     return `<details class="divida">
-      <summary><span class="tag pend">${esc(x.tipo||'Sanção')}</span> <span style="color:var(--muted)">${esc(x.motivo||'')}</span></summary>
+      <summary><span class="tag pend">${esc(x.tipo||'Sanção')}</span> <span style="color:var(--muted)">${esc(x.motivo||'')}</span>${viaSocio}</summary>
       <div class="divida-det">
         ${kv("Órgão sancionador", esc(x.orgao_sancionador))}
         ${kv("Fundamentação legal", esc(x.fundamentacao))}
         ${kv("Período", periodo)}
         ${kv("Processo", proc)}
         ${kv("Deliberação", delib)}
+        ${kv("Vínculo", x.nome_socio_vinculado?`Sanção pessoal do sócio ${esc(x.nome_socio_vinculado)}, não da empresa diretamente`:"")}
       </div>
     </details>`;
   }).join("");
