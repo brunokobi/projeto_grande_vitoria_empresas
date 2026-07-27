@@ -42,11 +42,19 @@ def buscar_empresas(
     porte: str = None,
     regime_tributario: str = None,
     texto: str = None,
+    socio: str = None,
     tem_pendencia: bool = None,
     com_telefone: bool = None,
     com_email: bool = None,
     com_whatsapp: bool = None,
     com_rede_social: bool = None,
+    com_processos: bool = None,
+    com_sancoes: bool = None,
+    com_ambiental: bool = None,
+    com_divida: bool = None,
+    com_trabalho_escravo: bool = None,
+    com_cepim: bool = None,
+    com_leniencia: bool = None,
     capital_min: float = None,
     capital_max: float = None,
     ordenar_por: str = "razao_social",
@@ -75,11 +83,14 @@ def buscar_empresas(
     """
     return dataset_queries.buscar_empresas(
         municipio=municipio, cnae=cnae, cnae_prefix=cnae_prefix, porte=porte,
-        regime_tributario=regime_tributario, texto=texto,
+        regime_tributario=regime_tributario, texto=texto, socio=socio,
         tem_pendencia=tem_pendencia, com_telefone=com_telefone,
         com_email=com_email, com_whatsapp=com_whatsapp,
-        com_rede_social=com_rede_social, capital_min=capital_min,
-        capital_max=capital_max, ordenar_por=ordenar_por,
+        com_rede_social=com_rede_social, com_processos=com_processos,
+        com_sancoes=com_sancoes, com_ambiental=com_ambiental, com_divida=com_divida,
+        com_trabalho_escravo=com_trabalho_escravo, com_cepim=com_cepim,
+        com_leniencia=com_leniencia,
+        capital_min=capital_min, capital_max=capital_max, ordenar_por=ordenar_por,
         limite=limite, offset=offset,
     )
 
@@ -94,6 +105,51 @@ def obter_empresa(cnpj: str) -> dict:
     if resultado is None:
         return {"erro": f"CNPJ {cnpj} não encontrado na base."}
     return resultado
+
+
+@mcp.tool()
+def classificar_empresas(
+    objetivo: str = "generico",
+    pref_telefone: bool = None,
+    pref_email: bool = None,
+    pref_whatsapp: bool = None,
+    pref_rede: bool = None,
+    portes: list = None,
+    presenca: str = "indiferente",
+    fiscal: str = "indiferente",
+    municipio: str = None,
+    cnae_prefix: str = None,
+    texto: str = None,
+    capital_min: float = None,
+    capital_max: float = None,
+    limite: int = 50,
+) -> dict:
+    """Classifica/pontua empresas para prospecção conforme um objetivo, e as
+    devolve ranqueadas por um score 0-100 com rótulo (Quente/Morno/Frio).
+
+    - objetivo: define o que conta como bom lead —
+      "regularizacao" (contábil/jurídico: prioriza quem tem dívida ativa),
+      "marketing" (prioriza quem NÃO tem site/redes = oportunidade digital),
+      "credito" (prioriza empresas sem pendências), "software" (porte +
+      presença digital), "generico" (equilibrado).
+    - pref_telefone/pref_email/pref_whatsapp/pref_rede: dão pontos a quem tem
+      esse canal de contato.
+    - portes: lista de códigos de porte alvo (pontua quem está na lista).
+    - presenca: "com" | "sem" | "indiferente" (presença digital: site/redes).
+    - fiscal: "limpas" | "com_pendencia" | "indiferente".
+    - municipio/cnae_prefix/texto/capital_min/capital_max: recortam a base
+      antes de pontuar. limite (máx. 500).
+
+    Retorna {'total','pontos_maximos','itens': [... com score, score_pct,
+    classificacao]}.
+    """
+    return dataset_queries.classificar_empresas(
+        objetivo=objetivo, pref_telefone=pref_telefone, pref_email=pref_email,
+        pref_whatsapp=pref_whatsapp, pref_rede=pref_rede, portes=portes,
+        presenca=presenca, fiscal=fiscal, municipio=municipio,
+        cnae_prefix=cnae_prefix, texto=texto, capital_min=capital_min,
+        capital_max=capital_max, limite=limite,
+    )
 
 
 if __name__ == "__main__":

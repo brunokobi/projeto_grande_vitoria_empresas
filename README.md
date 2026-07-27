@@ -4,27 +4,84 @@
 
 ### A base aberta mais completa de empresas ativas do Espírito Santo — pronta para prospecção, pesquisa e análise de mercado.
 
-Mais de **344 mil empresas ativas** de **7 municípios**, cruzando dados cadastrais, jurídicos, sanções, dívida ativa, infrações ambientais e enriquecimento geográfico — tudo a partir de **fontes públicas oficiais**. Consulte via **API REST** ou direto no **Claude** (MCP).
+**344 mil empresas ativas** de **7 municípios**, cruzando dados cadastrais, **sócios**, jurídicos, sanções, dívida ativa, infrações ambientais e **flags de risco** (trabalho escravo, CEPIM, leniência) — tudo de **fontes públicas oficiais**. Com **mapa interativo**, **dashboard**, **API REST**, **MCP** (Claude) e **classificação de leads**.
 
 <br>
 
 [![Empresas](https://img.shields.io/badge/empresas%20ativas-344k%2B-2563eb?style=flat-square)](#)
+[![Sócios](https://img.shields.io/badge/s%C3%B3cios-231k%2B-2563eb?style=flat-square)](#)
 [![Municípios](https://img.shields.io/badge/munic%C3%ADpios-7-16a34a?style=flat-square)](#)
-[![Fontes públicas](https://img.shields.io/badge/fontes%20oficiais-6-64748b?style=flat-square)](#)
-[![Python](https://img.shields.io/badge/Python-3.x-3776AB?style=flat-square&logo=python&logoColor=white)](#)
-[![API](https://img.shields.io/badge/API-FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)](#api-rest-fastapi)
-[![MCP](https://img.shields.io/badge/MCP-compat%C3%ADvel-8A2BE2?style=flat-square)](#servidor-mcp)
-[![Setup](https://img.shields.io/badge/setup-plug--and--play-f59e0b?style=flat-square)](#setup-r%C3%A1pido-plug-and-play)
+[![API](https://img.shields.io/badge/API-FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)](#-consumir-o-dataset)
+[![MCP](https://img.shields.io/badge/MCP-compat%C3%ADvel-8A2BE2?style=flat-square)](#-consumir-o-dataset)
 [![Status](https://img.shields.io/badge/status-%F0%9F%9A%A7%20em%20constru%C3%A7%C3%A3o-f59e0b?style=flat-square)](#-projeto-em-construção)
-[![Sponsor](https://img.shields.io/badge/apoie%20o%20projeto-%E2%9D%A4-ea4aaa?style=flat-square&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/brunokobi)
 
 <br>
 
 <a href="https://github.com/sponsors/brunokobi">
-  <img src="https://img.shields.io/badge/%E2%9D%A4%EF%B8%8F%20Apoiar%20este%20projeto-GitHub%20Sponsors-ea4aaa?style=for-the-badge&logo=githubsponsors&logoColor=white" alt="Apoiar este projeto no GitHub Sponsors" height="42">
+  <img src="https://img.shields.io/badge/%E2%9D%A4%EF%B8%8F%20Apoiar%20este%20projeto-GitHub%20Sponsors-ea4aaa?style=for-the-badge&logo=githubsponsors&logoColor=white" alt="Apoiar no GitHub Sponsors" height="42">
 </a>
 
-<sub>Projeto aberto e sem fins lucrativos — seu apoio custeia a atualização mensal das bases.</sub>
+<sub>Projeto aberto e sem fins lucrativos — seu apoio custeia o pipeline rodando 24/7 e o dataset atualizando sozinho a cada 2h.</sub>
+
+<br><br>
+
+### ⭐ Se este projeto te for útil, **deixe uma estrela** — leva 1 segundo, é de graça e ajuda demais a dar visibilidade ao trabalho!
+
+</div>
+
+---
+
+## 🌐 Acesse online (sem instalar nada)
+
+| | |
+|---|---|
+| 🖥️ **Dashboard** | **[empresas.brunokobi.duckdns.org](https://empresas.brunokobi.duckdns.org)** |
+| 🔌 **API REST** | [empresas.brunokobi.duckdns.org/docs](https://empresas.brunokobi.duckdns.org/docs) |
+| 🤖 **MCP** (Claude, Cursor, Windsurf, VS Code, Cline...) | `https://empresas.brunokobi.duckdns.org/mcp/` — instruções por cliente em **[MCP.md](MCP.md)** |
+
+---
+
+## ⚡ Começar em 1 comando
+
+O dataset é distribuído como **GitHub Release** (não fica versionado no repo — mantém tudo leve). O script de setup usa o [uv](https://docs.astral.sh/uv/) para criar o ambiente com um Python 3.12 isolado (instalando o próprio uv se preciso), instalar dependências e **baixar o dataset** — **não precisa ter Python pré-instalado**, nem depende da versão que o sistema operacional já traz.
+
+**Linux, macOS ou WSL:**
+
+```bash
+git clone https://github.com/brunokobi/projeto_grande_vitoria_empresas.git
+cd projeto_grande_vitoria_empresas
+bash setup.sh
+source .venv/bin/activate
+uvicorn api:app        # http://localhost:8000
+```
+
+**Windows (PowerShell nativo, sem precisar de WSL):**
+
+```powershell
+git clone https://github.com/brunokobi/projeto_grande_vitoria_empresas.git
+cd projeto_grande_vitoria_empresas
+powershell -ExecutionPolicy Bypass -File setup.ps1
+.venv\Scripts\Activate.ps1
+uvicorn api:app        # http://localhost:8000
+```
+
+Pronto: **dashboard** em `http://localhost:8000`, **API** em `/docs`, e o **MCP** detectado pelo Claude Code (`.mcp.json`).
+
+> **Nota (LGPD).** Os dados vêm de fontes públicas oficiais, mas o dataset consolida dados de pessoas (nomes de sócios, CPF mascarado, endereços). Use de forma responsável e conforme a LGPD.
+
+---
+
+## 📸 Telas
+
+<div align="center">
+
+**Dashboard — lista, filtros e mapa interativo**
+
+<img src="docs/dashboard.png" alt="Dashboard" width="100%">
+
+**Visão 360º da empresa** — cadastro, sócios + rede, pendências detalhadas e mapa
+
+<img src="docs/empresa-360.png" alt="Visão 360º da empresa" width="70%">
 
 </div>
 
@@ -32,18 +89,37 @@ Mais de **344 mil empresas ativas** de **7 municípios**, cruzando dados cadastr
 
 ## 🚧 Projeto em construção
 
-Este repositório está em **desenvolvimento ativo** — estrutura, endpoints e dados ainda podem mudar. Estado atual:
+Em desenvolvimento ativo. Estado atual:
 
 | Componente | Status |
 |---|---|
-| Base cadastral (Receita Federal) | ✅ pronta — 344.130 empresas |
-| JUCEES · Dívida ativa (PGFN) · Sanções (TCEES) · Infrações (IBAMA) | ✅ prontos |
-| Processos judiciais (DataJud/CNJ) | 🚧 em processamento (rate limit — dias, retomável) |
-| Geocodificação (OpenStreetMap) | 🚧 em processamento (rate limit — dias, retomável) |
-| Contato & redes sociais (WhatsApp, site, Instagram…) | 🧪 implementado, ainda não rodado na base completa |
-| Dashboard web · API REST · MCP · export Excel/PDF | ✅ funcionais (em ajuste de layout) |
+| Cadastro (Receita) · **Sócios** · JUCEES | ✅ pronto (344k empresas · 231k sócios) |
+| Dívida ativa **PGFN** (detalhada) | ✅ pronto |
+| Sanções federais **CEIS/CNEP** + estaduais **TCEES** | ✅ pronto |
+| Infrações **IBAMA** (detalhadas) | ✅ pronto |
+| **CEPIM** (impedidas de verba federal) · **Acordos de Leniência** (CGU) | ✅ pronto |
+| **Lista Suja do trabalho escravo** (MTE) | ✅ pronto |
+| **Mapa interativo** (MapLibre) + **satélite** na visão 360º | ✅ pronto |
+| Geocodificação (coordenadas de todas as empresas) | 🚧 rodando 24/7 na VPS — **previsão ~30/07/2026** |
+| Processos judiciais (**DJEN/CNJ**, por nome da parte) | 🚧 rodando 24/7 na VPS (ver nota) |
+| Contato & redes sociais (WhatsApp, site, Instagram…) | 🧪 implementado |
+| Dashboard · API · MCP · export Excel/PDF | ✅ funcionais |
+| **Classificação de leads** (via API/MCP) | ✅ funciona — 🚧 removida temporariamente da UI do dashboard |
 
-> Contribuições, sugestões e apoio são bem-vindos enquanto o projeto amadurece. 💛
+> 🔄 **Atualização automática:** o pipeline de geocodificação e processos
+> judiciais roda continuamente numa VPS, e o dataset publicado (Release) é
+> atualizado **a cada 2 horas** — o dashboard/API baixam a versão nova sozinhos,
+> sem precisar de reinstalação. O cadastro base (Receita Federal) segue seu
+> próprio ritmo mensal, que é quando a RFB publica dados novos.
+>
+> ⏳ **Geocodificação** depende do OpenStreetMap (~1 req/s), por isso leva dias —
+> o restante do dataset já está completo. No mapa, empresas ainda sem coordenada
+> são localizadas **na hora pelo endereço**.
+>
+> ⚖️ **Processos judiciais:** a API pública do DataJud **não expõe as partes**
+> (CPF/CNPJ), então é impossível achar processos por empresa por ela. Em vez disso
+> usamos o **DJEN / Comunica API do CNJ** (busca por nome da parte) — cobre
+> litígio recente (era do DJEN, ~2022+).
 
 ---
 
@@ -51,267 +127,79 @@ Este repositório está em **desenvolvimento ativo** — estrutura, endpoints e 
 
 | | |
 |---|---|
-| 🏢 **Cobertura** | +344 mil empresas ativas de Vitória, Vila Velha, Serra, Cariacica, Viana, Guarapari e Fundão |
-| 📇 **Dados cadastrais** | CNPJ, razão social, CNAE, porte, regime tributário, capital, endereço, sócios |
-| ⚖️ **Situação jurídica/fiscal** | Processos (DataJud/CNJ), sanções federais e estaduais, dívida ativa, infrações ambientais |
-| 🧭 **Enriquecimento** | Geocodificação (latitude/longitude) via OpenStreetMap |
-| 🚩 **Triagem rápida** | Coluna `tem_pendencia_juridica_ou_fiscal` para filtrar em segundos |
-| 🔌 **Acesso** | API REST (FastAPI), servidor MCP (Claude e afins), CSV e XLSX consolidados |
+| 🏢 **Cadastro** | CNPJ, razão social, CNAE (por nome), porte, regime, capital, endereço, situação |
+| 👥 **Sócios + rede** | Quadro societário (nome, qualificação, faixa etária) e **em quais outras empresas o mesmo sócio aparece** |
+| ⚖️ **Situação jurídico-fiscal detalhada** | Dívida ativa (tipo de tributo, ajuizamento, risco), sanções federais/estaduais (fundamentação), infrações IBAMA (valor, gravidade), processos (DJEN) |
+| 🚩 **Flags de risco** | **Lista Suja do trabalho escravo** (MTE), **CEPIM** (impedidas de verba federal), **acordos de leniência** — filtráveis |
+| 🗺️ **Mapa interativo** | Mapa geral da Grande Vitória com todos os pontos (clique → empresa) e **satélite** na visão 360º; filtros recortam o mapa |
+| 🧭 **Enriquecimento** | Geolocalização e contato/redes sociais |
+| 🎯 **Classificação de leads** | Questionário por objetivo comercial → score 0–100 (🔥 Quente / 🙂 Morno / ❄️ Frio) |
+| 🔌 **Acesso** | Dashboard web, API REST, servidor MCP (Claude), export Excel e PDF |
 
 ---
 
 ## 🔗 Fontes de dados cruzadas
 
-Todo o dataset é montado **exclusivamente a partir de fontes públicas oficiais**, cruzadas pelo **CNPJ**. Abaixo, todas as fontes já integradas e as planejadas.
+Tudo cruzado pelo **CNPJ**, exclusivamente de **fontes públicas oficiais**:
 
-**Legenda:** ✅ integrada · 🚧 em processamento · ⚙️ opcional (requer configurar o link do arquivo) · 🔭 planejada (ainda não implementada)
+| Fonte | O que agrega | Status |
+|---|---|:--:|
+| **Receita Federal** (CNPJ) | Cadastro, **sócios**, CNAE, porte, capital, endereço | ✅ |
+| **JUCEES** (dados.es.gov.br) | NIRE, constituição, natureza jurídica | ✅ |
+| **PGFN** | Dívida ativa (tipo de tributo, valor, ajuizamento) | ✅ |
+| **CGU** — Portal da Transparência | Sanções **CEIS/CNEP**, **CEPIM**, **Acordos de Leniência** | ✅ |
+| **TCEES** | Sanções estaduais (processo/deliberação) | ✅ |
+| **IBAMA** | Infrações ambientais (valor da multa, gravidade, situação) | ✅ |
+| **MTE** — Cadastro de Empregadores | **Lista Suja** do trabalho escravo | ✅ |
+| **OpenStreetMap / Nominatim** | Geolocalização (mapa; fallback por endereço) | 🚧 |
+| **DJEN / CNJ** (Comunica API) | Processos judiciais (por nome da parte) | 🚧 |
+| IEMA-ES · RAIS/CAGED | Ambiental estadual · nº de empregados | 🔭 planejado |
 
-| Fonte | Órgão / Portal | O que agrega ao dataset | Status |
-|---|---|---|:--:|
-| **Cadastro Nacional CNPJ** | Receita Federal — [dados abertos CNPJ](https://arquivos.receitafederal.gov.br/) | Razão social, nome fantasia, CNAE, porte, capital social, endereço, situação cadastral, **sócios**, opção Simples/MEI | ✅ |
-| **Registro comercial (JUCEES)** | Junta Comercial do ES — [dados.es.gov.br](https://dados.es.gov.br/dataset/empresas) | NIRE, data de constituição, natureza jurídica | ✅ |
-| **Dívida Ativa da União** | PGFN — [dadosabertos.pgfn.gov.br](https://dadosabertos.pgfn.gov.br/) | Inscrições em dívida ativa, valor consolidado, situação | ✅ |
-| **Sanções estaduais** | TCEES — Tribunal de Contas do ES | Empresas inidôneas, proibidas de contratar, inabilitadas e com contas irregulares | ✅ |
-| **Infrações ambientais** | IBAMA — [dados abertos](https://dadosabertos.ibama.gov.br/) | Autos de infração ambiental (federal) | ✅ |
-| **Geocodificação** | OpenStreetMap / Nominatim | Latitude e longitude a partir do endereço | 🚧 |
-| **Processos judiciais** | DataJud / CNJ — [API pública](https://datajud-wiki.cnj.jus.br/api-publica/) | Processos por CNPJ (TJES, TRT17, TRF2) | 🚧 |
-| **Contato & redes sociais** | Derivado do próprio cadastro | Telefone → **WhatsApp**; e-mail → **site**; site → **Instagram/Facebook/LinkedIn** | 🧪 implementado |
-| **Sanções federais** | CGU — Portal da Transparência ([CEIS](https://portaldatransparencia.gov.br/download-de-dados/ceis) / [CNEP](https://portaldatransparencia.gov.br/download-de-dados/cnep) / CEPIM) | Empresas inidôneas/suspensas e punidas na esfera federal | ⚙️ |
-| **Ambiental estadual (IEMA-ES)** | IEMA — Instituto de Meio Ambiente do ES | Infrações ambientais estaduais | 🔭 |
-| **Justiça estadual (TJES / e-SAJ)** | Tribunal de Justiça do ES | Processos estaduais direto na origem | 🔭 |
-| **Vínculos de emprego (RAIS/CAGED)** | Ministério do Trabalho e Emprego | Nº de empregados por empresa (porte real) | 🔭 |
+> A construção/atualização do dataset é feita por um pipeline de extração mantido em repositório separado. Este é o **produto de consumo**.
 
-> As fontes marcadas com ⚙️ dependem de colar o link do arquivo do período desejado (ver `.env.example` / `config.py`); as 🔭 são extensões previstas para próximas versões.
+---
+
+## 🖥️ Consumir o dataset
+
+Lógica de consulta compartilhada (`src/dataset_queries.py`) entre dashboard, API e MCP — todos leem o SQLite em **somente-leitura**.
+
+### Dashboard web
+`uvicorn api:app` → **http://localhost:8000**. **Mapa geral** da Grande Vitória (MapLibre GL) com todos os pontos geolocalizados — clique num ponto abre a empresa, e os filtros recortam o mapa. Filtros (segmento CNAE, município, porte, regime, tipo de pendência, **flags de risco**: trabalho escravo/CEPIM/leniência, capital, contato/redes, busca), **visão 360º** por empresa com **cards expansíveis** (processos, dívida, sanção, infração e sócios detalhados) + **mapa por satélite** e **export Excel/PDF**.
+
+> A **classificação de leads** (questionário → score 0–100) segue disponível via API (`GET /classificar`) e MCP (`classificar_empresas`) — só foi tirada temporariamente da interface do dashboard.
+
+### API REST (FastAPI) — docs em `/docs`
+- `GET /estatisticas` · `GET /segmentos`
+- `GET /empresas` — busca com filtros (município, `cnae_prefix`, porte, regime, `socio` (nome), `tem_pendencia`, `com_processos`/`com_sancoes`/`com_ambiental`/`com_divida`, `com_trabalho_escravo`/`com_cepim`/`com_leniencia`, `com_telefone`/`com_email`/`com_whatsapp`/`com_rede_social`, capital, ordenação, paginação)
+- `GET /mapa` — pontos geolocalizados (lat/lng) com os mesmos filtros, para o mapa
+- `GET /empresas/{cnpj}` — visão 360º (cadastro, sócios+rede, pendências detalhadas, geo)
+- `GET /geocode` — resolve um endereço em lat/lng (fallback do mapa quando a empresa ainda não tem coordenada)
+- `GET /classificar` — pontua e ranqueia leads por objetivo comercial
+- `GET /export/empresas.xlsx` · `GET /export/empresas.pdf`
+
+### Servidor MCP
+Ferramentas `estatisticas`, `buscar_empresas`, `obter_empresa`, `classificar_empresas` para o Claude e outros clientes MCP. Duas formas de conectar: **remoto**, direto em `https://empresas.brunokobi.duckdns.org/mcp/` (sem instalar nada); ou **local**, via `.mcp.json` (detectado automaticamente pelo Claude Code após o `setup.sh`).
+
+📘 **Tutorial completo de conexão** (Claude Desktop, Claude Code, Cursor, Windsurf, VS Code/Copilot, Cline): **[MCP.md](MCP.md)**.
 
 ---
 
 ## 💛 Apoie o projeto
 
-Este é um projeto aberto que consolida dados públicos em um dataset útil para prospecção. Se ele te ajuda, considere apoiar — isso custeia o tempo de manutenção e a atualização periódica das bases (a Receita Federal publica dados novos todo mês):
-
-<div align="center">
-<a href="https://github.com/sponsors/brunokobi">
-  <img src="https://img.shields.io/badge/%E2%9D%A4%EF%B8%8F%20Tornar--se%20apoiador-github.com%2Fsponsors%2Fbrunokobi-ea4aaa?style=for-the-badge&logo=githubsponsors&logoColor=white" alt="Tornar-se apoiador" height="40">
-</a>
-</div>
-
-Há níveis de apoio (mensal e único) com recompensas — veja [**SPONSORS.md**](SPONSORS.md). O botão **♥ Sponsor** no topo do repositório também leva pra lá.
-
----
-
-## Setup rápido (plug-and-play)
-
-O banco já consolidado vem versionado **comprimido** (`data/grande_vitoria.db.gz`, ~47 MB) junto com o progresso das etapas retomáveis (`data/checkpoints/`). Após clonar, um único comando prepara tudo:
-
-```bash
-bash setup.sh
-```
-
-Isso cria o `.venv`, instala as dependências, gera o `.env` a partir do modelo e descomprime o banco (~139 MB). Depois:
-
-```bash
-source .venv/bin/activate && set -a && source .env && set +a
-python main.py --etapa datajud    # retoma de onde parou (via checkpoint)
-python main.py --etapa geo         # idem
-python main.py --etapa exportar    # gera output/ consolidado
-```
-
-> **Observação (LGPD).** Todos os dados vêm de fontes públicas oficiais (Receita Federal, PGFN, IBAMA, TCEES, DataJud/CNJ, JUCEES). Ainda assim, o dataset consolida dados de pessoas (nome/CPF mascarado de sócios, endereços). Use de forma responsável e conforme a LGPD. Os arquivos de dados descomprimidos (`data/*.db`, `data/raw/`, `output/`) **não** são versionados — só o banco comprimido entra no repositório.
-
----
-
-## Consumir o dataset (Dashboard, MCP e API)
-
-Além do CSV/XLSX da etapa `exportar`, o dataset pode ser consultado ao vivo — lê direto o SQLite consolidado, em modo **somente-leitura**. A lógica de consulta é compartilhada (`src/dataset_queries.py`) entre o dashboard, a API e o MCP.
-
-### 🖥️ Dashboard web
-
-Interface visual (tema verde-matrix) para explorar a base, servida pela própria API:
-
-```bash
-source .venv/bin/activate
-uvicorn api:app          # abre o dashboard em http://localhost:8000
-```
-
-- **Filtros de prospecção**: segmento (divisão CNAE), município, porte, regime, situação jurídico-fiscal (com/sem pendência), capital, busca por nome e exigência de contato (telefone, e-mail, WhatsApp, rede social).
-- **Visão 360º por empresa**: card destacado com cadastro, contato/redes, sócios, pendências (processos, sanções, dívida ativa, ambiental) e mapa.
-- **Exportar** a lista filtrada em **Excel** e **PDF** (botões no topo).
-
-### API REST (FastAPI)
-
-```bash
-source .venv/bin/activate
-uvicorn api:app --reload      # http://localhost:8000
-```
-
-- `GET /estatisticas` — panorama do dataset (totais, por município/porte/CNAE)
-- `GET /empresas` — busca com filtros: `municipio`, `cnae`, `porte`, `regime_tributario`, `texto`, `tem_pendencia`, `com_telefone`, `com_email`, `capital_min`, `capital_max`, `ordenar_por`, `limite`, `offset`
-- `GET /empresas/{cnpj}` — visão 360º (cadastro, sócios, JUCEES, geo, pendências)
-- Documentação interativa: `http://localhost:8000/docs`
-
-### Servidor MCP
-
-Expõe as mesmas consultas como ferramentas MCP (`estatisticas`, `buscar_empresas`, `obter_empresa`) para o Claude e outros clientes MCP. O repositório já traz um **`.mcp.json`** — o Claude Code detecta automaticamente ao abrir a pasta (após rodar o `setup.sh`). Para outros clientes (ex.: Claude Desktop), use caminhos absolutos:
-
-```json
-{
-  "mcpServers": {
-    "grande-vitoria-empresas": {
-      "command": "/CAMINHO/ABSOLUTO/.venv/bin/python",
-      "args": ["/CAMINHO/ABSOLUTO/mcp_server.py"]
-    }
-  }
-}
-```
-
----
-
-## Estrutura
-
-```
-grande_vitoria_empresas/
-├── config.py                  # configuração central (municípios, URLs, chaves)
-├── main.py                    # orquestrador (CLI)
-├── requirements.txt
-├── database/
-│   └── schema.sql             # schema SQLite
-├── data/
-│   ├── raw/                   # arquivos brutos baixados (zips, csvs)
-│   └── checkpoints/           # progresso de etapas com rate limit
-└── src/
-    ├── db_utils.py            # conexão e upsert no SQLite
-    ├── checkpoint.py          # retomada de processos longos
-    ├── matching.py            # normalização de CNPJ e fuzzy match
-    ├── cnpj_ingest.py         # ETAPA 1 — base cadastral (Receita Federal)
-    ├── sanctions_ingest.py    # ETAPA 2 — CEIS/CNEP/dívida ativa (PGFN)
-    ├── ibama_ingest.py        # ETAPA 3 — infrações ambientais (IBAMA)
-    ├── datajud_client.py      # ETAPA 4 — processos judiciais (API DataJud/CNJ)
-    └── places_enrich.py       # ETAPA 5 — geo/telefone/site (Google Places)
-```
-
----
-
-## Passo a passo para gerar o dataset
-
-### 1. Preparar o ambiente
-
-```bash
-pip install -r requirements.txt
-cp .env.example .env
-```
-
-Preencha o `.env` com:
-
-- `DATAJUD_API_KEY` — **opcional**. Já vem com um valor padrão embutido em `config.py` (a chave pública vigente em 21/07/2026). Só preencha esta variável se a etapa `datajud` começar a dar erro 401/403 — sinal de que o CNJ trocou a chave — pegando a atualizada em https://datajud-wiki.cnj.jus.br/api-publica/acesso/. Quando isso acontece, o pipeline já para a etapa automaticamente com uma mensagem clara em vez de tentar todos os CNPJs e falhar silenciosamente.
-- `GOOGLE_PLACES_API_KEY` — **removida**. A Places API do Google exige cartão cadastrado no Google Cloud mesmo dentro do free tier (pré-pagamento de R$50 reembolsável). Pra evitar essa dependência, o enriquecimento geográfico usa **OpenStreetMap/Nominatim** (etapa `geo`), gratuito e sem cartão. Trade-off: só traz latitude/longitude a partir do endereço — não traz telefone atualizado, site, avaliação nem horário de funcionamento (isso só o Google Places tem). `NOMINATIM_USER_AGENT` no `.env` é opcional, mas recomendado (identifica sua aplicação, exigido pela política de uso do servidor público do Nominatim).
-- `JUCEES_DUMP_URL` — **opcional**. Já vem com o link estável do portal de dados abertos do ES embutido em `config.py` (baseado em resource_id do CKAN, não muda mensalmente como outras fontes). **Limitação importante**: esse dataset da JUCEES cobre só empresas com natureza jurídica "Sociedade Empresária" do ramo de serviços/comércio — não é o universo completo (não inclui MEI, Empresário Individual, etc.). É tratado como complemento à base da Receita (adiciona NIRE, data de constituição, natureza jurídica descritiva), não como substituto.
-- `TCEES` (etapa `tcees`) — **sem configuração**. URLs estáveis embutidas em `config.py`. Traz sanções estaduais do Tribunal de Contas do ES (empresas inidôneas, proibidos de contratar, inabilitados, contas irregulares) que complementam o CEIS/CNEP federal — são gravadas na mesma tabela `sancoes_administrativas`, distinguidas pelo campo `tipo`, e já entram automaticamente na contagem e na flag de pendências do dataset final. Cada lista traz CPF ou CNPJ do responsável; só os CNPJs que batem com a base são vinculados (CPFs de pessoa física são ignorados, correto para um dataset de empresas).
-- `CEIS_FILE_URL`, `CNEP_FILE_URL`, `PGFN_FILE_URL`, `IBAMA_FILE_URL` — cole a URL final do arquivo de cada fonte (não a página do dataset). Abra a página, clique no botão de exportação, copie o link do arquivo gerado. As páginas de referência estão comentadas em `config.py`.
-
-Carregue as variáveis antes de rodar:
-
-```bash
-export $(cat .env | xargs)
-```
-
-### 2. Rodar o pipeline, etapa por etapa
-
-A ordem importa — `cnpj` sempre primeiro, pois define o universo de CNPJs que todas as outras etapas usam como filtro:
-
-```bash
-python main.py --etapa cnpj        # base cadastral (pesado: pode levar horas)
-python main.py --etapa jucees      # complemento JUCEES — NIRE, constituição, natureza jurídica
-python main.py --etapa sancoes     # CEIS, CNEP, dívida ativa PGFN (federais)
-python main.py --etapa tcees       # sanções estaduais do TCEES (inidôneas, proibidos de contratar, inabilitados, contas irregulares)
-python main.py --etapa ibama       # infrações ambientais
-python main.py --etapa datajud     # processos — sem --limite roda tudo (mais lento, respeita rate limit)
-python main.py --etapa geo         # geocodificação via OpenStreetMap/Nominatim — todas as empresas (1 req/s, sem cartão)
-python main.py --etapa exportar    # gera o dataset final consolidado
-```
-
-Ou tudo de uma vez (recomendado só depois de validar cada etapa isoladamente com uma amostra pequena, usando `--limite` nas etapas que aceitam):
-
-```bash
-python main.py --etapa tudo
-```
-
-### 3. Resultado final
-
-Nota sobre a etapa `geo`: o Nominatim público limita a 1 requisição por segundo. Para uma base de dezenas de milhares de empresas, isso pode levar muitas horas — a etapa já imprime uma estimativa de tempo ao iniciar e é retomável via checkpoint (se cair no meio, rode de novo e ele continua de onde parou). Se precisar de mais velocidade, a alternativa dentro da política de uso do OpenStreetMap é subir uma instância própria do Nominatim via Docker (https://github.com/mediagis/nominatim-docker) e apontar `NOMINATIM_URL` no `.env` para o seu servidor local, sem rate limit externo.
-
-Depois da etapa `exportar`, os arquivos ficam em `output/`:
-
-- `empresas_grande_vitoria_consolidado.csv` — uma linha por empresa, com contagens agregadas (qtd. processos, sanções, infrações ambientais, dívida ativa) e uma coluna `tem_pendencia_juridica_ou_fiscal` pra triagem rápida.
-- `empresas_grande_vitoria_dataset.xlsx` — mesmo consolidado na aba principal, mais uma aba de detalhe por categoria (sócios, processos, sanções, ambiental, dívida ativa).
-
----
-
-## Variáveis de ambiente — referência completa
-
-Ver `.env.example` para a lista completa e comentada.
-
----
-
-## Pontos de atenção antes de rodar em produção
-
-1. **Layouts de CSV mudam.** Os módulos `sanctions_ingest.py` e `ibama_ingest.py` foram escritos com base nos nomes de coluna documentados publicamente, mas o Portal da Transparência e o IBAMA já alteraram esses layouts no passado. Inspecione o cabeçalho do CSV baixado antes de rodar em produção e ajuste os nomes de coluna se necessário.
-
-2. **URLs de download dinâmicas.** CEIS/CNEP/IBAMA geram links de exportação através de navegação na página (não é um link estático fixo). As URLs em `config.py` apontam para as páginas dos datasets — resolva a URL final do arquivo antes de rodar `sanctions_ingest.py` e `ibama_ingest.py` (ou automatize essa resolução com Selenium/Playwright se o botão de exportação depender de JavaScript).
-
-3. **DataJud não tem "baixar tudo".** É uma API de busca — a única forma de cobrir todas as empresas é consultar uma por uma, por tribunal. Para milhares de CNPJs, isso é lento mesmo com rate limit baixo; rode em lotes com `--limite` e deixe rodando em background/cron.
-
-4. **Matching sem CNPJ direto.** Quando uma fonte só traz razão social (não é o caso das fontes aqui, que trazem CNPJ, mas pode ocorrer em fontes adicionais como TJES/IEMA-ES), use `src/matching.py` — `match_fuzzy_por_razao_social`. Sempre revise uma amostra dos matches fuzzy manualmente; é o ponto mais frágil do pipeline (falso positivo associa registro à empresa errada).
-
-5. **LGPD.** A tabela `socios` grava CPF já mascarado (como vem da Receita), mas mesmo assim é dado de pessoa física. Se o dataset for usado além de uso interno/prospecção, avalie anonimizar ainda mais ou remover essa tabela do dataset final.
-
-6. **Situação cadastral.** O filtro em `cnpj_ingest.py` usa `situacao_cadastral == "02"` (código da Receita para ATIVA). Se quiser incluir empresas baixadas/suspensas para análise histórica, ajuste esse filtro.
-
----
-
-## Extensões sugeridas (não implementadas)
-
-- **IEMA-ES** (infrações ambientais estaduais) e **TJES/e-SAJ** direto: ambos geralmente exigem scraping de portal de consulta manual, sem API documentada — verificar termos de uso antes de automatizar.
-- **RAIS/CAGED**: para número de empregados por empresa (proxy de porte real), como camada adicional de enriquecimento.
-
----
+[![GitHub Sponsors](https://img.shields.io/badge/❤%EF%B8%8F%20Apoiar-github.com%2Fsponsors%2Fbrunokobi-ea4aaa?style=flat-square&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/brunokobi) · níveis em [![SPONSORS.md](https://img.shields.io/badge/SPONSORS.md-24292e?style=flat-square&logo=markdown&logoColor=white)](SPONSORS.md)
 
 ## 💬 Contato, sugestões e contribuições
 
-Todo feedback é bem-vindo — sugerir uma **nova fonte de dados**, propor melhorias, pedir recursos ou reportar problemas. Escolha o canal:
-
 | Quero... | Como |
 |---|---|
-| 🔗 **Sugerir nova fonte de dados** | [Abrir issue →](https://github.com/brunokobi/projeto_grande_vitoria_empresas/issues/new?template=nova-fonte.yml) |
-| 💡 **Sugestão, melhoria ou pedido** | [Abrir issue →](https://github.com/brunokobi/projeto_grande_vitoria_empresas/issues/new?template=sugestao.yml) |
-| 🐞 **Problema ou reclamação** | [Abrir issue →](https://github.com/brunokobi/projeto_grande_vitoria_empresas/issues/new?template=problema.yml) |
-| 📧 **Falar direto / outros assuntos** | [brunokobi2@hotmail.com](mailto:brunokobi2@hotmail.com) |
-| 🌐 **Site / portfólio** | [brunokobi.netlify.app](https://brunokobi.netlify.app) |
-
-> As **issues** são públicas e permitem acompanhar o andamento do pedido. Não tem conta no GitHub? Manda um **e-mail** ou fale pelo [site](https://brunokobi.netlify.app). Toda sugestão de fonte entra na avaliação para as próximas versões (ver [Fontes de dados](#-fontes-de-dados-cruzadas)).
-
----
-
-## Apoiadores
-
-Quem apoia o projeto via [GitHub Sponsors](https://github.com/sponsors/brunokobi) aparece aqui. Detalhes dos níveis em [SPONSORS.md](SPONSORS.md).
-
-### 🏢 Patrocinadores
-_Seja o primeiro — [torne-se um patrocinador](https://github.com/sponsors/brunokobi)._
-
-### 🚀 Apoiadores+
-_Ainda não há apoiadores neste nível._
-
-### ☕ Apoiadores
-_Ainda não há apoiadores neste nível._
+| 🔗 Sugerir nova fonte de dados | [![Abrir issue](https://img.shields.io/badge/Abrir%20issue-2563eb?style=flat-square&logo=github&logoColor=white)](https://github.com/brunokobi/projeto_grande_vitoria_empresas/issues/new?template=nova-fonte.yml) |
+| 💡 Sugestão, melhoria ou pedido | [![Abrir issue](https://img.shields.io/badge/Abrir%20issue-2563eb?style=flat-square&logo=github&logoColor=white)](https://github.com/brunokobi/projeto_grande_vitoria_empresas/issues/new?template=sugestao.yml) |
+| 🐞 Problema ou reclamação | [![Abrir issue](https://img.shields.io/badge/Abrir%20issue-2563eb?style=flat-square&logo=github&logoColor=white)](https://github.com/brunokobi/projeto_grande_vitoria_empresas/issues/new?template=problema.yml) |
+| 📧 Falar direto | [![E-mail](https://img.shields.io/badge/brunokobi2@hotmail.com-EA4335?style=flat-square&logo=maildotru&logoColor=white)](mailto:brunokobi2@hotmail.com) |
+| 🌐 Site / portfólio | [![Site](https://img.shields.io/badge/brunokobi.netlify.app-00C7B7?style=flat-square&logo=netlify&logoColor=white)](https://brunokobi.netlify.app) |
 
 ---
 
 <div align="center">
 <sub>Feito com 💛 no Espírito Santo · Dados de fontes públicas oficiais · Use conforme a LGPD</sub>
-
-<br><br>
-
-<a href="https://github.com/sponsors/brunokobi">
-  <img src="https://img.shields.io/badge/%E2%9D%A4%EF%B8%8F%20Gostou%3F%20Apoie%20o%20projeto-GitHub%20Sponsors-ea4aaa?style=for-the-badge&logo=githubsponsors&logoColor=white" alt="Apoie o projeto" height="40">
-</a>
 </div>

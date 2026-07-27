@@ -1,11 +1,7 @@
-# --- Pipeline ETL ---
-requests>=2.31
-pandas>=2.0
-rapidfuzz>=3.5
-openpyxl>=3.1
-
-# --- Servidor MCP, API REST e Dashboard (consumo do dataset) ---
-mcp>=1.2
+# Consumo do dataset — Dashboard + API REST + servidor MCP
 fastapi>=0.110
 uvicorn>=0.29
-reportlab>=4.0      # geração de PDF da lista filtrada no dashboard
+mcp>=1.2
+reportlab>=4.0      # export PDF
+pandas>=2.0         # export Excel
+openpyxl>=3.1       # export Excel

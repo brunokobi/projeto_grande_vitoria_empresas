@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Empresas · Grande Vitória — Dashboard</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='88'>🛸</text></svg>">
+<!-- Mapa: MapLibre GL (WebGL, todos os pontos sem clustering) — tiles CARTO dark, sem API key -->
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <style>
   :root{
     --bg:#04060a; --bg2:#080d12; --panel:#0a1119; --panel2:#0d1620;
@@ -63,6 +66,15 @@
   tbody tr:hover{background:rgba(0,255,136,.06)}
   .tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
   .tag.ok{background:rgba(0,255,136,.12);color:var(--green);border:1px solid var(--green-dim)}
+  .tag.warn{background:rgba(255,207,77,.12);color:var(--amber);border:1px solid var(--amber)}
+  details.divida{background:var(--bg2);border:1px solid var(--line);border-radius:8px;margin-bottom:6px;padding:8px 12px}
+  details.divida summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px}
+  details.divida summary::-webkit-details-marker{display:none}
+  details.divida summary::before{content:'▸';color:var(--green)}
+  details.divida[open] summary::before{content:'▾'}
+  .divida-det{margin-top:8px;padding-top:8px;border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px}
+  .divida-det .k{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.5px;display:block}
+  .divida-det .val{color:var(--text)}
   .tag.pend{background:rgba(255,84,112,.12);color:var(--danger);border:1px solid var(--danger)}
   .pager{display:flex;justify-content:center;gap:10px;margin:18px 0;align-items:center}
   .empty{text-align:center;color:var(--muted);padding:40px}
@@ -97,9 +109,17 @@
   .close:hover{color:var(--danger)}
   .loading{color:var(--green);text-align:center;padding:30px;font-family:'Courier New',monospace}
   code{background:var(--bg2);padding:1px 6px;border-radius:4px;color:var(--green);font-family:'Courier New',monospace;font-size:12px}
-  .mapa{width:100%;height:280px;border:1px solid var(--green-dim);border-radius:10px;
-    filter:invert(.92) hue-rotate(180deg) brightness(.95) contrast(.92)}
+  .mapa{width:100%;height:280px;border:1px solid var(--green-dim);border-radius:10px;overflow:hidden}
   .maplink{margin-top:8px;display:inline-block;font-size:13px}
+  /* Tooltip/popup dos pontos do mapa (MapLibre) no tema escuro */
+  .maplibregl-popup-content{background:#0b1a0f;color:#39ff14;border:1px solid #1f7a45;
+    border-radius:6px;font-size:12px;font-weight:600;padding:6px 10px;
+    box-shadow:0 2px 12px rgba(0,0,0,.55)}
+  .maplibregl-popup-tip{display:none}
+  .mapamsg{display:flex;align-items:center;justify-content:center;height:100%;
+    color:var(--muted);font-size:13px;text-align:center;padding:12px}
+  .mapaprox{position:absolute;bottom:6px;left:6px;z-index:2;background:#0b1a0f;color:#f5a623;
+    border:1px solid #f5a623;border-radius:5px;font-size:11px;padding:2px 6px}
   @media(max-width:900px){.grid{grid-template-columns:1fr}}
 </style>
 </head>
@@ -114,12 +134,23 @@
 <main>
   <div class="stats" id="stats"></div>
 
+  <div class="card" style="margin-bottom:16px">
+    <div class="toolbar">
+      <span class="count">🗺️ Mapa da Grande Vitória — <b id="mapinfo">carregando…</b></span>
+      <div class="spacer" style="flex:1"></div>
+      <span style="font-size:11px;color:var(--muted)">🟢 sem pendência · 🔴 com pendência · clique num ponto p/ abrir a empresa</span>
+    </div>
+    <div id="mapa" style="height:440px;border-radius:10px;overflow:hidden"></div>
+  </div>
+
   <div class="grid">
     <!-- FILTROS -->
-    <div class="card" style="position:sticky;top:80px">
+    <div class="card" style="position:sticky;top:80px;max-height:calc(100vh - 96px);overflow-y:auto">
       <h3>⚙ Filtros</h3>
       <label class="f">Busca (razão social / fantasia)</label>
       <input id="f_texto" placeholder="Ex.: construtora, restaurante...">
+      <label class="f">Sócio (nome)</label>
+      <input id="f_socio" placeholder="Ex.: nome de um sócio">
       <label class="f">Segmento</label>
       <select id="f_segmento"><option value="">Todos os segmentos</option></select>
       <label class="f">Município</label>
@@ -132,8 +163,15 @@
       <select id="f_pendencia">
         <option value="">Todas</option>
         <option value="false">Sem pendência (mais "limpas")</option>
-        <option value="true">Com pendência</option>
+        <option value="true">Com pendência (qualquer)</option>
       </select>
+      <label class="chk"><input type="checkbox" id="f_proc"> 📂 Com processos judiciais</label>
+      <label class="chk"><input type="checkbox" id="f_sanc"> 🚫 Com sanções</label>
+      <label class="chk"><input type="checkbox" id="f_amb"> 🌱 Com infração ambiental</label>
+      <label class="chk"><input type="checkbox" id="f_div"> 💸 Com dívida ativa</label>
+      <label class="chk"><input type="checkbox" id="f_escravo"> ⛓️ Trabalho escravo (Lista Suja)</label>
+      <label class="chk"><input type="checkbox" id="f_cepim"> ⛔ CEPIM (impedidas de verba federal)</label>
+      <label class="chk"><input type="checkbox" id="f_lenienc"> 🤝 Acordo de leniência</label>
       <div class="row2">
         <div><label class="f">Capital mín. (R$)</label><input id="f_capmin" type="number" min="0"></div>
         <div><label class="f">Capital máx. (R$)</label><input id="f_capmax" type="number" min="0"></div>
@@ -151,7 +189,7 @@
         <option value="porte">Porte</option>
       </select>
       <div style="margin-top:16px;display:flex;gap:8px">
-        <button class="btn" style="flex:1" onclick="buscar(true)">Aplicar</button>
+        <button class="btn" style="flex:1" onclick="buscar(true)">Pesquisar</button>
         <button class="btn ghost" onclick="limpar()">Limpar</button>
       </div>
     </div>
@@ -177,6 +215,10 @@
   </div>
 </main>
 
+<footer style="max-width:1500px;margin:8px auto 0;padding:20px 22px 30px;border-top:1px solid var(--line);text-align:center;color:var(--muted);font-size:12px;letter-spacing:.3px">
+  ◢ Criado por <a href="https://brunokobi.netlify.app/" target="_blank" rel="noopener" style="font-weight:600">Bruno Kobi</a> · 2026
+</footer>
+
 <div class="overlay" id="overlay" onclick="if(event.target===this)fechar()">
   <div class="modal" id="modal"></div>
 </div>
@@ -192,6 +234,7 @@ function query(){
   const p = new URLSearchParams();
   const add=(k,v)=>{ if(v!==""&&v!=null&&v!==false) p.set(k,v); };
   add("texto",$("f_texto").value.trim());
+  add("socio",$("f_socio").value.trim());
   add("cnae_prefix",$("f_segmento").value);
   add("municipio",$("f_municipio").value);
   add("porte",$("f_porte").value);
@@ -203,6 +246,13 @@ function query(){
   if($("f_email").checked) p.set("com_email","true");
   if($("f_wpp").checked) p.set("com_whatsapp","true");
   if($("f_rede").checked) p.set("com_rede_social","true");
+  if($("f_proc").checked) p.set("com_processos","true");
+  if($("f_sanc").checked) p.set("com_sancoes","true");
+  if($("f_amb").checked) p.set("com_ambiental","true");
+  if($("f_div").checked) p.set("com_divida","true");
+  if($("f_escravo").checked) p.set("com_trabalho_escravo","true");
+  if($("f_cepim").checked) p.set("com_cepim","true");
+  if($("f_lenienc").checked) p.set("com_leniencia","true");
   add("ordenar_por",$("f_ordem").value);
   return p;
 }
@@ -232,7 +282,7 @@ async function initSegmentos(){
 }
 
 async function buscar(reset){
-  if(reset) pagina = 0;
+  if(reset){ pagina = 0; carregarMapa(); }
   const p = query();
   p.set("limite",PP); p.set("offset",pagina*PP);
   $("rows").innerHTML = `<tr><td colspan="6" class="loading">carregando…</td></tr>`;
@@ -263,13 +313,210 @@ function fmtData(v){
   if((m = v.match(/^(\d{4})-(\d{2})-(\d{2})/))) return `${m[3]}/${m[2]}/${m[1]}`;
   return v;
 }
-function mapaEmbed(e, geo){
-  let q;
-  if(geo && geo.latitude && geo.longitude) q = geo.latitude + "," + geo.longitude;
-  else q = [e.logradouro, e.numero, e.bairro, e.cep,
-            (e.municipio||"") + " " + (e.uf||""), "Brasil"].filter(Boolean).join(", ");
-  return `<iframe class="mapa" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
-     src="https://maps.google.com/maps?q=${encodeURIComponent(q)}&z=16&output=embed"></iframe>`;
+function parseData(v){
+  if(!v) return null; v=String(v).trim(); let m;
+  if((m=v.match(/^(\d{2})\/(\d{2})\/(\d{4})$/))) return new Date(+m[3],+m[2]-1,+m[1]);
+  if((m=v.match(/^(\d{4})(\d{2})(\d{2})$/))) return new Date(+m[1],+m[2]-1,+m[3]);
+  if((m=v.match(/^(\d{4})-(\d{2})-(\d{2})/))) return new Date(+m[1],+m[2]-1,+m[3]);
+  return null;
+}
+function idadeTexto(v){
+  const d=parseData(v); if(!d) return "";
+  const meses=Math.floor((Date.now()-d.getTime())/(30.44*864e5));
+  if(meses<1) return "recente";
+  if(meses<12) return `há ${meses} ${meses>1?'meses':'mês'}`;
+  const anos=Math.floor(meses/12);
+  return `há ${anos} ${anos>1?'anos':'ano'}`;
+}
+function ehAjuizada(x){
+  const a=(x.ajuizada||"").toUpperCase();
+  if(a==="SIM") return true;
+  if(a==="NAO"||a==="NÃO") return false;
+  const s=(x.situacao||"").toUpperCase();
+  return /AJUIZAD/.test(s) && !/A SER AJUIZAD/.test(s);
+}
+function renderDividas(arr, capital){
+  if(!arr||!arr.length) return "";
+  const cards = arr.map(x=>{
+    const aj=ehAjuizada(x), idade=idadeTexto(x.data_inscricao);
+    const vezes=(capital&&capital>0)? x.valor/capital : null;
+    const alto=(x.valor||0)>=100000;
+    let risco="BAIXO", rcls="ok";
+    if(aj&&alto){risco="ALTO";rcls="pend";} else if(aj||alto){risco="MÉDIO";rcls="warn";}
+    const badgeAj = aj?`<span class="tag pend">🔴 Ajuizada</span>`:`<span class="tag warn">🟡 A ajuizar</span>`;
+    const kv=(k,v)=>v?`<div><span class="k">${k}</span><span class="val">${v}</span></div>`:"";
+    const vezesTxt = vezes==null?"":(vezes>=1? vezes.toLocaleString('pt-BR',{maximumFractionDigits:1})+"× o capital social" : (vezes*100).toFixed(0)+"% do capital social");
+    return `<details class="divida">
+      <summary><b>${fmtBRL(x.valor)}</b> ${badgeAj} <span style="color:var(--muted)">${idade}</span></summary>
+      <div class="divida-det">
+        ${kv("Tributo", esc(x.tipo_tributo))}
+        ${kv("Situação", esc(x.situacao))}
+        ${kv("Risco fiscal", `<span class="tag ${rcls}">${risco}</span>`)}
+        ${kv("Peso na empresa", vezesTxt)}
+        ${kv("Inscrita em", fmtData(x.data_inscricao))}
+        ${kv("Nº da inscrição", `<span class="mono">${esc(x.numero_inscricao)}</span>`)}
+        ${kv("Devedor", esc(x.tipo_devedor))}
+        ${kv("Unidade PGFN", esc(x.unidade_responsavel))}
+      </div>
+    </details>`;
+  }).join("");
+  return `<div class="sec">💸 Dívida ativa (${arr.length})</div>${cards}`;
+}
+function mapaEmbed(e, geo){ return `<div id="mapa_modal" class="mapa"></div>`; }
+let _modalMap = null;
+const _ESTILO_SAT = { version:8, sources:{
+    sat:{ type:"raster", tileSize:256,
+      tiles:["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
+      attribution:"Esri, Maxar, Earthstar Geographics" }},
+  layers:[{ id:"sat", type:"raster", source:"sat" }] };
+async function initMapaModal(geo, e){
+  const cont = document.getElementById("mapa_modal");
+  if(!cont) return;
+  if(_modalMap){ try{ _modalMap.remove(); }catch(_){} _modalMap=null; }
+  let lat=null, lng=null, aprox=false;
+  if(geo && geo.latitude && geo.longitude){ lat=+geo.latitude; lng=+geo.longitude; }
+  else {
+    // sem coordenadas da etapa geo → geocodifica o endereço na hora (Nominatim/OSM, grátis)
+    cont.innerHTML = `<div class="mapamsg">buscando o endere&ccedil;o no mapa…</div>`;
+    const q = [e.logradouro, e.numero, e.bairro, e.cep, e.municipio, e.uf, "Brasil"].filter(Boolean).join(", ");
+    try{
+      const j = await (await fetch("/geocode?q="+encodeURIComponent(q))).json();
+      if(j && j.lat!=null){ lat=+j.lat; lng=+j.lng; aprox=true; }
+    }catch(_){}
+    if(lat==null){ cont.innerHTML = `<div class="mapamsg">N&atilde;o foi poss&iacute;vel localizar o endere&ccedil;o no mapa. Use "Abrir no Google Maps" abaixo.</div>`; return; }
+  }
+  cont.innerHTML = "";
+  _modalMap = new maplibregl.Map({container:"mapa_modal", style:_ESTILO_SAT, center:[lng,lat], zoom: aprox?16:17, cooperativeGestures:true, locale:_LOCALE_MAPA});
+  _modalMap.addControl(new maplibregl.NavigationControl(), "top-right");
+  new maplibregl.Marker({color: aprox?"#f5a623":"#39ff14"}).setLngLat([lng,lat]).addTo(_modalMap);
+  if(aprox){
+    cont.style.position="relative";
+    const b=document.createElement("div"); b.className="mapaprox"; b.textContent="📍 aprox. pelo endereço";
+    cont.appendChild(b);
+  }
+}
+async function classificar(){
+  carregarMapa();                    // recorte também reflete no mapa
+  const p = query();                 // usa os filtros de cima como recorte
+  p.set("objetivo", $("q_objetivo").value);
+  if($("q_tel").checked) p.set("pref_telefone","true");
+  if($("q_email").checked) p.set("pref_email","true");
+  if($("q_wpp").checked) p.set("pref_whatsapp","true");
+  if($("q_rede").checked) p.set("pref_rede","true");
+  p.set("presenca", $("q_presenca").value);
+  p.set("fiscal", $("q_fiscal").value);
+  ["q_p1","q_p3","q_p5"].forEach(id=>{ if($(id).checked) p.append("portes",$(id).value); });
+  p.set("limite", PP);
+  $("rows").innerHTML = `<tr><td colspan="6" class="loading">classificando…</td></tr>`;
+  const r = await (await fetch("/classificar?"+p.toString())).json();
+  $("total").textContent = r.itens.length.toLocaleString('pt-BR') + " (ranqueadas por score)";
+  $("vazio").style.display = r.itens.length? "none":"block";
+  $("rows").innerHTML = r.itens.map(e=>{
+    const nome = esc(e.razao_social||e.nome_fantasia||"(sem nome)");
+    const cls = e.score_pct>=70?"ok":(e.score_pct>=40?"warn":"pend");
+    const badge = `<span class="tag ${cls}">${e.classificacao} · ${e.score_pct}</span>`;
+    return `<tr onclick="abrir('${e.cnpj}')">
+      <td><b>${nome}</b></td><td>${esc(e.municipio||"—")}</td>
+      <td>${esc(e.cnae_desc||e.cnae_principal||"—")}</td>
+      <td>${esc(PORTE[e.porte]||e.porte||"—")}</td>
+      <td>${e.tem_pendencia?'<span class="tag pend">pend.</span>':'<span class="tag ok">ok</span>'}</td>
+      <td>${badge}</td></tr>`;
+  }).join("");
+  $("pager").innerHTML = "";
+}
+function renderSocios(arr){
+  if(!arr||!arr.length) return "";
+  const cards = arr.map(s=>{
+    const q = s.qualificacao_desc||s.qualificacao||"";
+    const outras = s.outras_empresas||[];
+    const kv=(k,v)=>v?`<div><span class="k">${k}</span><span class="val">${v}</span></div>`:"";
+    const rede = outras.length
+      ? `<div style="margin-top:8px"><span class="k">Também sócio(a) em ${outras.length} empresa(s) da base</span>${outras.map(o=>`<div style="margin-top:3px">↳ <a href="#" onclick="abrir('${o.cnpj}');return false;">${esc(o.razao_social||o.cnpj)}</a></div>`).join("")}</div>`
+      : "";
+    return `<details class="divida">
+      <summary>👤 <b>${esc(s.nome_socio||'—')}</b> <span style="color:var(--muted)">${esc(q)}</span>${outras.length?` <span class="tag ok">rede: ${outras.length}</span>`:""}</summary>
+      <div class="divida-det">
+        ${kv("Qualificação", esc(q))}
+        ${kv("CPF (mascarado)", esc(s.cpf_parcial))}
+        ${kv("Faixa etária", esc(s.faixa_etaria_desc))}
+        ${kv("Desde", fmtData(s.data_entrada))}
+      </div>
+      ${rede}
+    </details>`;
+  }).join("");
+  return `<div class="sec">👥 Sócios (${arr.length})</div>${cards}`;
+}
+function renderInfracoes(arr){
+  if(!arr||!arr.length) return "";
+  const cards = arr.map(x=>{
+    const kv=(k,v)=>v?`<div><span class="k">${k}</span><span class="val">${v}</span></div>`:"";
+    const local=[x.municipio_infracao,x.uf_infracao].filter(Boolean).join("/");
+    const valTxt = x.valor_multa? fmtBRL(x.valor_multa) : "valor n/d";
+    return `<details class="divida">
+      <summary><b>${valTxt}</b> <span style="color:var(--muted)">${esc((x.tipo_infracao||'').slice(0,55))}</span> <span style="color:var(--muted)">${idadeTexto(x.data_auto)}</span></summary>
+      <div class="divida-det">
+        ${kv("Infração", esc(x.tipo_infracao))}
+        ${kv("Gravidade", esc(x.gravidade))}
+        ${kv("Situação do auto", esc(x.status))}
+        ${kv("Tipo de multa", esc(x.tipo_multa))}
+        ${kv("Nº do auto", x.numero_auto?`<span class="mono">${esc(x.numero_auto)}</span>`:"")}
+        ${kv("Local da infração", esc(local))}
+        ${kv("Data", fmtData(x.data_auto))}
+        ${kv("Enquadramento", esc(x.enquadramento))}
+      </div>
+    </details>`;
+  }).join("");
+  return `<div class="sec">🌱 Infrações ambientais (${arr.length})</div>${cards}`;
+}
+const _POLO = {ATIVO:"Autor(a) (polo ativo)", PASSIVO:"Réu/Ré (polo passivo)"};
+function renderProcessos(arr){
+  if(!arr||!arr.length) return "";
+  const cards = arr.map(x=>{
+    const kv=(k,v)=>v?`<div><span class="k">${k}</span><span class="val">${v}</span></div>`:"";
+    const fuzzy = (x.match_confianca||"").toLowerCase()==="fuzzy";
+    const polo = _POLO[(x.polo||"").toUpperCase()] || esc(x.polo);
+    const viaSocio = x.nome_socio_vinculado
+      ? ` <span class="tag pend" title="Processo pessoal encontrado pelo nome do sócio, não da empresa">via sócio: ${esc(x.nome_socio_vinculado)}</span>`
+      : "";
+    return `<details class="divida">
+      <summary><b>${esc(x.numero_processo||"—")}</b> <span style="color:var(--muted)">${esc(x.tribunal||"")}</span>
+        ${fuzzy?'<span class="tag warn">correspondência aproximada</span>':""}${viaSocio}
+        <span style="color:var(--muted)">${idadeTexto(x.data_ultima_movimentacao)}</span></summary>
+      <div class="divida-det">
+        ${kv("Classe", esc(x.classe))}
+        ${kv("Assunto", esc(x.assunto))}
+        ${kv("Posição da empresa", polo)}
+        ${kv("Situação", esc(x.status))}
+        ${kv("Última movimentação", fmtData(x.data_ultima_movimentacao))}
+        ${kv("Vínculo", x.nome_socio_vinculado?`Processo pessoal do sócio ${esc(x.nome_socio_vinculado)}, não da empresa diretamente`:"")}
+      </div>
+    </details>`;
+  }).join("");
+  return `<div class="sec">📂 Processos judiciais (${arr.length})</div>${cards}`;
+}
+function renderSancoes(arr){
+  if(!arr||!arr.length) return "";
+  const cards = arr.map(x=>{
+    const kv=(k,v)=>v?`<div><span class="k">${k}</span><span class="val">${v}</span></div>`:"";
+    const periodo=[fmtData(x.data_inicio),fmtData(x.data_fim)].filter(Boolean).join(" — ");
+    const proc = x.numero_processo? esc(x.numero_processo)+(x.ano_processo?"/"+esc(x.ano_processo):"") : "";
+    const delib = x.numero_deliberacao? esc(x.numero_deliberacao)+(x.ano_deliberacao?"/"+esc(x.ano_deliberacao):"") : "";
+    const viaSocio = x.nome_socio_vinculado
+      ? ` <span class="tag pend" title="Sanção encontrada pelo nome do sócio, não da empresa">via sócio: ${esc(x.nome_socio_vinculado)}</span>`
+      : "";
+    return `<details class="divida">
+      <summary><span class="tag pend">${esc(x.tipo||'Sanção')}</span> <span style="color:var(--muted)">${esc(x.motivo||'')}</span>${viaSocio}</summary>
+      <div class="divida-det">
+        ${kv("Órgão sancionador", esc(x.orgao_sancionador))}
+        ${kv("Fundamentação legal", esc(x.fundamentacao))}
+        ${kv("Período", periodo)}
+        ${kv("Processo", proc)}
+        ${kv("Deliberação", delib)}
+        ${kv("Vínculo", x.nome_socio_vinculado?`Sanção pessoal do sócio ${esc(x.nome_socio_vinculado)}, não da empresa diretamente`:"")}
+      </div>
+    </details>`;
+  }).join("");
+  return `<div class="sec">🚫 Sanções (${arr.length})</div>${cards}`;
 }
 async function abrir(cnpj){
   $("overlay").classList.add("open");
@@ -293,8 +540,6 @@ async function abrir(cnpj){
     : esc(e.cnae_principal||"-");
   const pend = rz.tem_pendencia_juridica_ou_fiscal
     ? `<span class="tag pend">&#9888; tem pend&ecirc;ncia jur&iacute;dico-fiscal</span>` : `<span class="tag ok">&#10003; sem pend&ecirc;ncias</span>`;
-  const secPend = (titulo,arr,render)=> arr&&arr.length
-    ? `<div class="sec">${titulo} (${arr.length})</div><div class="lista">${arr.slice(0,15).map(render).join("")}</div>` : "";
 
   $("modal").innerHTML = `
     <div class="top">
@@ -325,8 +570,7 @@ async function abrir(cnpj){
         ${j?kv("&#128198;","Constitui&ccedil;&atilde;o", fmtData(j.data_constituicao)):""}
       </div>
 
-      ${d.socios&&d.socios.length?`<div class="sec">&#128101; S&oacute;cios (${d.socios.length})</div>
-        <div class="lista">${d.socios.map(s=>`<div class="item"><b>${esc(s.nome_socio)}</b> - ${esc(s.qualificacao||"")} ${s.cpf_parcial?`<span style="color:var(--muted)">(${esc(s.cpf_parcial)})</span>`:""} ${s.data_entrada?`<span style="color:var(--muted)">&middot; desde ${fmtData(s.data_entrada)}</span>`:""}</div>`).join("")}</div>`:""}
+      ${renderSocios(d.socios)}
 
       <div class="sec">&#9878; Situa&ccedil;&atilde;o jur&iacute;dico-fiscal</div>
       <div class="kv">
@@ -336,28 +580,90 @@ async function abrir(cnpj){
         ${kv("&#128209;","D&iacute;vidas ativas", rz.qtd_dividas_ativas)}
         ${kv("&#128184;","Total em d&iacute;vida ativa", fmtBRL(rz.valor_total_divida_ativa))}
       </div>
-      ${secPend("&#128184; D&iacute;vida ativa", d.dividas_ativas, x=>`<div class="item">${fmtBRL(x.valor)} - ${esc(x.situacao||"")} <span style="color:var(--muted)">${fmtData(x.data_inscricao)}</span></div>`)}
-      ${secPend("&#128683; San&ccedil;&otilde;es", d.sancoes_administrativas, x=>`<div class="item"><b>${esc(x.tipo||"")}</b> - ${esc(x.motivo||"")} <span style="color:var(--muted)">${esc(x.orgao_sancionador||"")}</span></div>`)}
-      ${secPend("&#127793; Infra&ccedil;&otilde;es ambientais", d.infracoes_ambientais, x=>`<div class="item">${esc(x.tipo_infracao||"")} <span style="color:var(--muted)">${fmtData(x.data_auto)}</span></div>`)}
-      ${secPend("&#128194; Processos judiciais", d.processos_judiciais, x=>`<div class="item">${esc(x.numero_processo||"")} - ${esc(x.tribunal||"")} ${esc(x.classe||"")}</div>`)}
+      ${renderProcessos(d.processos_judiciais)}
+      ${renderDividas(d.dividas_ativas, e.capital_social)}
+      ${renderSancoes(d.sancoes_administrativas)}
+      ${renderInfracoes(d.infracoes_ambientais)}
 
       <div class="sec">&#128205; Localiza&ccedil;&atilde;o</div>
       ${mapaEmbed(e, d.geolocalizacao)}
       <a class="maplink" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(endereco)}" target="_blank">Abrir no Google Maps &#8599;</a>
     </div>`;
+  initMapaModal(d.geolocalizacao, e);
 }
-function fechar(){ $("overlay").classList.remove("open"); }
+function fechar(){
+  $("overlay").classList.remove("open");
+  if(_modalMap){ try{ _modalMap.remove(); }catch(_){} _modalMap=null; }
+}
 function exportar(fmt){ window.location = `/export/empresas.${fmt}?`+query().toString(); }
 function limpar(){
-  ["f_texto","f_capmin","f_capmax"].forEach(id=>$(id).value="");
+  ["f_texto","f_socio","f_capmin","f_capmax"].forEach(id=>$(id).value="");
   ["f_segmento","f_municipio","f_porte","f_regime","f_pendencia"].forEach(id=>$(id).value="");
-  ["f_tel","f_email","f_wpp","f_rede"].forEach(id=>$(id).checked=false);
+  ["f_tel","f_email","f_wpp","f_rede","f_proc","f_sanc","f_amb","f_div","f_escravo","f_cepim","f_lenienc"].forEach(id=>$(id).checked=false);
   $("f_ordem").value="razao_social"; buscar(true);
 }
 document.addEventListener("keydown",e=>{ if(e.key==="Escape")fechar(); });
 $("f_texto").addEventListener("keydown",e=>{ if(e.key==="Enter")buscar(true); });
 
-(async ()=>{ await initEstat(); await initSegmentos(); buscar(true); })();
+let MAPA=null, MAPA_READY=false, _pendentes=null;
+const _ESTILO = {
+  version: 8,
+  glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
+  sources: {
+    carto: { type:"raster", tileSize:256,
+      tiles:["https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+             "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+             "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+             "https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"],
+      attribution:"© OpenStreetMap © CARTO" }
+  },
+  layers: [{ id:"carto", type:"raster", source:"carto" }]
+};
+// Textos do aviso de "cooperative gestures" (scroll normal não dá zoom no mapa,
+// evita capturar o scroll da página) — traduzidos, o padrão vem em inglês.
+const _LOCALE_MAPA = {
+  "CooperativeGesturesHandler.WindowsHelpText": "Use Ctrl + scroll para zoom no mapa",
+  "CooperativeGesturesHandler.MacHelpText": "Use ⌘ + scroll para zoom no mapa",
+  "CooperativeGesturesHandler.MobileHelpText": "Use dois dedos para mover o mapa",
+};
+function initMapa(){
+  MAPA = new maplibregl.Map({container:"mapa", style:_ESTILO, center:[-40.32,-20.30], zoom:10, attributionControl:true, cooperativeGestures:true, locale:_LOCALE_MAPA});
+  MAPA.addControl(new maplibregl.NavigationControl(), "top-right");
+  const popup = new maplibregl.Popup({closeButton:false, closeOnClick:false});
+  MAPA.on("load", ()=>{
+    // Sem clustering: todos os pontos renderizados direto no WebGL (visíveis em
+    // qualquer zoom). O raio cresce suavemente com o zoom pra não virar um borrão.
+    MAPA.addSource("empresas", {type:"geojson", data:{type:"FeatureCollection",features:[]}});
+    MAPA.addLayer({id:"ponto", type:"circle", source:"empresas",
+      paint:{
+        "circle-radius":["interpolate",["linear"],["zoom"], 8,2.2, 11,3.5, 14,5.5, 17,8],
+        "circle-stroke-width":1, "circle-stroke-color":"#0b3d1a",
+        "circle-color":["case",["get","pend"],"#ff5470","#39ff14"],
+        "circle-opacity":0.85}});
+    MAPA.on("click","ponto",(e)=>{ const p=e.features[0].properties; if(p.cnpj) abrir(p.cnpj); });
+    MAPA.on("mouseenter","ponto",(e)=>{ MAPA.getCanvas().style.cursor="pointer";
+      popup.setLngLat(e.features[0].geometry.coordinates.slice()).setText(e.features[0].properties.nome).addTo(MAPA); });
+    MAPA.on("mouseleave","ponto",()=>{ MAPA.getCanvas().style.cursor=""; popup.remove(); });
+    MAPA_READY=true;
+    if(_pendentes){ MAPA.getSource("empresas").setData(_pendentes); _pendentes=null; }
+  });
+}
+async function carregarMapa(){
+  if(!MAPA) return;
+  $("mapinfo").textContent = "carregando…";
+  let d;
+  const p = query(); p.set("limite", 400000);
+  try{ d = await (await fetch("/mapa?"+p.toString())).json(); }
+  catch(e){ $("mapinfo").textContent = "erro ao carregar o mapa"; return; }
+  const fc = {type:"FeatureCollection", features:(d.pontos||[]).map(e=>({
+    type:"Feature", geometry:{type:"Point", coordinates:[e.lng, e.lat]},
+    properties:{cnpj:e.cnpj, nome:e.razao_social||e.nome_fantasia||e.cnpj, pend: !!e.tem_pendencia}
+  }))};
+  if(MAPA_READY) MAPA.getSource("empresas").setData(fc); else _pendentes = fc;
+  const cap = (d.total>d.limite) ? ` (mostrando ${d.limite.toLocaleString('pt-BR')} de ${d.total.toLocaleString('pt-BR')})` : "";
+  $("mapinfo").textContent = `${(d.total||0).toLocaleString('pt-BR')} empresas geolocalizadas${cap}`;
+}
+(async ()=>{ await initEstat(); await initSegmentos(); initMapa(); buscar(true); })();
 </script>
 </body>
 </html>

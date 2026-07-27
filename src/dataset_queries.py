@@ -23,6 +23,25 @@ except Exception:
 _SITUACAO = {"01": "Nula", "02": "Ativa", "03": "Suspensa",
              "04": "Inapta", "08": "Baixada"}
 
+# Qualificação do sócio (código -> nome), da base oficial da RF.
+try:
+    _QUALIF = json.loads((config.BASE_DIR / "reference" / "qualificacoes.json").read_text(encoding="utf-8"))
+except Exception:
+    _QUALIF = {}
+
+# Faixa etária (código da RF -> descrição).
+_FAIXA = {"0": "Não informada", "1": "0 a 12", "2": "13 a 20", "3": "21 a 30",
+          "4": "31 a 40", "5": "41 a 50", "6": "51 a 60", "7": "61 a 70",
+          "8": "71 a 80", "9": "acima de 80"}
+
+
+def qualif_desc(codigo):
+    return _QUALIF.get(str(codigo or "").strip())
+
+
+def faixa_desc(codigo):
+    return _FAIXA.get(str(codigo or "").strip())
+
 
 def cnae_desc(codigo):
     return _CNAE.get(str(codigo or "").strip())
@@ -72,7 +91,10 @@ _PENDENCIA_EXPR = (
 def _filtros_sql(*, tem_contato=False, municipio=None, cnae=None, cnae_prefix=None,
                  porte=None, regime_tributario=None, texto=None, tem_pendencia=None,
                  com_telefone=None, com_email=None, com_whatsapp=None,
-                 com_rede_social=None, capital_min=None, capital_max=None):
+                 com_rede_social=None, capital_min=None, capital_max=None,
+                 com_processos=None, com_sancoes=None, com_ambiental=None, com_divida=None,
+                 com_trabalho_escravo=None, com_cepim=None, com_leniencia=None,
+                 socio=None):
     """Monta a cláusula WHERE (sobre o alias `e` = empresas) e os parâmetros."""
     where, params = [], []
     if municipio:
@@ -93,6 +115,10 @@ def _filtros_sql(*, tem_contato=False, municipio=None, cnae=None, cnae_prefix=No
     if texto:
         where.append("(e.razao_social LIKE ? OR e.nome_fantasia LIKE ?)")
         params.extend([f"%{texto}%", f"%{texto}%"])
+    if socio:
+        where.append("EXISTS (SELECT 1 FROM socios so WHERE so.cnpj_empresa = e.cnpj "
+                     "AND so.nome_socio LIKE ?)")
+        params.append(f"%{socio}%")
     if com_telefone:
         where.append("e.telefone IS NOT NULL AND e.telefone != ''")
     if com_email:
@@ -107,6 +133,25 @@ def _filtros_sql(*, tem_contato=False, municipio=None, cnae=None, cnae_prefix=No
         where.append(_PENDENCIA_EXPR)
     elif tem_pendencia is False:
         where.append("NOT " + _PENDENCIA_EXPR)
+    # Filtros por tipo específico de pendência jurídico-fiscal.
+    if com_processos:
+        where.append("EXISTS (SELECT 1 FROM processos_judiciais p WHERE p.cnpj_empresa = e.cnpj)")
+    if com_sancoes:
+        where.append("EXISTS (SELECT 1 FROM sancoes_administrativas s WHERE s.cnpj_empresa = e.cnpj)")
+    if com_ambiental:
+        where.append("EXISTS (SELECT 1 FROM infracoes_ambientais i WHERE i.cnpj_empresa = e.cnpj)")
+    if com_divida:
+        where.append("EXISTS (SELECT 1 FROM dividas_ativas d WHERE d.cnpj_empresa = e.cnpj)")
+    # Alertas de risco específicos (subtipos de sanção administrativa).
+    if com_trabalho_escravo:
+        where.append("EXISTS (SELECT 1 FROM sancoes_administrativas s WHERE s.cnpj_empresa = e.cnpj "
+                     "AND s.tipo = 'TRABALHO_ESCRAVO')")
+    if com_cepim:
+        where.append("EXISTS (SELECT 1 FROM sancoes_administrativas s WHERE s.cnpj_empresa = e.cnpj "
+                     "AND s.tipo = 'CEPIM')")
+    if com_leniencia:
+        where.append("EXISTS (SELECT 1 FROM sancoes_administrativas s WHERE s.cnpj_empresa = e.cnpj "
+                     "AND s.tipo = 'LENIENCIA')")
     if com_whatsapp or com_rede_social:
         if not tem_contato:
             where.append("0")  # etapa `contato` ainda não rodou → sem resultados
@@ -171,7 +216,10 @@ def buscar_empresas(municipio=None, cnae=None, cnae_prefix=None, porte=None,
                     regime_tributario=None, texto=None, tem_pendencia=None,
                     com_telefone=None, com_email=None, com_whatsapp=None,
                     com_rede_social=None, capital_min=None, capital_max=None,
-                    ordenar_por="razao_social", limite=50, offset=0) -> dict:
+                    com_processos=None, com_sancoes=None, com_ambiental=None,
+                    com_divida=None, com_trabalho_escravo=None, com_cepim=None,
+                    com_leniencia=None, socio=None, ordenar_por="razao_social",
+                    limite=50, offset=0) -> dict:
     """Busca empresas com filtros combináveis. Retorna {'total','itens',...}."""
     ordem = ordenar_por if ordenar_por in _ORDENAR_POR else "razao_social"
     limite = max(1, min(int(limite), 500))
@@ -183,7 +231,11 @@ def buscar_empresas(municipio=None, cnae=None, cnae_prefix=None, porte=None,
             cnae_prefix=cnae_prefix, porte=porte, regime_tributario=regime_tributario,
             texto=texto, tem_pendencia=tem_pendencia, com_telefone=com_telefone,
             com_email=com_email, com_whatsapp=com_whatsapp,
-            com_rede_social=com_rede_social, capital_min=capital_min, capital_max=capital_max)
+            com_rede_social=com_rede_social, capital_min=capital_min, capital_max=capital_max,
+            com_processos=com_processos, com_sancoes=com_sancoes,
+            com_ambiental=com_ambiental, com_divida=com_divida,
+            com_trabalho_escravo=com_trabalho_escravo, com_cepim=com_cepim,
+            com_leniencia=com_leniencia, socio=socio)
         total = conn.execute(f"SELECT COUNT(*) FROM empresas e{where_sql}", params).fetchone()[0]
         rows = conn.execute(
             f"SELECT e.cnpj, e.razao_social, e.nome_fantasia, e.cnae_principal, e.porte, "
@@ -197,6 +249,100 @@ def buscar_empresas(municipio=None, cnae=None, cnae_prefix=None, porte=None,
         d["cnae_desc"] = cnae_desc(d.get("cnae_principal"))
         itens.append(d)
     return {"total": total, "limite": limite, "offset": offset, "itens": itens}
+
+
+def pontos_mapa(limite=20000, **filtros):
+    """Empresas geocodificadas (lat/long) que batem nos filtros — para o mapa
+    do dashboard. Retorna {'total', 'limite', 'pontos':[{cnpj,razao_social,
+    nome_fantasia,municipio,lat,lng,tem_pendencia}]}. `total` é quantas batem
+    (pode passar do limite; o mapa mostra até `limite`)."""
+    filtros.pop("ordenar_por", None)
+    limite = max(1, min(int(limite), 400000))
+    with _conn() as conn:
+        tem_contato = _tabela_existe(conn, "enriquecimento_contato")
+        where_sql, params = _filtros_sql(tem_contato=tem_contato, **filtros)
+        cond = "ep.latitude IS NOT NULL"
+        if where_sql:
+            cond += " AND " + where_sql[len(" WHERE "):]
+        base = ("FROM empresas e JOIN enriquecimento_places ep "
+                "ON ep.cnpj_empresa = e.cnpj WHERE " + cond)
+        total = conn.execute(f"SELECT COUNT(*) {base}", params).fetchone()[0]
+        rows = conn.execute(
+            f"SELECT e.cnpj, e.razao_social, e.nome_fantasia, e.municipio, "
+            f"ep.latitude AS lat, ep.longitude AS lng, {_PENDENCIA_EXPR} AS tem_pendencia "
+            f"{base} LIMIT ?", params + [limite]).fetchall()
+    return {"total": total, "limite": limite, "pontos": [dict(r) for r in rows]}
+
+
+def classificar_empresas(objetivo="generico", pref_telefone=None, pref_email=None,
+                         pref_whatsapp=None, pref_rede=None, portes=None,
+                         presenca="indiferente", fiscal="indiferente",
+                         municipio=None, cnae_prefix=None, texto=None,
+                         capital_min=None, capital_max=None, limite=50) -> dict:
+    """Classifica/pontua empresas conforme um 'questionário' de prospecção.
+    Cada critério ativo soma pontos; o score é normalizado 0-100 e recebe um
+    rótulo (Quente/Morno/Frio). O peso é definido pelas respostas — o objetivo
+    comercial ajusta o que conta como bom lead."""
+    with _conn() as conn:
+        tem_contato = _tabela_existe(conn, "enriquecimento_contato")
+        divida = "EXISTS (SELECT 1 FROM dividas_ativas d WHERE d.cnpj_empresa = e.cnpj)"
+        tel = "(e.telefone IS NOT NULL AND e.telefone != '')"
+        eml = "(e.email IS NOT NULL AND e.email != '')"
+        if tem_contato:
+            site = ("EXISTS (SELECT 1 FROM enriquecimento_contato ec WHERE ec.cnpj_empresa = e.cnpj "
+                    "AND (ec.site IS NOT NULL OR ec.instagram IS NOT NULL OR ec.facebook IS NOT NULL OR ec.linkedin IS NOT NULL))")
+            wpp = "EXISTS (SELECT 1 FROM enriquecimento_contato ec WHERE ec.cnpj_empresa = e.cnpj AND ec.whatsapp IS NOT NULL)"
+        else:
+            site, wpp = "0", "0"
+
+        termos, score_params = [], []          # (expr, peso)
+        if pref_telefone: termos.append((tel, 15))
+        if pref_email: termos.append((eml, 15))
+        if pref_whatsapp: termos.append((wpp, 15))
+        if pref_rede: termos.append((site, 15))
+        if portes:
+            ph = ",".join("?" * len(portes))
+            termos.append((f"e.porte IN ({ph})", 20)); score_params.extend(portes)
+        if presenca == "com": termos.append((site, 20))
+        elif presenca == "sem": termos.append((f"NOT {site}", 20))
+        if fiscal == "limpas": termos.append((f"NOT {_PENDENCIA_EXPR}", 25))
+        elif fiscal == "com_pendencia": termos.append((divida, 25))
+        # Presets por objetivo comercial:
+        if objetivo == "regularizacao": termos.append((divida, 30))
+        elif objetivo == "marketing":
+            termos.append((f"NOT {site}", 25)); termos.append((tel, 10))
+        elif objetivo == "credito": termos.append((f"NOT {_PENDENCIA_EXPR}", 25))
+        elif objetivo == "software":
+            termos.append((site, 15)); termos.append(("e.capital_social >= 100000", 10))
+
+        max_pts = sum(p for _, p in termos)
+        score_sql = ("(" + " + ".join(f"CASE WHEN {e} THEN {p} ELSE 0 END" for e, p in termos) + ")") if termos else "0"
+
+        where_sql, where_params = _filtros_sql(
+            tem_contato=tem_contato, municipio=municipio, cnae_prefix=cnae_prefix,
+            texto=texto, capital_min=capital_min, capital_max=capital_max)
+        limite = max(1, min(int(limite), 500))
+        rows = conn.execute(
+            f"SELECT e.cnpj, e.razao_social, e.nome_fantasia, e.municipio, e.porte, "
+            f"e.cnae_principal, e.capital_social, {_PENDENCIA_EXPR} AS tem_pendencia, "
+            f"{score_sql} AS score FROM empresas e{where_sql} "
+            f"ORDER BY score DESC, e.razao_social LIMIT ?",
+            score_params + where_params + [limite]).fetchall()
+
+    def rotular(pct):
+        if pct >= 70: return "🔥 Quente (A)"
+        if pct >= 40: return "🙂 Morno (B)"
+        return "❄️ Frio (C)"
+
+    itens = []
+    for r in rows:
+        d = dict(r)
+        d["cnae_desc"] = cnae_desc(d.get("cnae_principal"))
+        d["score_pct"] = round(d["score"] / max_pts * 100) if max_pts else 0
+        d["classificacao"] = rotular(d["score_pct"])
+        itens.append(d)
+    return {"total": len(itens), "pontos_maximos": max_pts,
+            "criterios_ativos": len(termos), "itens": itens}
 
 
 def exportar_empresas(max_linhas=20000, **filtros) -> list:
@@ -236,23 +382,49 @@ def obter_empresa(cnpj: str) -> dict:
         empresa = conn.execute("SELECT * FROM empresas WHERE cnpj = ?", (cnpj,)).fetchone()
         if empresa is None:
             return None
-        socios = [dict(r) for r in conn.execute(
-            "SELECT nome_socio, cpf_parcial, qualificacao, data_entrada "
-            "FROM socios WHERE cnpj_empresa = ?", (cnpj,))]
+        socios = []
+        for r in conn.execute(
+                "SELECT nome_socio, cpf_parcial, qualificacao, data_entrada, faixa_etaria "
+                "FROM socios WHERE cnpj_empresa = ?", (cnpj,)):
+            s = dict(r)
+            s["qualificacao_desc"] = qualif_desc(s.get("qualificacao"))
+            s["faixa_etaria_desc"] = faixa_desc(s.get("faixa_etaria"))
+            # Rede de participações: outras empresas da base onde a MESMA
+            # pessoa também é sócia. Exige CPF mascarado + NOME idênticos —
+            # o CPF vem mascarado (só 6 dígitos do meio) e sozinho colide
+            # entre pessoas diferentes; nome + CPF mascarado é discriminante.
+            cpf = (s.get("cpf_parcial") or "").strip()
+            nome = (s.get("nome_socio") or "").strip()
+            outras = []
+            if cpf and nome:
+                outras = [dict(x) for x in conn.execute(
+                    "SELECT DISTINCT s2.cnpj_empresa AS cnpj, e.razao_social "
+                    "FROM socios s2 JOIN empresas e ON e.cnpj = s2.cnpj_empresa "
+                    "WHERE s2.cpf_parcial = ? AND s2.nome_socio = ? "
+                    "AND s2.cnpj_empresa != ? LIMIT 30",
+                    (cpf, nome, cnpj))]
+            s["outras_empresas"] = outras
+            socios.append(s)
         jucees = conn.execute(
             "SELECT * FROM registros_jucees WHERE cnpj_empresa = ?", (cnpj,)).fetchone()
         processos = [dict(r) for r in conn.execute(
-            "SELECT numero_processo, tribunal, classe, assunto, data_ultima_movimentacao "
-            "FROM processos_judiciais WHERE cnpj_empresa = ? LIMIT 100", (cnpj,))]
+            "SELECT numero_processo, tribunal, classe, assunto, polo, status, "
+            "data_ultima_movimentacao, match_confianca, nome_socio_vinculado "
+            "FROM processos_judiciais WHERE cnpj_empresa = ? "
+            "ORDER BY data_ultima_movimentacao DESC LIMIT 100", (cnpj,))]
         sancoes = [dict(r) for r in conn.execute(
-            "SELECT tipo, motivo, orgao_sancionador, data_inicio, data_fim "
+            "SELECT tipo, motivo, orgao_sancionador, data_inicio, data_fim, "
+            "fundamentacao, numero_processo, ano_processo, numero_deliberacao, ano_deliberacao, "
+            "nome_socio_vinculado "
             "FROM sancoes_administrativas WHERE cnpj_empresa = ? LIMIT 100", (cnpj,))]
         ambiental = [dict(r) for r in conn.execute(
-            "SELECT tipo_infracao, status, data_auto FROM infracoes_ambientais "
-            "WHERE cnpj_empresa = ? LIMIT 100", (cnpj,))]
+            "SELECT tipo_infracao, status, data_auto, valor_multa, gravidade, tipo_multa, "
+            "numero_auto, municipio_infracao, uf_infracao, enquadramento "
+            "FROM infracoes_ambientais WHERE cnpj_empresa = ? ORDER BY valor_multa DESC LIMIT 100", (cnpj,))]
         dividas = [dict(r) for r in conn.execute(
-            "SELECT valor, situacao, data_inscricao FROM dividas_ativas "
-            "WHERE cnpj_empresa = ? LIMIT 100", (cnpj,))]
+            "SELECT valor, situacao, data_inscricao, tipo_tributo, numero_inscricao, "
+            "ajuizada, tipo_devedor, unidade_responsavel FROM dividas_ativas "
+            "WHERE cnpj_empresa = ? ORDER BY valor DESC LIMIT 100", (cnpj,))]
         geo = conn.execute(
             "SELECT latitude, longitude FROM enriquecimento_places WHERE cnpj_empresa = ?",
             (cnpj,)).fetchone()

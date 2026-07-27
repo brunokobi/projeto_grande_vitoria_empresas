@@ -3,36 +3,23 @@
 venv/
 __pycache__/
 *.py[cod]
-*.egg-info/
 
 # --- Estado interno do Claude Code ---
 .claude/
 
-# --- Segredos / config local ---
-# NUNCA commitar o .env (pode conter e-mail de contato, chaves reais).
-# Use .env.example como modelo.
+# --- Config local ---
 .env
 
-# --- Dados brutos e banco descomprimido (NÃO vão pro git) ---
-# data/raw: ~10GB de CSVs/zips baixados das fontes — regeneráveis.
-# data/*.db: banco descomprimido (139MB, passa do limite do GitHub).
-#            O banco vai versionado COMPRIMIDO como data/grande_vitoria.db.gz
-#            (~47MB) e o setup.sh descomprime. output: CSV/XLSX gerados.
-data/raw/
-data/*.db
-data/*.db-journal
-data/*.db-wal
+# --- Dataset (NÃO versionar — vem do GitHub Release via setup.sh) ---
+data/
 output/
-
-# NOTA: data/grande_vitoria.db.gz (comprimido) e data/checkpoints/ SÃO
-# versionados de propósito, para a base e o progresso serem plug-and-play
-# em outra máquina. Todos os dados vêm de fontes públicas.
-
-# --- Lixo de download do Windows (WSL) ---
-*:Zone.Identifier
+*.db
+*.db-journal
+*.db-wal
+*.db.gz
 
 # --- SO / editor ---
+*:Zone.Identifier
 .DS_Store
-*.swp
 .idea/
 .vscode/

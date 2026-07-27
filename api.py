@@ -9,19 +9,43 @@ Rodar:
     uvicorn api:app --reload      # abre em http://localhost:8000
 Docs da API: http://localhost:8000/docs
 """
+import contextlib
 import io
+import json as _json
+import urllib.parse
+import urllib.request
 
 from fastapi import FastAPI, HTTPException, Query, Depends
 from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
 
 import config
 from src import dataset_queries
+from mcp_server import mcp
+
+# Expõe o mesmo servidor MCP (mcp_server.py) por HTTP em /mcp, além do uso
+# local via stdio (.mcp.json). streamable_http_path vira "/" porque o mount
+# abaixo já prefixa "/mcp" — sem isso o caminho final ficaria "/mcp/mcp".
+mcp.settings.streamable_http_path = "/"
+# Proteção anti DNS-rebinding do SDK só libera localhost por padrão — precisa
+# incluir o domínio público, senão toda requisição cai com "Invalid Host header".
+mcp.settings.transport_security.allowed_hosts.append("empresas.brunokobi.duckdns.org")
+mcp.settings.transport_security.allowed_origins.append("https://empresas.brunokobi.duckdns.org")
+mcp_app = mcp.streamable_http_app()
+
+
+@contextlib.asynccontextmanager
+async def lifespan(app: FastAPI):
+    async with mcp_app.router.lifespan_context(mcp_app):
+        yield
+
 
 app = FastAPI(
     title="Empresas da Grande Vitória — API + Dashboard",
     description="Dataset consolidado de empresas ativas da Grande Vitória (ES).",
     version="2.0.0",
+    lifespan=lifespan,
 )
+app.mount("/mcp", mcp_app)
 
 DASHBOARD_HTML = config.BASE_DIR / "dashboard" / "index.html"
 
@@ -36,21 +60,31 @@ def filtros_comuns(
     porte: str = Query(None),
     regime_tributario: str = Query(None),
     texto: str = Query(None),
+    socio: str = Query(None, description="Nome (ou parte) do sócio"),
     tem_pendencia: bool = Query(None),
     com_telefone: bool = Query(None),
     com_email: bool = Query(None),
     com_whatsapp: bool = Query(None),
     com_rede_social: bool = Query(None),
+    com_processos: bool = Query(None, description="Só empresas com processos judiciais"),
+    com_sancoes: bool = Query(None, description="Só empresas com sanções"),
+    com_ambiental: bool = Query(None, description="Só empresas com infração ambiental"),
+    com_divida: bool = Query(None, description="Só empresas com dívida ativa"),
+    com_trabalho_escravo: bool = Query(None, description="Só empresas na Lista Suja do trabalho escravo (MTE)"),
+    com_cepim: bool = Query(None, description="Só empresas no CEPIM (impedidas de receber recursos federais)"),
+    com_leniencia: bool = Query(None, description="Só empresas com acordo de leniência"),
     capital_min: float = Query(None),
     capital_max: float = Query(None),
     ordenar_por: str = Query("razao_social"),
 ) -> dict:
     return dict(
         municipio=municipio, cnae=cnae, cnae_prefix=cnae_prefix, porte=porte,
-        regime_tributario=regime_tributario, texto=texto, tem_pendencia=tem_pendencia,
+        regime_tributario=regime_tributario, texto=texto, socio=socio, tem_pendencia=tem_pendencia,
         com_telefone=com_telefone, com_email=com_email, com_whatsapp=com_whatsapp,
-        com_rede_social=com_rede_social, capital_min=capital_min,
-        capital_max=capital_max, ordenar_por=ordenar_por,
+        com_rede_social=com_rede_social, com_processos=com_processos,
+        com_sancoes=com_sancoes, com_ambiental=com_ambiental, com_divida=com_divida,
+        com_trabalho_escravo=com_trabalho_escravo, com_cepim=com_cepim, com_leniencia=com_leniencia,
+        capital_min=capital_min, capital_max=capital_max, ordenar_por=ordenar_por,
     )
 
 
@@ -60,7 +94,10 @@ def filtros_comuns(
 @app.get("/", include_in_schema=False)
 def dashboard():
     if DASHBOARD_HTML.exists():
-        return FileResponse(DASHBOARD_HTML)
+        # Sem isso o navegador pode ficar horas sem revalidar com o servidor
+        # (heurística padrão de cache), servindo uma versão antiga do
+        # dashboard.html mesmo depois de um deploy novo.
+        return FileResponse(DASHBOARD_HTML, headers={"Cache-Control": "no-cache"})
     return JSONResponse({"erro": "dashboard/index.html não encontrado"}, status_code=404)
 
 
@@ -74,6 +111,7 @@ def indice_api():
             "GET /empresas/{cnpj}": "Visão 360º",
             "GET /export/empresas.xlsx": "Lista filtrada em Excel",
             "GET /export/empresas.pdf": "Lista filtrada em PDF",
+            "POST /mcp/": "Servidor MCP (Streamable HTTP) — ver MCP.md",
         }
     }
 
@@ -97,12 +135,66 @@ def get_empresas(
     return dataset_queries.buscar_empresas(limite=limite, offset=offset, **filtros)
 
 
+@app.get("/mapa", summary="Pontos geocodificados (lat/long) para o mapa, com os mesmos filtros")
+def get_mapa(
+    filtros: dict = Depends(filtros_comuns),
+    limite: int = Query(20000, ge=1, le=400000),
+):
+    return dataset_queries.pontos_mapa(limite=limite, **filtros)
+
+
+@app.get("/geocode", summary="Geocodifica um endereço (Nominatim/OSM) para o mapa do modal")
+def geocode(q: str = Query(..., min_length=4)):
+    """Fallback quando a empresa ainda não foi geocodificada pela etapa `geo`:
+    resolve o endereço em lat/lng via Nominatim (server-side, com User-Agent
+    identificado — evita bloqueio/CORS do acesso direto pelo navegador).
+    Retorna {'lat','lng'} ou {'lat':null} se não encontrar."""
+    url = "https://nominatim.openstreetmap.org/search?" + urllib.parse.urlencode(
+        {"q": q, "format": "jsonv2", "limit": 1, "countrycodes": "br"})
+    req = urllib.request.Request(url, headers={
+        "User-Agent": "grande-vitoria-empresas-dashboard/1.0 (mapa on-demand)"})
+    try:
+        with urllib.request.urlopen(req, timeout=25) as resp:
+            arr = _json.load(resp)
+    except Exception:
+        return {"lat": None, "lng": None}
+    if arr:
+        return {"lat": float(arr[0]["lat"]), "lng": float(arr[0]["lon"])}
+    return {"lat": None, "lng": None}
+
+
 @app.get("/empresas/{cnpj}", summary="Visão 360º de uma empresa pelo CNPJ")
 def get_empresa(cnpj: str):
     resultado = dataset_queries.obter_empresa(cnpj)
     if resultado is None:
         raise HTTPException(status_code=404, detail=f"CNPJ {cnpj} não encontrado.")
     return resultado
+
+
+@app.get("/classificar", summary="Classifica/pontua empresas por objetivo de prospecção")
+def get_classificar(
+    objetivo: str = Query("generico"),
+    pref_telefone: bool = Query(None),
+    pref_email: bool = Query(None),
+    pref_whatsapp: bool = Query(None),
+    pref_rede: bool = Query(None),
+    portes: list[str] = Query(None),
+    presenca: str = Query("indiferente"),
+    fiscal: str = Query("indiferente"),
+    municipio: str = Query(None),
+    cnae_prefix: str = Query(None),
+    texto: str = Query(None),
+    capital_min: float = Query(None),
+    capital_max: float = Query(None),
+    limite: int = Query(50, ge=1, le=500),
+):
+    return dataset_queries.classificar_empresas(
+        objetivo=objetivo, pref_telefone=pref_telefone, pref_email=pref_email,
+        pref_whatsapp=pref_whatsapp, pref_rede=pref_rede, portes=portes,
+        presenca=presenca, fiscal=fiscal, municipio=municipio,
+        cnae_prefix=cnae_prefix, texto=texto, capital_min=capital_min,
+        capital_max=capital_max, limite=limite,
+    )
 
 
 # --------------------------------------------------------------------------
