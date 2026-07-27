@@ -63,6 +63,11 @@ def _conn():
     uri = f"file:{config.DB_PATH}?mode=ro"
     conn = sqlite3.connect(uri, uri=True)
     conn.row_factory = sqlite3.Row
+    # mmap deixa o SO cachear o arquivo direto (evita cópia pra buffer do
+    # SQLite a cada leitura); cache_size maior reduz I/O em consultas
+    # repetidas — o banco só cresce (hoje ~65MB+) e é só leitura aqui.
+    conn.execute("PRAGMA mmap_size = 268435456")  # 256MB
+    conn.execute("PRAGMA cache_size = -20000")     # ~20MB de cache de página
     try:
         yield conn
     finally:
@@ -188,6 +193,9 @@ def estatisticas() -> dict:
                        "infracoes_ambientais", "dividas_ativas", "registros_jucees",
                        "socios", "enriquecimento_places"):
             satelites[tabela] = conn.execute(f"SELECT COUNT(*) FROM {tabela}").fetchone()[0]
+        if _tabela_existe(conn, "vinculos_politicos"):
+            satelites["vinculos_politicos"] = conn.execute(
+                "SELECT COUNT(*) FROM vinculos_politicos").fetchone()[0]
     return {
         "total_empresas": total,
         "por_municipio": por_municipio,
@@ -425,6 +433,12 @@ def obter_empresa(cnpj: str) -> dict:
             "SELECT valor, situacao, data_inscricao, tipo_tributo, numero_inscricao, "
             "ajuizada, tipo_devedor, unidade_responsavel FROM dividas_ativas "
             "WHERE cnpj_empresa = ? ORDER BY valor DESC LIMIT 100", (cnpj,))]
+        vinculos_politicos = []
+        if _tabela_existe(conn, "vinculos_politicos"):
+            vinculos_politicos = [dict(r) for r in conn.execute(
+                "SELECT nome_socio_vinculado, fonte, cargo_ou_funcao, orgao_ou_partido, "
+                "ano, situacao, detalhe FROM vinculos_politicos "
+                "WHERE cnpj_empresa = ? LIMIT 100", (cnpj,))]
         geo = conn.execute(
             "SELECT latitude, longitude FROM enriquecimento_places WHERE cnpj_empresa = ?",
             (cnpj,)).fetchone()
@@ -447,12 +461,14 @@ def obter_empresa(cnpj: str) -> dict:
         "sancoes_administrativas": sancoes,
         "infracoes_ambientais": ambiental,
         "dividas_ativas": dividas,
+        "vinculos_politicos": vinculos_politicos,
         "resumo": {
             "qtd_socios": len(socios),
             "qtd_processos": len(processos),
             "qtd_sancoes": len(sancoes),
             "qtd_infracoes_ambientais": len(ambiental),
             "qtd_dividas_ativas": len(dividas),
+            "qtd_vinculos_politicos": len(vinculos_politicos),
             "valor_total_divida_ativa": valor_divida,
             "tem_pendencia_juridica_ou_fiscal": bool(processos or sancoes or ambiental or dividas),
         },
