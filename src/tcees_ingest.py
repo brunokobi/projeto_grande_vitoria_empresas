@@ -77,6 +77,10 @@ def _processar_lista(caminho_csv: Path, tipo: str, cnpjs_validos: set) -> int:
                 "data_inicio": row.get("DataTransito", ""),
                 "data_fim": row.get("DataTermino", ""),
                 "valor_multa": None,
+                "numero_processo": processo,
+                "ano_processo": ano,
+                "numero_deliberacao": row.get("NumeroDeliberacao", ""),
+                "ano_deliberacao": row.get("AnoDeliberacao", ""),
                 "match_confianca": "direto",
             }
             db_utils.insert_generic(conn, "sancoes_administrativas", registro)

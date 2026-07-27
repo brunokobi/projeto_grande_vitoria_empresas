@@ -17,8 +17,14 @@ def init_db():
 
 @contextmanager
 def get_conn():
-    conn = sqlite3.connect(config.DB_PATH)
+    # timeout (busy_timeout) faz um escritor ESPERAR o lock em vez de quebrar
+    # com "database is locked"; WAL permite leitor (dashboard) + escritores
+    # conviverem. Essencial porque geo/datajud/contato podem gravar em
+    # paralelo, e o dashboard lê ao mesmo tempo.
+    conn = sqlite3.connect(config.DB_PATH, timeout=60)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=60000")
     try:
         yield conn
         conn.commit()

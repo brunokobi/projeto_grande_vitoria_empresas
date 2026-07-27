@@ -89,10 +89,14 @@ def _hit_para_registro(cnpj: str, tribunal_key: str, hit: dict) -> dict:
     }
 
 
-def executar(limite_cnpjs: int = None):
+def executar(limite_cnpjs: int = None, parte: str = None):
     """
-    limite_cnpjs: útil para rodar em lotes menores durante testes, dado
-    o rate limit — None processa todos os CNPJs pendentes.
+    limite_cnpjs: útil para rodar em lotes menores durante testes.
+    parte: "i/n" para rodar em PARALELO em várias máquinas — cada máquina
+      processa uma fatia disjunta dos CNPJs (ex.: "1/2" e "2/2"). A fatia é
+      determinística (por posição no CNPJ ordenado), então as máquinas não
+      repetem trabalho. Cada uma tem seu próprio checkpoint; depois use
+      mesclar_processos.py para juntar os resultados no banco mestre.
     """
     if not config.DATAJUD_API_KEY:
         print("[datajud_client] DATAJUD_API_KEY não configurada — defina a variável de ambiente.")
@@ -100,6 +104,13 @@ def executar(limite_cnpjs: int = None):
 
     with db_utils.get_conn() as conn:
         empresas = db_utils.listar_cnpjs(conn)
+
+    # Ordena para a fatia ser estável entre máquinas.
+    empresas = sorted(empresas, key=lambda e: e["cnpj"])
+    if parte:
+        i, n = (int(x) for x in parte.split("/"))
+        empresas = [e for idx, e in enumerate(empresas) if idx % n == (i - 1)]
+        print(f"[datajud_client] Fatia {i}/{n}: {len(empresas)} CNPJs desta máquina.")
 
     processados = set(checkpoint.carregar(CHECKPOINT_NAME))
     pendentes = [e for e in empresas if e["cnpj"] not in processados]

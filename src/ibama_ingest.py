@@ -40,6 +40,23 @@ def _obter_csv(origem: str, destino: Path) -> Path:
     return caminho_local
 
 
+def _to_float(v):
+    """Valor monetário -> float. Aceita BR (1.234,56) e US (1234.56)."""
+    if v is None:
+        return None
+    s = str(v).strip()
+    if not s:
+        return None
+    if "," in s and "." in s:
+        s = s.replace(".", "").replace(",", ".")   # ponto = milhar
+    elif "," in s:
+        s = s.replace(",", ".")
+    try:
+        return float(s)
+    except ValueError:
+        return None
+
+
 def _extrair_csvs_do_zip(zip_path: Path) -> list:
     """
     O dataset atual do IBAMA (confirmado em 21/07/2026) é um ZIP com um CSV
@@ -79,10 +96,16 @@ def processar_autos_infracao(caminhos_csv: list, cnpjs_validos: set):
                     registro = {
                         "cnpj_empresa": row["cnpj_norm"],
                         "orgao": "IBAMA",
-                        "tipo_infracao": row.get("DES_INFRACAO", row.get("TIPO_INFRACAO", "")),
-                        "valor_multa": None,
-                        "status": row.get("STATUS", ""),
+                        "tipo_infracao": row.get("DES_INFRACAO") or row.get("TIPO_INFRACAO", ""),
+                        "valor_multa": _to_float(row.get("VAL_AUTO_INFRACAO")),
+                        "status": row.get("DS_SIT_AUTO_AIE", ""),
                         "data_auto": row.get("DAT_HORA_AUTO_INFRACAO", ""),
+                        "gravidade": row.get("GRAVIDADE_INFRACAO", ""),
+                        "tipo_multa": row.get("TIPO_MULTA", ""),
+                        "numero_auto": row.get("NUM_AUTO_INFRACAO", ""),
+                        "municipio_infracao": row.get("MUNICIPIO", ""),
+                        "uf_infracao": row.get("UF", ""),
+                        "enquadramento": row.get("DS_ENQUADRAMENTO_ADMINISTRATIVO", ""),
                         "match_confianca": "direto",
                     }
                     db_utils.insert_generic(conn, "infracoes_ambientais", registro)

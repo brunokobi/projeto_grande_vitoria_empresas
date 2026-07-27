@@ -28,8 +28,9 @@ CREATE TABLE IF NOT EXISTS socios (
     cnpj_empresa    TEXT NOT NULL REFERENCES empresas(cnpj),
     nome_socio      TEXT,
     cpf_parcial     TEXT,           -- CPF mascarado, conforme já vem da RF
-    qualificacao    TEXT,
-    data_entrada    TEXT
+    qualificacao    TEXT,           -- código de qualificação do sócio
+    data_entrada    TEXT,
+    faixa_etaria    TEXT            -- código de faixa etária da RF
 );
 
 CREATE TABLE IF NOT EXISTS processos_judiciais (
@@ -48,33 +49,49 @@ CREATE TABLE IF NOT EXISTS processos_judiciais (
 CREATE TABLE IF NOT EXISTS sancoes_administrativas (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
     cnpj_empresa        TEXT NOT NULL REFERENCES empresas(cnpj),
-    tipo                TEXT,       -- CEIS / CNEP / CEPIM / CADE
+    tipo                TEXT,       -- CEIS / CNEP / CEPIM / TCEES ...
     motivo              TEXT,
     orgao_sancionador   TEXT,
     data_inicio         TEXT,
     data_fim            TEXT,
     valor_multa         REAL,
+    fundamentacao       TEXT,       -- fundamentação legal (CEIS/CNEP)
+    numero_processo     TEXT,       -- TCEES
+    ano_processo        TEXT,       -- TCEES
+    numero_deliberacao  TEXT,       -- TCEES
+    ano_deliberacao     TEXT,       -- TCEES
     match_confianca     TEXT
 );
 
 CREATE TABLE IF NOT EXISTS infracoes_ambientais (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    cnpj_empresa    TEXT NOT NULL REFERENCES empresas(cnpj),
-    orgao           TEXT,       -- IBAMA / IEMA
-    tipo_infracao   TEXT,
-    valor_multa     REAL,
-    status          TEXT,       -- pago / embargado / recorrendo
-    data_auto       TEXT,
-    match_confianca TEXT
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    cnpj_empresa      TEXT NOT NULL REFERENCES empresas(cnpj),
+    orgao             TEXT,       -- IBAMA / IEMA
+    tipo_infracao     TEXT,       -- DES_INFRACAO
+    valor_multa       REAL,       -- VAL_AUTO_INFRACAO
+    status            TEXT,       -- DS_SIT_AUTO_AIE (situação do auto)
+    data_auto         TEXT,       -- DAT_HORA_AUTO_INFRACAO
+    gravidade         TEXT,       -- GRAVIDADE_INFRACAO
+    tipo_multa        TEXT,       -- TIPO_MULTA
+    numero_auto       TEXT,       -- NUM_AUTO_INFRACAO
+    municipio_infracao TEXT,      -- MUNICIPIO
+    uf_infracao       TEXT,       -- UF
+    enquadramento     TEXT,       -- DS_ENQUADRAMENTO_ADMINISTRATIVO
+    match_confianca   TEXT
 );
 
 CREATE TABLE IF NOT EXISTS dividas_ativas (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    cnpj_empresa    TEXT NOT NULL REFERENCES empresas(cnpj),
-    orgao           TEXT,       -- PGFN / Sefaz-ES
-    valor           REAL,
-    situacao        TEXT,
-    data_inscricao  TEXT
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    cnpj_empresa        TEXT NOT NULL REFERENCES empresas(cnpj),
+    orgao               TEXT,       -- PGFN / Sefaz-ES
+    valor               REAL,
+    situacao            TEXT,
+    data_inscricao      TEXT,
+    tipo_tributo        TEXT,       -- RECEITA_PRINCIPAL (ex.: PIS, IRPJ, COFINS)
+    numero_inscricao    TEXT,       -- NUMERO_INSCRICAO
+    ajuizada            TEXT,       -- INDICADOR_AJUIZADO (SIM/NAO)
+    tipo_devedor        TEXT,       -- PRINCIPAL / CORRESPONSAVEL
+    unidade_responsavel TEXT        -- UNIDADE_RESPONSAVEL (unidade da PGFN)
 );
 
 CREATE TABLE IF NOT EXISTS registros_jucees (
@@ -115,9 +132,11 @@ CREATE TABLE IF NOT EXISTS enriquecimento_contato (
 CREATE INDEX IF NOT EXISTS idx_empresas_municipio ON empresas(municipio);
 CREATE INDEX IF NOT EXISTS idx_empresas_cnae ON empresas(cnae_principal);
 CREATE INDEX IF NOT EXISTS idx_socios_cnpj ON socios(cnpj_empresa);
+CREATE INDEX IF NOT EXISTS idx_socios_cpf ON socios(cpf_parcial);
 CREATE INDEX IF NOT EXISTS idx_jucees_cnpj ON registros_jucees(cnpj_empresa);
 CREATE INDEX IF NOT EXISTS idx_processos_cnpj ON processos_judiciais(cnpj_empresa);
 CREATE INDEX IF NOT EXISTS idx_sancoes_cnpj ON sancoes_administrativas(cnpj_empresa);
 CREATE INDEX IF NOT EXISTS idx_ambiental_cnpj ON infracoes_ambientais(cnpj_empresa);
 CREATE INDEX IF NOT EXISTS idx_dividas_cnpj ON dividas_ativas(cnpj_empresa);
 CREATE INDEX IF NOT EXISTS idx_contato_cnpj ON enriquecimento_contato(cnpj_empresa);
+CREATE INDEX IF NOT EXISTS idx_empresas_capital ON empresas(capital_social);
