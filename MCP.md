@@ -8,12 +8,13 @@ Grande Vitória direto, com estas ferramentas:
 |---|---|
 | `estatisticas` | Panorama geral (totais, por município/porte/CNAE) |
 | `buscar_empresas` | Busca com filtros (segmento, município, pendências, contato…) |
-| `obter_empresa` | Visão 360º de um CNPJ (sócios+rede, dívidas, sanções, infrações) |
+| `obter_empresa` | Visão 360º de um CNPJ (sócios+rede, dívidas, sanções, infrações, vínculos políticos) |
 | `classificar_empresas` | Pontua/ranqueia leads por objetivo comercial (score 0–100) |
 
 Exemplos de perguntas: *"quantas empresas ativas há em Vila Velha?"*, *"restaurantes
 em Vitória com e-mail e sem dívida ativa"*, *"classifique como lead de contabilidade
-as empresas da Serra com dívida"*, *"mostre a visão 360 do CNPJ 12345678000190"*.
+as empresas da Serra com dívida"*, *"mostre a visão 360 do CNPJ 12345678000190"*,
+*"algum sócio dessa empresa é PEP ou já foi candidato?"*.
 
 Tem **duas formas** de conectar: usar o **servidor remoto** já publicado (nada pra
 instalar) ou rodar **localmente** (stdio, se quiser seu próprio dataset/instância).

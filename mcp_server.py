@@ -98,9 +98,10 @@ def buscar_empresas(
 @mcp.tool()
 def obter_empresa(cnpj: str) -> dict:
     """Visão 360º de uma empresa pelo CNPJ (14 dígitos): dados cadastrais,
-    sócios, complemento JUCEES, geolocalização e todas as pendências
-    (processos, sanções, infrações ambientais, dívida ativa) com um resumo
-    agregado. Retorna null se o CNPJ não estiver na base."""
+    sócios, complemento JUCEES, geolocalização, todas as pendências
+    (processos, sanções, infrações ambientais, dívida ativa) e vínculos
+    políticos de sócios (PEP, candidaturas do TSE) com um resumo agregado.
+    Retorna null se o CNPJ não estiver na base."""
     resultado = dataset_queries.obter_empresa(cnpj)
     if resultado is None:
         return {"erro": f"CNPJ {cnpj} não encontrado na base."}
