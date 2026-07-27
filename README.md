@@ -75,7 +75,7 @@ Pronto: **dashboard** em `http://localhost:8000`, **API** em `/docs`, e o **MCP*
 
 <div align="center">
 
-**Dashboard — lista, filtros e classificação de leads**
+**Dashboard — lista, filtros e mapa interativo**
 
 <img src="docs/dashboard.png" alt="Dashboard" width="100%">
 
@@ -103,7 +103,8 @@ Em desenvolvimento ativo. Estado atual:
 | Geocodificação (coordenadas de todas as empresas) | 🚧 rodando 24/7 na VPS — **previsão ~30/07/2026** |
 | Processos judiciais (**DJEN/CNJ**, por nome da parte) | 🚧 rodando 24/7 na VPS (ver nota) |
 | Contato & redes sociais (WhatsApp, site, Instagram…) | 🧪 implementado |
-| Dashboard · API · MCP · export Excel/PDF · **classificação de leads** | ✅ funcionais |
+| Dashboard · API · MCP · export Excel/PDF | ✅ funcionais |
+| **Classificação de leads** (via API/MCP) | ✅ funciona — 🚧 removida temporariamente da UI do dashboard |
 
 > 🔄 **Atualização automática:** o pipeline de geocodificação e processos
 > judiciais roda continuamente numa VPS, e o dataset publicado (Release) é
@@ -163,7 +164,9 @@ Tudo cruzado pelo **CNPJ**, exclusivamente de **fontes públicas oficiais**:
 Lógica de consulta compartilhada (`src/dataset_queries.py`) entre dashboard, API e MCP — todos leem o SQLite em **somente-leitura**.
 
 ### Dashboard web
-`uvicorn api:app` → **http://localhost:8000**. **Mapa geral** da Grande Vitória (MapLibre GL) com todos os pontos geolocalizados — clique num ponto abre a empresa, e os filtros recortam o mapa. Filtros (segmento CNAE, município, porte, regime, tipo de pendência, **flags de risco**: trabalho escravo/CEPIM/leniência, capital, contato/redes, busca), **visão 360º** por empresa com **cards expansíveis** (dívida, sanção, infração e sócios detalhados) + **mapa por satélite**, **classificação de leads** (questionário) e **export Excel/PDF**.
+`uvicorn api:app` → **http://localhost:8000**. **Mapa geral** da Grande Vitória (MapLibre GL) com todos os pontos geolocalizados — clique num ponto abre a empresa, e os filtros recortam o mapa. Filtros (segmento CNAE, município, porte, regime, tipo de pendência, **flags de risco**: trabalho escravo/CEPIM/leniência, capital, contato/redes, busca), **visão 360º** por empresa com **cards expansíveis** (processos, dívida, sanção, infração e sócios detalhados) + **mapa por satélite** e **export Excel/PDF**.
+
+> A **classificação de leads** (questionário → score 0–100) segue disponível via API (`GET /classificar`) e MCP (`classificar_empresas`) — só foi tirada temporariamente da interface do dashboard.
 
 ### API REST (FastAPI) — docs em `/docs`
 - `GET /estatisticas` · `GET /segmentos`
