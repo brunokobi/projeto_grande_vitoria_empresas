@@ -475,9 +475,12 @@ function renderProcessos(arr){
     const kv=(k,v)=>v?`<div><span class="k">${k}</span><span class="val">${v}</span></div>`:"";
     const fuzzy = (x.match_confianca||"").toLowerCase()==="fuzzy";
     const polo = _POLO[(x.polo||"").toUpperCase()] || esc(x.polo);
+    const viaSocio = x.nome_socio_vinculado
+      ? ` <span class="tag pend" title="Processo pessoal encontrado pelo nome do sócio, não da empresa">via sócio: ${esc(x.nome_socio_vinculado)}</span>`
+      : "";
     return `<details class="divida">
       <summary><b>${esc(x.numero_processo||"—")}</b> <span style="color:var(--muted)">${esc(x.tribunal||"")}</span>
-        ${fuzzy?'<span class="tag warn">correspondência aproximada</span>':""}
+        ${fuzzy?'<span class="tag warn">correspondência aproximada</span>':""}${viaSocio}
         <span style="color:var(--muted)">${idadeTexto(x.data_ultima_movimentacao)}</span></summary>
       <div class="divida-det">
         ${kv("Classe", esc(x.classe))}
@@ -485,6 +488,7 @@ function renderProcessos(arr){
         ${kv("Posição da empresa", polo)}
         ${kv("Situação", esc(x.status))}
         ${kv("Última movimentação", fmtData(x.data_ultima_movimentacao))}
+        ${kv("Vínculo", x.nome_socio_vinculado?`Processo pessoal do sócio ${esc(x.nome_socio_vinculado)}, não da empresa diretamente`:"")}
       </div>
     </details>`;
   }).join("");
