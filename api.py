@@ -94,7 +94,10 @@ def filtros_comuns(
 @app.get("/", include_in_schema=False)
 def dashboard():
     if DASHBOARD_HTML.exists():
-        return FileResponse(DASHBOARD_HTML)
+        # Sem isso o navegador pode ficar horas sem revalidar com o servidor
+        # (heurística padrão de cache), servindo uma versão antiga do
+        # dashboard.html mesmo depois de um deploy novo.
+        return FileResponse(DASHBOARD_HTML, headers={"Cache-Control": "no-cache"})
     return JSONResponse({"erro": "dashboard/index.html não encontrado"}, status_code=404)
 
 
