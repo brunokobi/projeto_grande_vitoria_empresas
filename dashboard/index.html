@@ -618,9 +618,9 @@ const _ESTILO = {
 // Textos do aviso de "cooperative gestures" (scroll normal não dá zoom no mapa,
 // evita capturar o scroll da página) — traduzidos, o padrão vem em inglês.
 const _LOCALE_MAPA = {
-  "ScrollZoomBlocker.CtrlMessage": "Use ctrl + scroll para zoom no mapa",
-  "ScrollZoomBlocker.CtrlMessageMac": "Use ⌘ + scroll para zoom no mapa",
-  "TouchPanBlocker.Message": "Use dois dedos para mover o mapa",
+  "CooperativeGesturesHandler.WindowsHelpText": "Use Ctrl + scroll para zoom no mapa",
+  "CooperativeGesturesHandler.MacHelpText": "Use ⌘ + scroll para zoom no mapa",
+  "CooperativeGesturesHandler.MobileHelpText": "Use dois dedos para mover o mapa",
 };
 function initMapa(){
   MAPA = new maplibregl.Map({container:"mapa", style:_ESTILO, center:[-40.32,-20.30], zoom:10, attributionControl:true, cooperativeGestures:true, locale:_LOCALE_MAPA});
