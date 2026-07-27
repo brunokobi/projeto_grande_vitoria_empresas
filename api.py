@@ -135,7 +135,7 @@ def get_empresas(
 @app.get("/mapa", summary="Pontos geocodificados (lat/long) para o mapa, com os mesmos filtros")
 def get_mapa(
     filtros: dict = Depends(filtros_comuns),
-    limite: int = Query(20000, ge=1, le=50000),
+    limite: int = Query(20000, ge=1, le=400000),
 ):
     return dataset_queries.pontos_mapa(limite=limite, **filtros)
 

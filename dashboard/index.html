@@ -648,7 +648,8 @@ async function carregarMapa(){
   if(!MAPA) return;
   $("mapinfo").textContent = "carregando…";
   let d;
-  try{ d = await (await fetch("/mapa?"+query().toString())).json(); }
+  const p = query(); p.set("limite", 400000);
+  try{ d = await (await fetch("/mapa?"+p.toString())).json(); }
   catch(e){ $("mapinfo").textContent = "erro ao carregar o mapa"; return; }
   const fc = {type:"FeatureCollection", features:(d.pontos||[]).map(e=>({
     type:"Feature", geometry:{type:"Point", coordinates:[e.lng, e.lat]},

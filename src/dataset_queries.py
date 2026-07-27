@@ -257,7 +257,7 @@ def pontos_mapa(limite=20000, **filtros):
     nome_fantasia,municipio,lat,lng,tem_pendencia}]}. `total` é quantas batem
     (pode passar do limite; o mapa mostra até `limite`)."""
     filtros.pop("ordenar_por", None)
-    limite = max(1, min(int(limite), 50000))
+    limite = max(1, min(int(limite), 400000))
     with _conn() as conn:
         tem_contato = _tabela_existe(conn, "enriquecimento_contato")
         where_sql, params = _filtros_sql(tem_contato=tem_contato, **filtros)
