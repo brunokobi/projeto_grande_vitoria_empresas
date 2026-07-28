@@ -6,6 +6,7 @@ Todas as funções abrem o SQLite em modo somente-leitura e usam queries
 parametrizadas (sem interpolação de input do usuário) para evitar injeção.
 """
 import json
+import re
 import sqlite3
 import unicodedata
 from contextlib import contextmanager
@@ -80,6 +81,16 @@ def _tabela_existe(conn, nome: str) -> bool:
     ).fetchone() is not None
 
 
+def _fts_query(texto: str) -> str:
+    """Converte texto livre numa query FTS5 (prefixo de cada palavra, AND
+    implícito) — ex.: 'cyber suite' -> 'cyber* suite*'. Cada termo é escapado
+    entre aspas duplas pra não quebrar com caractere especial do FTS5."""
+    termos = re.findall(r"\w+", texto, flags=re.UNICODE)
+    if not termos:
+        return '""'
+    return " ".join(f'"{t}"*' for t in termos)
+
+
 # Colunas de ordenação permitidas (whitelist — nunca vem direto do usuário).
 _ORDENAR_POR = {"razao_social", "capital_social", "municipio", "porte", "cnpj"}
 
@@ -93,7 +104,7 @@ _PENDENCIA_EXPR = (
 )
 
 
-def _filtros_sql(*, tem_contato=False, municipio=None, cnae=None, cnae_prefix=None,
+def _filtros_sql(*, tem_contato=False, tem_fts=False, municipio=None, cnae=None, cnae_prefix=None,
                  porte=None, regime_tributario=None, texto=None, tem_pendencia=None,
                  com_telefone=None, com_email=None, com_whatsapp=None,
                  com_rede_social=None, capital_min=None, capital_max=None,
@@ -118,8 +129,17 @@ def _filtros_sql(*, tem_contato=False, municipio=None, cnae=None, cnae_prefix=No
         where.append("e.regime_tributario = ?")
         params.append(regime_tributario)
     if texto:
-        where.append("(e.razao_social LIKE ? OR e.nome_fantasia LIKE ?)")
-        params.extend([f"%{texto}%", f"%{texto}%"])
+        if tem_fts:
+            # FTS5: casa por PALAVRA (prefixo), não substring solto no meio
+            # da palavra como o LIKE antigo — mais rápido (não varre a
+            # tabela inteira) e já ignora acento (tokenizer remove_diacritics).
+            where.append(
+                "e.cnpj IN (SELECT cnpj FROM empresas_fts WHERE empresas_fts MATCH ?)"
+            )
+            params.append(_fts_query(texto))
+        else:
+            where.append("(e.razao_social LIKE ? OR e.nome_fantasia LIKE ?)")
+            params.extend([f"%{texto}%", f"%{texto}%"])
     if socio:
         where.append("EXISTS (SELECT 1 FROM socios so WHERE so.cnpj_empresa = e.cnpj "
                      "AND so.nome_socio LIKE ?)")
@@ -234,8 +254,9 @@ def buscar_empresas(municipio=None, cnae=None, cnae_prefix=None, porte=None,
     offset = max(0, int(offset))
     with _conn() as conn:
         tem_contato = _tabela_existe(conn, "enriquecimento_contato")
+        tem_fts = _tabela_existe(conn, "empresas_fts")
         where_sql, params = _filtros_sql(
-            tem_contato=tem_contato, municipio=municipio, cnae=cnae,
+            tem_contato=tem_contato, tem_fts=tem_fts, municipio=municipio, cnae=cnae,
             cnae_prefix=cnae_prefix, porte=porte, regime_tributario=regime_tributario,
             texto=texto, tem_pendencia=tem_pendencia, com_telefone=com_telefone,
             com_email=com_email, com_whatsapp=com_whatsapp,
@@ -268,7 +289,8 @@ def pontos_mapa(limite=20000, **filtros):
     limite = max(1, min(int(limite), 400000))
     with _conn() as conn:
         tem_contato = _tabela_existe(conn, "enriquecimento_contato")
-        where_sql, params = _filtros_sql(tem_contato=tem_contato, **filtros)
+        tem_fts = _tabela_existe(conn, "empresas_fts")
+        where_sql, params = _filtros_sql(tem_contato=tem_contato, tem_fts=tem_fts, **filtros)
         cond = "ep.latitude IS NOT NULL"
         if where_sql:
             cond += " AND " + where_sql[len(" WHERE "):]
@@ -293,6 +315,7 @@ def classificar_empresas(objetivo="generico", pref_telefone=None, pref_email=Non
     comercial ajusta o que conta como bom lead."""
     with _conn() as conn:
         tem_contato = _tabela_existe(conn, "enriquecimento_contato")
+        tem_fts = _tabela_existe(conn, "empresas_fts")
         divida = "EXISTS (SELECT 1 FROM dividas_ativas d WHERE d.cnpj_empresa = e.cnpj)"
         tel = "(e.telefone IS NOT NULL AND e.telefone != '')"
         eml = "(e.email IS NOT NULL AND e.email != '')"
@@ -327,7 +350,7 @@ def classificar_empresas(objetivo="generico", pref_telefone=None, pref_email=Non
         score_sql = ("(" + " + ".join(f"CASE WHEN {e} THEN {p} ELSE 0 END" for e, p in termos) + ")") if termos else "0"
 
         where_sql, where_params = _filtros_sql(
-            tem_contato=tem_contato, municipio=municipio, cnae_prefix=cnae_prefix,
+            tem_contato=tem_contato, tem_fts=tem_fts, municipio=municipio, cnae_prefix=cnae_prefix,
             texto=texto, capital_min=capital_min, capital_max=capital_max)
         limite = max(1, min(int(limite), 500))
         rows = conn.execute(
@@ -361,7 +384,8 @@ def exportar_empresas(max_linhas=20000, **filtros) -> list:
     ordem = ordem if ordem in _ORDENAR_POR else "razao_social"
     with _conn() as conn:
         tem_contato = _tabela_existe(conn, "enriquecimento_contato")
-        where_sql, params = _filtros_sql(tem_contato=tem_contato, **filtros)
+        tem_fts = _tabela_existe(conn, "empresas_fts")
+        where_sql, params = _filtros_sql(tem_contato=tem_contato, tem_fts=tem_fts, **filtros)
         if tem_contato:
             join = " LEFT JOIN enriquecimento_contato ec ON ec.cnpj_empresa = e.cnpj"
             cols_contato = "ec.whatsapp, ec.site, ec.instagram, ec.facebook, ec.linkedin"
