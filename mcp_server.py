@@ -21,7 +21,7 @@ Configuração no cliente MCP (ex.: claude_desktop_config.json ou .mcp.json):
 """
 from mcp.server.fastmcp import FastMCP
 
-from src import dataset_queries
+from src import dataset_queries, geocode
 
 mcp = FastMCP("grande-vitoria-empresas")
 
@@ -92,6 +92,47 @@ def buscar_empresas(
         com_leniencia=com_leniencia,
         capital_min=capital_min, capital_max=capital_max, ordenar_por=ordenar_por,
         limite=limite, offset=offset,
+    )
+
+
+@mcp.tool()
+def buscar_empresas_perto(
+    endereco: str = None,
+    lat: float = None,
+    lon: float = None,
+    raio_km: float = 5,
+    municipio: str = None,
+    cnae_prefix: str = None,
+    porte: str = None,
+    tem_pendencia: bool = None,
+    com_telefone: bool = None,
+    com_email: bool = None,
+    limite: int = 50,
+) -> dict:
+    """Busca empresas geocodificadas dentro de um raio (em km) de um ponto,
+    ordenadas da mais próxima pra mais longe.
+
+    Informe OU `endereco` (um texto livre — é geocodificado automaticamente
+    via Nominatim/OSM) OU `lat`+`lon` diretos — não precisa dos dois. Pra
+    buscar perto de OUTRA EMPRESA, chame obter_empresa nela primeiro pra
+    pegar a geolocalização dela e use lat/lon daqui.
+
+    Combina com os mesmos filtros de município/CNAE/porte/pendência/contato
+    de buscar_empresas. Retorna {'total','centro','raio_km','itens': [...
+    com distancia_km, em km]}, ou {'erro': ...} se o endereço não for
+    encontrado ou nem endereço nem lat/lon forem informados.
+    """
+    if lat is None or lon is None:
+        if not endereco:
+            return {"erro": "Informe 'endereco' ou 'lat'+'lon'."}
+        ponto = geocode.resolver_endereco(endereco)
+        if ponto["lat"] is None:
+            return {"erro": f"Não consegui geocodificar '{endereco}'."}
+        lat, lon = ponto["lat"], ponto["lon"]
+    return dataset_queries.buscar_por_raio(
+        lat=lat, lon=lon, raio_km=raio_km, municipio=municipio,
+        cnae_prefix=cnae_prefix, porte=porte, tem_pendencia=tem_pendencia,
+        com_telefone=com_telefone, com_email=com_email, limite=limite,
     )
 
 

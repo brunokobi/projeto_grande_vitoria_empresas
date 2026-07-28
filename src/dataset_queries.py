@@ -6,6 +6,7 @@ Todas as funções abrem o SQLite em modo somente-leitura e usam queries
 parametrizadas (sem interpolação de input do usuário) para evitar injeção.
 """
 import json
+import math
 import re
 import sqlite3
 import unicodedata
@@ -59,6 +60,20 @@ def _sem_acento(texto: str) -> str:
     return "".join(c for c in nfkd if not unicodedata.combining(c)).upper().strip()
 
 
+def _distancia_km(lat1, lon1, lat2, lon2):
+    """Distância em linha reta (Haversine) entre dois pontos, em km. SQLite
+    não tem função geoespacial nativa — registrada como função SQL custom
+    (`distancia_km`) em cada conexão, ver _conn()."""
+    if None in (lat1, lon1, lat2, lon2):
+        return None
+    R = 6371.0  # raio médio da Terra, km
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lon2 - lon1)
+    a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
+    return 2 * R * math.asin(math.sqrt(a))
+
+
 @contextmanager
 def _conn():
     uri = f"file:{config.DB_PATH}?mode=ro"
@@ -69,6 +84,7 @@ def _conn():
     # repetidas — o banco só cresce (hoje ~65MB+) e é só leitura aqui.
     conn.execute("PRAGMA mmap_size = 268435456")  # 256MB
     conn.execute("PRAGMA cache_size = -20000")     # ~20MB de cache de página
+    conn.create_function("distancia_km", 4, _distancia_km, deterministic=True)
     try:
         yield conn
     finally:
@@ -302,6 +318,57 @@ def pontos_mapa(limite=20000, **filtros):
             f"ep.latitude AS lat, ep.longitude AS lng, {_PENDENCIA_EXPR} AS tem_pendencia "
             f"{base} LIMIT ?", params + [limite]).fetchall()
     return {"total": total, "limite": limite, "pontos": [dict(r) for r in rows]}
+
+
+def buscar_por_raio(lat: float, lon: float, raio_km: float = 5, limite=50, offset=0, **filtros) -> dict:
+    """Empresas geocodificadas dentro de um raio (km) de um ponto (lat, lon),
+    ordenadas da mais próxima pra mais longe. Combina com os mesmos filtros
+    de buscar_empresas (município, cnae, pendência, etc.) — passe como
+    kwargs. Retorna {'total','centro','raio_km','limite','offset','itens':
+    [... com distancia_km]}.
+
+    Pra buscar perto de um ENDEREÇO (não coordenada), geocodifique primeiro
+    (ver src/geocode.py) e use o lat/lon retornado aqui.
+    """
+    filtros.pop("ordenar_por", None)
+    limite = max(1, min(int(limite), 500))
+    offset = max(0, int(offset))
+    raio_km = max(0.05, float(raio_km))
+    lat, lon = float(lat), float(lon)
+    # bounding box grosseiro (barato, comparação simples) antes do cálculo
+    # exato de Haversine (roda em Python por linha) — evita rodar a função
+    # pra tabela inteira quando o raio é pequeno frente ao total de empresas
+    # geocodificadas.
+    lat_delta = raio_km / 111.0
+    lon_delta = raio_km / (111.0 * max(0.1, math.cos(math.radians(lat))))
+    with _conn() as conn:
+        tem_contato = _tabela_existe(conn, "enriquecimento_contato")
+        tem_fts = _tabela_existe(conn, "empresas_fts")
+        where_sql, params = _filtros_sql(tem_contato=tem_contato, tem_fts=tem_fts, **filtros)
+        cond = ("ep.latitude BETWEEN ? AND ? AND ep.longitude BETWEEN ? AND ? "
+                "AND distancia_km(?, ?, ep.latitude, ep.longitude) <= ?")
+        cond_params = [lat - lat_delta, lat + lat_delta, lon - lon_delta, lon + lon_delta,
+                       lat, lon, raio_km]
+        if where_sql:
+            cond += " AND " + where_sql[len(" WHERE "):]
+        base = ("FROM empresas e JOIN enriquecimento_places ep "
+                "ON ep.cnpj_empresa = e.cnpj WHERE " + cond)
+        total = conn.execute(f"SELECT COUNT(*) {base}", cond_params + params).fetchone()[0]
+        rows = conn.execute(
+            f"SELECT e.cnpj, e.razao_social, e.nome_fantasia, e.cnae_principal, e.porte, "
+            f"e.municipio, e.bairro, e.telefone, e.email, ep.latitude AS lat, ep.longitude AS lng, "
+            f"distancia_km(?, ?, ep.latitude, ep.longitude) AS distancia_km, "
+            f"{_PENDENCIA_EXPR} AS tem_pendencia "
+            f"{base} ORDER BY distancia_km LIMIT ? OFFSET ?",
+            [lat, lon] + cond_params + params + [limite, offset]).fetchall()
+    itens = []
+    for r in rows:
+        d = dict(r)
+        d["cnae_desc"] = cnae_desc(d.get("cnae_principal"))
+        d["distancia_km"] = round(d["distancia_km"], 2)
+        itens.append(d)
+    return {"total": total, "limite": limite, "offset": offset,
+            "centro": {"lat": lat, "lon": lon}, "raio_km": raio_km, "itens": itens}
 
 
 def classificar_empresas(objetivo="generico", pref_telefone=None, pref_email=None,

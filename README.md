@@ -171,14 +171,15 @@ Lógica de consulta compartilhada (`src/dataset_queries.py`) entre dashboard, AP
 ### API REST (FastAPI) — docs em `/docs`
 - `GET /estatisticas` · `GET /segmentos`
 - `GET /empresas` — busca com filtros (município, `cnae_prefix`, porte, regime, `socio` (nome), `tem_pendencia`, `com_processos`/`com_sancoes`/`com_ambiental`/`com_divida`, `com_trabalho_escravo`/`com_cepim`/`com_leniencia`, `com_telefone`/`com_email`/`com_whatsapp`/`com_rede_social`, capital, ordenação, paginação)
+- `GET /empresas/perto` — busca por **raio (km) a partir de um ponto** (`lat`/`lon`), ordenado por distância, combinável com os mesmos filtros de `/empresas`
 - `GET /mapa` — pontos geolocalizados (lat/lng) com os mesmos filtros, para o mapa
 - `GET /empresas/{cnpj}` — visão 360º (cadastro, sócios+rede, pendências detalhadas, geo)
-- `GET /geocode` — resolve um endereço em lat/lng (fallback do mapa quando a empresa ainda não tem coordenada)
+- `GET /geocode` — resolve um endereço em lat/lng (fallback do mapa quando a empresa ainda não tem coordenada; combine com `/empresas/perto` pra buscar por endereço)
 - `GET /classificar` — pontua e ranqueia leads por objetivo comercial
 - `GET /export/empresas.xlsx` · `GET /export/empresas.pdf`
 
 ### Servidor MCP
-Ferramentas `estatisticas`, `buscar_empresas`, `obter_empresa`, `classificar_empresas` para o Claude e outros clientes MCP. Duas formas de conectar: **remoto**, direto em `https://empresas.brunokobi.duckdns.org/mcp/` (sem instalar nada); ou **local**, via `.mcp.json` (detectado automaticamente pelo Claude Code após o `setup.sh`).
+Ferramentas `estatisticas`, `buscar_empresas`, `buscar_empresas_perto` (busca por raio — aceita coordenada ou um **endereço em texto livre**, geocodificado automaticamente), `obter_empresa`, `classificar_empresas` para o Claude e outros clientes MCP. Duas formas de conectar: **remoto**, direto em `https://empresas.brunokobi.duckdns.org/mcp/` (sem instalar nada); ou **local**, via `.mcp.json` (detectado automaticamente pelo Claude Code após o `setup.sh`).
 
 📘 **Tutorial completo de conexão** (Claude Desktop, Claude Code, Cursor, Windsurf, VS Code/Copilot, Cline): **[MCP.md](MCP.md)**.
 

@@ -11,15 +11,12 @@ Docs da API: http://localhost:8000/docs
 """
 import contextlib
 import io
-import json as _json
-import urllib.parse
-import urllib.request
 
 from fastapi import FastAPI, HTTPException, Query, Depends
 from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
 
 import config
-from src import dataset_queries
+from src import dataset_queries, geocode as geocode_lib
 from mcp_server import mcp
 
 # Expõe o mesmo servidor MCP (mcp_server.py) por HTTP em /mcp, além do uso
@@ -108,6 +105,7 @@ def indice_api():
             "GET /estatisticas": "Panorama geral",
             "GET /segmentos": "Segmentos (divisões CNAE) com contagem",
             "GET /empresas": "Busca com filtros",
+            "GET /empresas/perto": "Busca num raio (km) de um ponto (lat/lon)",
             "GET /empresas/{cnpj}": "Visão 360º",
             "GET /export/empresas.xlsx": "Lista filtrada em Excel",
             "GET /export/empresas.pdf": "Lista filtrada em PDF",
@@ -143,24 +141,27 @@ def get_mapa(
     return dataset_queries.pontos_mapa(limite=limite, **filtros)
 
 
+@app.get("/empresas/perto", summary="Empresas geocodificadas num raio (km) de um ponto — combine com /geocode pra buscar perto de um endereço")
+def get_perto(
+    lat: float = Query(..., description="Latitude do centro"),
+    lon: float = Query(..., description="Longitude do centro"),
+    raio_km: float = Query(5, gt=0, le=100),
+    filtros: dict = Depends(filtros_comuns),
+    limite: int = Query(50, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+):
+    return dataset_queries.buscar_por_raio(
+        lat=lat, lon=lon, raio_km=raio_km, limite=limite, offset=offset, **filtros)
+
+
 @app.get("/geocode", summary="Geocodifica um endereço (Nominatim/OSM) para o mapa do modal")
 def geocode(q: str = Query(..., min_length=4)):
     """Fallback quando a empresa ainda não foi geocodificada pela etapa `geo`:
     resolve o endereço em lat/lng via Nominatim (server-side, com User-Agent
     identificado — evita bloqueio/CORS do acesso direto pelo navegador).
     Retorna {'lat','lng'} ou {'lat':null} se não encontrar."""
-    url = "https://nominatim.openstreetmap.org/search?" + urllib.parse.urlencode(
-        {"q": q, "format": "jsonv2", "limit": 1, "countrycodes": "br"})
-    req = urllib.request.Request(url, headers={
-        "User-Agent": "grande-vitoria-empresas-dashboard/1.0 (mapa on-demand)"})
-    try:
-        with urllib.request.urlopen(req, timeout=25) as resp:
-            arr = _json.load(resp)
-    except Exception:
-        return {"lat": None, "lng": None}
-    if arr:
-        return {"lat": float(arr[0]["lat"]), "lng": float(arr[0]["lon"])}
-    return {"lat": None, "lng": None}
+    ponto = geocode_lib.resolver_endereco(q)
+    return {"lat": ponto["lat"], "lng": ponto["lon"]}
 
 
 @app.get("/empresas/{cnpj}", summary="Visão 360º de uma empresa pelo CNPJ")
