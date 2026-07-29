@@ -55,6 +55,7 @@ def buscar_empresas(
     com_trabalho_escravo: bool = None,
     com_cepim: bool = None,
     com_leniencia: bool = None,
+    com_contratos_governamentais: bool = None,
     capital_min: float = None,
     capital_max: float = None,
     ordenar_por: str = "razao_social",
@@ -76,6 +77,8 @@ def buscar_empresas(
     - com_whatsapp: True exige link de WhatsApp (requer a etapa `contato`).
     - com_rede_social: True exige Instagram/Facebook/LinkedIn (etapa `contato`).
     - capital_min / capital_max: faixa de capital social (R$).
+    - com_contratos_governamentais: True exige contrato com órgão público
+      federal (Portal da Transparência).
     - ordenar_por: razao_social | capital_social | municipio | porte | cnpj.
     - limite (máx. 500) e offset para paginação.
 
@@ -90,6 +93,7 @@ def buscar_empresas(
         com_sancoes=com_sancoes, com_ambiental=com_ambiental, com_divida=com_divida,
         com_trabalho_escravo=com_trabalho_escravo, com_cepim=com_cepim,
         com_leniencia=com_leniencia,
+        com_contratos_governamentais=com_contratos_governamentais,
         capital_min=capital_min, capital_max=capital_max, ordenar_por=ordenar_por,
         limite=limite, offset=offset,
     )

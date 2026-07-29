@@ -173,6 +173,7 @@
       <label class="chk"><input type="checkbox" id="f_escravo"> ⛓️ Trabalho escravo (Lista Suja)</label>
       <label class="chk"><input type="checkbox" id="f_cepim"> ⛔ CEPIM (impedidas de verba federal)</label>
       <label class="chk"><input type="checkbox" id="f_lenienc"> 🤝 Acordo de leniência</label>
+      <label class="chk"><input type="checkbox" id="f_contratos"> 📄 Contratos com órgãos públicos</label>
       <div class="row2">
         <div><label class="f">Capital mín. (R$)</label><input id="f_capmin" type="number" min="0"></div>
         <div><label class="f">Capital máx. (R$)</label><input id="f_capmax" type="number" min="0"></div>
@@ -255,6 +256,7 @@ function query(){
   if($("f_escravo").checked) p.set("com_trabalho_escravo","true");
   if($("f_cepim").checked) p.set("com_cepim","true");
   if($("f_lenienc").checked) p.set("com_leniencia","true");
+  if($("f_contratos").checked) p.set("com_contratos_governamentais","true");
   add("ordenar_por",$("f_ordem").value);
   return p;
 }
@@ -601,11 +603,12 @@ function exportar(fmt){ window.location = `/export/empresas.${fmt}?`+query().toS
 function limpar(){
   ["f_texto","f_socio","f_capmin","f_capmax"].forEach(id=>$(id).value="");
   ["f_segmento","f_municipio","f_porte","f_regime","f_pendencia"].forEach(id=>$(id).value="");
-  ["f_tel","f_email","f_wpp","f_rede","f_proc","f_sanc","f_amb","f_div","f_escravo","f_cepim","f_lenienc"].forEach(id=>$(id).checked=false);
+  ["f_tel","f_email","f_wpp","f_rede","f_proc","f_sanc","f_amb","f_div","f_escravo","f_cepim","f_lenienc","f_contratos"].forEach(id=>$(id).checked=false);
   $("f_ordem").value="razao_social"; buscar(true);
 }
 document.addEventListener("keydown",e=>{ if(e.key==="Escape")fechar(); });
-$("f_texto").addEventListener("keydown",e=>{ if(e.key==="Enter")buscar(true); });
+["f_texto","f_socio","f_capmin","f_capmax"].forEach(id=>
+  $(id).addEventListener("keydown",e=>{ if(e.key==="Enter")buscar(true); }));
 
 let MAPA=null, MAPA_READY=false, _pendentes=null;
 const _ESTILO = {

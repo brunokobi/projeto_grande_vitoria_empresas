@@ -70,6 +70,7 @@ def filtros_comuns(
     com_trabalho_escravo: bool = Query(None, description="Só empresas na Lista Suja do trabalho escravo (MTE)"),
     com_cepim: bool = Query(None, description="Só empresas no CEPIM (impedidas de receber recursos federais)"),
     com_leniencia: bool = Query(None, description="Só empresas com acordo de leniência"),
+    com_contratos_governamentais: bool = Query(None, description="Só empresas com contratos com órgãos públicos federais"),
     capital_min: float = Query(None),
     capital_max: float = Query(None),
     ordenar_por: str = Query("razao_social"),
@@ -81,6 +82,7 @@ def filtros_comuns(
         com_rede_social=com_rede_social, com_processos=com_processos,
         com_sancoes=com_sancoes, com_ambiental=com_ambiental, com_divida=com_divida,
         com_trabalho_escravo=com_trabalho_escravo, com_cepim=com_cepim, com_leniencia=com_leniencia,
+        com_contratos_governamentais=com_contratos_governamentais,
         capital_min=capital_min, capital_max=capital_max, ordenar_por=ordenar_por,
     )
 
