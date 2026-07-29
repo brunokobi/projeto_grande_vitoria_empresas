@@ -1,7 +1,7 @@
 # Consumo do dataset — Dashboard + API REST + servidor MCP
 fastapi>=0.110
 uvicorn>=0.29
-mcp>=1.2
+mcp>=1.2,<2.0     # 2.0 removeu/renomeou mcp.server.fastmcp (import usado em mcp_server.py) — trava a major
 reportlab>=4.0      # export PDF
 pandas>=2.0         # export Excel
 openpyxl>=3.1       # export Excel
