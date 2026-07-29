@@ -9,7 +9,7 @@ Grande Vitória direto, com estas ferramentas:
 | `estatisticas` | Panorama geral (totais, por município/porte/CNAE) |
 | `buscar_empresas` | Busca com filtros (segmento, município, pendências, contato…) |
 | `buscar_empresas_perto` | Busca num **raio (km)** de um ponto — endereço em texto livre ou lat/lon |
-| `obter_empresa` | Visão 360º de um CNPJ (sócios+rede, dívidas, sanções, infrações, vínculos políticos, contratos públicos) |
+| `obter_empresa` | Visão 360º de um CNPJ (sócios+rede, dívidas, sanções, infrações, vínculos políticos, contratos públicos, benefícios/renúncias fiscais) |
 | `classificar_empresas` | Pontua/ranqueia leads por objetivo comercial (score 0–100) |
 
 Exemplos de perguntas: *"quantas empresas ativas há em Vila Velha?"*, *"restaurantes

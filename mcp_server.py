@@ -56,6 +56,9 @@ def buscar_empresas(
     com_cepim: bool = None,
     com_leniencia: bool = None,
     com_contratos_governamentais: bool = None,
+    com_renuncia_fiscal: bool = None,
+    com_imune_isento: bool = None,
+    com_habilitado_beneficio: bool = None,
     capital_min: float = None,
     capital_max: float = None,
     ordenar_por: str = "razao_social",
@@ -79,6 +82,12 @@ def buscar_empresas(
     - capital_min / capital_max: faixa de capital social (R$).
     - com_contratos_governamentais: True exige contrato com órgão público
       federal (Portal da Transparência).
+    - com_renuncia_fiscal: True exige renúncia fiscal federal registrada
+      (valor R$ em algum ano).
+    - com_imune_isento: True exige imunidade/isenção de IRPJ (comum em
+      igrejas, sindicatos, associações).
+    - com_habilitado_beneficio: True exige habilitação a regime de
+      benefício fiscal específico (ex.: RET - Incorporação Imobiliária).
     - ordenar_por: razao_social | capital_social | municipio | porte | cnpj.
     - limite (máx. 500) e offset para paginação.
 
@@ -94,6 +103,8 @@ def buscar_empresas(
         com_trabalho_escravo=com_trabalho_escravo, com_cepim=com_cepim,
         com_leniencia=com_leniencia,
         com_contratos_governamentais=com_contratos_governamentais,
+        com_renuncia_fiscal=com_renuncia_fiscal, com_imune_isento=com_imune_isento,
+        com_habilitado_beneficio=com_habilitado_beneficio,
         capital_min=capital_min, capital_max=capital_max, ordenar_por=ordenar_por,
         limite=limite, offset=offset,
     )
@@ -145,8 +156,10 @@ def obter_empresa(cnpj: str) -> dict:
     """Visão 360º de uma empresa pelo CNPJ (14 dígitos): dados cadastrais,
     sócios, complemento JUCEES, geolocalização, todas as pendências
     (processos, sanções, infrações ambientais, dívida ativa), vínculos
-    políticos de sócios (PEP, candidaturas do TSE) e contratos com órgãos
-    públicos federais (Portal da Transparência), com um resumo agregado.
+    políticos de sócios (PEP, candidaturas do TSE), contratos com órgãos
+    públicos federais e benefícios/renúncias fiscais (renúncia fiscal por
+    ano, imunidade/isenção de IRPJ, habilitação a regime de benefício —
+    Portal da Transparência), com um resumo agregado.
     Retorna null se o CNPJ não estiver na base."""
     resultado = dataset_queries.obter_empresa(cnpj)
     if resultado is None:

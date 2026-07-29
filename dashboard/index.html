@@ -174,6 +174,9 @@
       <label class="chk"><input type="checkbox" id="f_cepim"> ⛔ CEPIM (impedidas de verba federal)</label>
       <label class="chk"><input type="checkbox" id="f_lenienc"> 🤝 Acordo de leniência</label>
       <label class="chk"><input type="checkbox" id="f_contratos"> 📄 Contratos com órgãos públicos</label>
+      <label class="chk"><input type="checkbox" id="f_renuncia"> 💰 Renúncia fiscal federal</label>
+      <label class="chk"><input type="checkbox" id="f_imune"> ⛪ Imune/isenta de IRPJ</label>
+      <label class="chk"><input type="checkbox" id="f_habilitado"> 🏗️ Habilitada a benefício fiscal</label>
       <div class="row2">
         <div><label class="f">Capital mín. (R$)</label><input id="f_capmin" type="number" min="0"></div>
         <div><label class="f">Capital máx. (R$)</label><input id="f_capmax" type="number" min="0"></div>
@@ -257,6 +260,9 @@ function query(){
   if($("f_cepim").checked) p.set("com_cepim","true");
   if($("f_lenienc").checked) p.set("com_leniencia","true");
   if($("f_contratos").checked) p.set("com_contratos_governamentais","true");
+  if($("f_renuncia").checked) p.set("com_renuncia_fiscal","true");
+  if($("f_imune").checked) p.set("com_imune_isento","true");
+  if($("f_habilitado").checked) p.set("com_habilitado_beneficio","true");
   add("ordenar_por",$("f_ordem").value);
   return p;
 }
@@ -522,6 +528,54 @@ function renderSancoes(arr){
   }).join("");
   return `<div class="sec">🚫 Sanções (${arr.length})</div>${cards}`;
 }
+function renderContratos(arr){
+  if(!arr||!arr.length) return "";
+  const cards = arr.map(x=>{
+    const kv=(k,v)=>v?`<div><span class="k">${k}</span><span class="val">${v}</span></div>`:"";
+    const valor = x.valor_final||x.valor_inicial;
+    return `<details class="divida">
+      <summary><b>${valor?fmtBRL(valor):"valor n/d"}</b> <span style="color:var(--muted)">${esc(x.orgao||x.orgao_superior||"")}</span>
+        ${x.data_assinatura?`<span style="color:var(--muted)">${fmtData(x.data_assinatura)}</span>`:""}</summary>
+      <div class="divida-det">
+        ${kv("Objeto", esc((x.objeto||"").slice(0,300)))}
+        ${kv("Órgão superior", esc(x.orgao_superior))}
+        ${kv("Órgão", esc(x.orgao))}
+        ${kv("Modalidade", esc(x.modalidade_compra))}
+        ${kv("Situação", esc(x.situacao_contrato))}
+        ${kv("Nº do contrato", x.numero_contrato?`<span class="mono">${esc(x.numero_contrato)}</span>`:"")}
+        ${kv("Assinatura", fmtData(x.data_assinatura))}
+        ${kv("Vigência", [fmtData(x.data_inicio_vigencia),fmtData(x.data_fim_vigencia)].filter(Boolean).join(" — "))}
+        ${kv("Valor inicial", x.valor_inicial?fmtBRL(x.valor_inicial):"")}
+        ${kv("Valor final", x.valor_final?fmtBRL(x.valor_final):"")}
+      </div>
+    </details>`;
+  }).join("");
+  return `<div class="sec">📄 Contratos com órgãos públicos (${arr.length})</div>${cards}`;
+}
+const _TIPO_BENEFICIO = {RENUNCIA:"💰 Renúncia fiscal", IMUNE_ISENTO:"⛪ Imune/isento", HABILITADO:"🏗️ Habilitado a benefício"};
+function renderBeneficios(arr){
+  if(!arr||!arr.length) return "";
+  const cards = arr.map(x=>{
+    const kv=(k,v)=>v?`<div><span class="k">${k}</span><span class="val">${v}</span></div>`:"";
+    const rotulo = _TIPO_BENEFICIO[x.tipo]||x.tipo;
+    const titulo = x.tipo==="RENUNCIA" ? (x.valor?fmtBRL(x.valor):"valor n/d")
+      : (x.beneficio_fiscal||rotulo);
+    return `<details class="divida">
+      <summary><span class="tag warn">${rotulo}</span> <b>${esc(titulo)}</b>
+        ${x.ano?`<span style="color:var(--muted)">${esc(x.ano)}</span>`:""}</summary>
+      <div class="divida-det">
+        ${kv("Ano-calendário", esc(x.ano))}
+        ${kv("Valor renúncia fiscal", x.valor?fmtBRL(x.valor):"")}
+        ${kv("Tipo de entidade", esc(x.tipo_entidade))}
+        ${kv("Benefício fiscal", esc(x.beneficio_fiscal))}
+        ${kv("Base legal", esc((x.base_legal||"").slice(0,300)))}
+        ${kv("Início habilitação", fmtData(x.inicio_habilitacao))}
+        ${kv("Fim habilitação", fmtData(x.fim_habilitacao))}
+      </div>
+    </details>`;
+  }).join("");
+  return `<div class="sec">💰 Benefícios e renúncias fiscais (${arr.length})</div>${cards}`;
+}
 async function abrir(cnpj){
   $("overlay").classList.add("open");
   $("modal").innerHTML = `<div class="body loading">carregando empresa...</div>`;
@@ -588,6 +642,8 @@ async function abrir(cnpj){
       ${renderDividas(d.dividas_ativas, e.capital_social)}
       ${renderSancoes(d.sancoes_administrativas)}
       ${renderInfracoes(d.infracoes_ambientais)}
+      ${renderContratos(d.contratos_governamentais)}
+      ${renderBeneficios(d.beneficios_fiscais)}
 
       <div class="sec">&#128205; Localiza&ccedil;&atilde;o</div>
       ${mapaEmbed(e, d.geolocalizacao)}
@@ -603,7 +659,7 @@ function exportar(fmt){ window.location = `/export/empresas.${fmt}?`+query().toS
 function limpar(){
   ["f_texto","f_socio","f_capmin","f_capmax"].forEach(id=>$(id).value="");
   ["f_segmento","f_municipio","f_porte","f_regime","f_pendencia"].forEach(id=>$(id).value="");
-  ["f_tel","f_email","f_wpp","f_rede","f_proc","f_sanc","f_amb","f_div","f_escravo","f_cepim","f_lenienc","f_contratos"].forEach(id=>$(id).checked=false);
+  ["f_tel","f_email","f_wpp","f_rede","f_proc","f_sanc","f_amb","f_div","f_escravo","f_cepim","f_lenienc","f_contratos","f_renuncia","f_imune","f_habilitado"].forEach(id=>$(id).checked=false);
   $("f_ordem").value="razao_social"; buscar(true);
 }
 document.addEventListener("keydown",e=>{ if(e.key==="Escape")fechar(); });

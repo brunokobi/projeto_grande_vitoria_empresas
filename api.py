@@ -71,6 +71,9 @@ def filtros_comuns(
     com_cepim: bool = Query(None, description="Só empresas no CEPIM (impedidas de receber recursos federais)"),
     com_leniencia: bool = Query(None, description="Só empresas com acordo de leniência"),
     com_contratos_governamentais: bool = Query(None, description="Só empresas com contratos com órgãos públicos federais"),
+    com_renuncia_fiscal: bool = Query(None, description="Só empresas com renúncia fiscal federal (valor R$/ano)"),
+    com_imune_isento: bool = Query(None, description="Só empresas imunes/isentas de IRPJ"),
+    com_habilitado_beneficio: bool = Query(None, description="Só empresas habilitadas a regime de benefício fiscal"),
     capital_min: float = Query(None),
     capital_max: float = Query(None),
     ordenar_por: str = Query("razao_social"),
@@ -83,6 +86,8 @@ def filtros_comuns(
         com_sancoes=com_sancoes, com_ambiental=com_ambiental, com_divida=com_divida,
         com_trabalho_escravo=com_trabalho_escravo, com_cepim=com_cepim, com_leniencia=com_leniencia,
         com_contratos_governamentais=com_contratos_governamentais,
+        com_renuncia_fiscal=com_renuncia_fiscal, com_imune_isento=com_imune_isento,
+        com_habilitado_beneficio=com_habilitado_beneficio,
         capital_min=capital_min, capital_max=capital_max, ordenar_por=ordenar_por,
     )
 
