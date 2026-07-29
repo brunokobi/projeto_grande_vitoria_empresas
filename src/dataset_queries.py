@@ -232,6 +232,9 @@ def estatisticas() -> dict:
         if _tabela_existe(conn, "vinculos_politicos"):
             satelites["vinculos_politicos"] = conn.execute(
                 "SELECT COUNT(*) FROM vinculos_politicos").fetchone()[0]
+        if _tabela_existe(conn, "contratos_governamentais"):
+            satelites["contratos_governamentais"] = conn.execute(
+                "SELECT COUNT(*) FROM contratos_governamentais").fetchone()[0]
     return {
         "total_empresas": total,
         "por_municipio": por_municipio,
@@ -530,6 +533,13 @@ def obter_empresa(cnpj: str) -> dict:
                 "SELECT nome_socio_vinculado, fonte, cargo_ou_funcao, orgao_ou_partido, "
                 "ano, situacao, detalhe FROM vinculos_politicos "
                 "WHERE cnpj_empresa = ? LIMIT 100", (cnpj,))]
+        contratos_governamentais = []
+        if _tabela_existe(conn, "contratos_governamentais"):
+            contratos_governamentais = [dict(r) for r in conn.execute(
+                "SELECT numero_contrato, objeto, orgao_superior, orgao, modalidade_compra, "
+                "situacao_contrato, data_assinatura, data_inicio_vigencia, data_fim_vigencia, "
+                "valor_inicial, valor_final, mes_referencia FROM contratos_governamentais "
+                "WHERE cnpj_empresa = ? ORDER BY data_assinatura DESC LIMIT 100", (cnpj,))]
         geo = conn.execute(
             "SELECT latitude, longitude FROM enriquecimento_places WHERE cnpj_empresa = ?",
             (cnpj,)).fetchone()
@@ -553,6 +563,7 @@ def obter_empresa(cnpj: str) -> dict:
         "infracoes_ambientais": ambiental,
         "dividas_ativas": dividas,
         "vinculos_politicos": vinculos_politicos,
+        "contratos_governamentais": contratos_governamentais,
         "resumo": {
             "qtd_socios": len(socios),
             "qtd_processos": len(processos),
@@ -560,6 +571,7 @@ def obter_empresa(cnpj: str) -> dict:
             "qtd_infracoes_ambientais": len(ambiental),
             "qtd_dividas_ativas": len(dividas),
             "qtd_vinculos_politicos": len(vinculos_politicos),
+            "qtd_contratos_governamentais": len(contratos_governamentais),
             "valor_total_divida_ativa": valor_divida,
             "tem_pendencia_juridica_ou_fiscal": bool(processos or sancoes or ambiental or dividas),
         },

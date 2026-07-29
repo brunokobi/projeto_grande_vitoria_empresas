@@ -131,6 +131,7 @@ Em desenvolvimento ativo. Estado atual:
 | 👥 **Sócios + rede** | Quadro societário (nome, qualificação, faixa etária) e **em quais outras empresas o mesmo sócio aparece** |
 | ⚖️ **Situação jurídico-fiscal detalhada** | Dívida ativa (tipo de tributo, ajuizamento, risco), sanções federais/estaduais (fundamentação), infrações IBAMA (valor, gravidade), processos (DJEN) |
 | 🚩 **Flags de risco** | **Lista Suja do trabalho escravo** (MTE), **CEPIM** (impedidas de verba federal), **acordos de leniência** — filtráveis |
+| 📄 **Contratos públicos** | Contratos federais (Portal da Transparência): órgão, objeto, valor, vigência |
 | 🗺️ **Mapa interativo** | Mapa geral da Grande Vitória com todos os pontos (clique → empresa) e **satélite** na visão 360º; filtros recortam o mapa |
 | 🧭 **Enriquecimento** | Geolocalização e contato/redes sociais |
 | 🎯 **Classificação de leads** | Questionário por objetivo comercial → score 0–100 (🔥 Quente / 🙂 Morno / ❄️ Frio) |
@@ -153,6 +154,7 @@ Tudo cruzado pelo **CNPJ**, exclusivamente de **fontes públicas oficiais**:
 | **MTE** — Cadastro de Empregadores | **Lista Suja** do trabalho escravo | ✅ |
 | **OpenStreetMap / Nominatim** | Geolocalização (mapa; fallback por endereço) | 🚧 |
 | **DJEN / CNJ** (Comunica API) | Processos judiciais (por nome da parte) | 🚧 |
+| **CGU** — Portal da Transparência | **Contratos com órgãos públicos federais** (objeto, valor, vigência) | ✅ |
 | IEMA-ES · RAIS/CAGED | Ambiental estadual · nº de empregados | 🔭 planejado |
 
 > A construção/atualização do dataset é feita por um pipeline de extração mantido em repositório separado. Este é o **produto de consumo**.

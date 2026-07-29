@@ -140,8 +140,9 @@ def buscar_empresas_perto(
 def obter_empresa(cnpj: str) -> dict:
     """Visão 360º de uma empresa pelo CNPJ (14 dígitos): dados cadastrais,
     sócios, complemento JUCEES, geolocalização, todas as pendências
-    (processos, sanções, infrações ambientais, dívida ativa) e vínculos
-    políticos de sócios (PEP, candidaturas do TSE) com um resumo agregado.
+    (processos, sanções, infrações ambientais, dívida ativa), vínculos
+    políticos de sócios (PEP, candidaturas do TSE) e contratos com órgãos
+    públicos federais (Portal da Transparência), com um resumo agregado.
     Retorna null se o CNPJ não estiver na base."""
     resultado = dataset_queries.obter_empresa(cnpj)
     if resultado is None:
