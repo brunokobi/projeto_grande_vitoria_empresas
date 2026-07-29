@@ -10,6 +10,13 @@ BASE_DIR = Path(__file__).resolve().parent
 DB_PATH = BASE_DIR / "data" / "grande_vitoria.db"
 DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
+# Checkpoints do pipeline de extração (progresso retomável de etapas longas,
+# ex.: djen/datajud/geo). Perdido no merge do repo de consumo com o de
+# extração — as demais chaves de config do pipeline (URLs de fontes, chaves
+# de API) continuam só no repositório de extração.
+CHECKPOINT_DIR = BASE_DIR / "data" / "checkpoints"
+CHECKPOINT_DIR.mkdir(parents=True, exist_ok=True)
+
 # Segmentos de mercado (divisão CNAE = 2 primeiros dígitos do CNAE principal)
 # usados no filtro de "segmento" do dashboard. Ordem por relevância na região.
 SEGMENTOS_CNAE = {
