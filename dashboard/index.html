@@ -40,6 +40,10 @@
     transition:.15s;display:inline-flex;align-items:center;gap:6px}
   .btn:hover{background:var(--green-dim);color:#04060a;box-shadow:0 0 14px rgba(0,255,136,.4)}
   .btn.ghost{background:transparent}
+  .helpbtn{width:36px;height:36px;flex:none;border-radius:50%;background:var(--green-deep);
+    border:1px solid var(--green-dim);color:var(--green);font-weight:800;font-size:15px;
+    cursor:pointer;font-family:'Courier New',monospace}
+  .helpbtn:hover{background:var(--green-dim);color:#04060a;box-shadow:0 0 14px rgba(0,255,136,.4)}
   main{max-width:1500px;margin:0 auto;padding:20px}
   /* stat cards */
   .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:18px}
@@ -168,6 +172,7 @@
   <button class="btn" onclick="exportar('xlsx')">⬇ Excel</button>
   <button class="btn" onclick="exportar('pdf')">⬇ PDF</button>
   <a class="btn ghost" href="https://github.com/brunokobi/projeto_grande_vitoria_empresas" target="_blank" rel="noopener" style="text-decoration:none">🐙 GitHub</a>
+  <button class="helpbtn" onclick="abrirSobre()" title="Sobre as fontes de dados">?</button>
 </header>
 
 <main>
@@ -791,6 +796,43 @@ async function abrir(cnpj){
 function fechar(){
   $("overlay").classList.remove("open");
   if(_modalMap){ try{ _modalMap.remove(); }catch(_){} _modalMap=null; }
+}
+function abrirSobre(){
+  $("overlay").classList.add("open");
+  $("modal").innerHTML = `
+    <div class="top">
+      <span class="close" onclick="fechar()">&times;</span>
+      <h2>📚 Fontes de dados e metodologia</h2>
+      <div class="sub">De onde vêm os dados e como são cruzados</div>
+    </div>
+    <div class="body">
+      <p>O universo de empresas vem da <b>Receita Federal</b> (CNPJ, sócios, situação cadastral) — só entram na base as empresas <b>ativas</b> dos 7 municípios da Grande Vitória. A partir do CNPJ, cada empresa é cruzada com as fontes complementares abaixo.</p>
+      <div class="sec">Cadastral e societário</div>
+      <div class="lista">
+        <div class="item"><b>Receita Federal</b> — cadastro (CNPJ), sócios, capital social, CNAE, situação cadastral</div>
+        <div class="item"><b>JUCEES</b> (Junta Comercial do ES) — registros complementares de constituição/alteração</div>
+      </div>
+      <div class="sec">Riscos jurídicos e fiscais</div>
+      <div class="lista">
+        <div class="item"><b>PGFN</b> — dívida ativa da União</div>
+        <div class="item"><b>CEIS/CNEP</b> (CGU) — sanções federais, incluindo Lista Suja do trabalho escravo (MTE), CEPIM e acordos de leniência</div>
+        <div class="item"><b>TCEES</b> — sanções do Tribunal de Contas do Espírito Santo</div>
+        <div class="item"><b>IBAMA</b> — infrações ambientais</div>
+        <div class="item"><b>DJEN/CNJ</b> (Comunica API do PJe) — processos judiciais, localizados pelo nome da empresa (a API pública do DataJud não expõe as partes por CNPJ)</div>
+      </div>
+      <div class="sec">Benefícios e contratos públicos</div>
+      <div class="lista">
+        <div class="item">Contratos com órgãos públicos federais, benefícios/renúncia fiscal e vínculos políticos declarados, quando disponíveis nas bases públicas correspondentes</div>
+      </div>
+      <div class="sec">Localização e contato</div>
+      <div class="lista">
+        <div class="item"><b>OpenStreetMap/Nominatim</b> — geocodificação do endereço cadastral (lat/lng do mapa)</div>
+        <div class="item">WhatsApp (derivado do telefone celular), site (derivado do domínio do e-mail corporativo) e redes sociais extraídas do próprio site da empresa — sem raspagem direta de redes sociais</div>
+      </div>
+      <div class="sec">Como o cruzamento é feito</div>
+      <p>Todas as fontes são combinadas pelo <b>CNPJ</b> (chave única), exceto processos judiciais, localizados por nome da empresa. Nenhuma fonte é editada ou reinterpretada — os campos exibidos vêm direto das bases públicas oficiais. CPFs de sócios são sempre mascarados, conforme a LGPD.</p>
+      <p style="color:var(--muted);font-size:12px;margin-top:16px">Código aberto: <a href="https://github.com/brunokobi/projeto_grande_vitoria_empresas" target="_blank" rel="noopener">github.com/brunokobi/projeto_grande_vitoria_empresas</a></p>
+    </div>`;
 }
 function exportar(fmt){ window.location = `/export/empresas.${fmt}?`+query().toString(); }
 function limpar(){
