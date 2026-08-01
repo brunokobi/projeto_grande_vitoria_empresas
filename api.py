@@ -52,7 +52,7 @@ DASHBOARD_HTML = config.BASE_DIR / "dashboard" / "index.html"
 # --------------------------------------------------------------------------
 def filtros_comuns(
     cnpj: str = Query(None, description="Busca por CNPJ (aceita com ou sem máscara)"),
-    municipio: str = Query(None),
+    municipio: list[str] = Query(None, description="Um ou mais municípios (repita o parâmetro)"),
     cnae: str = Query(None),
     cnae_prefix: str = Query(None, description="Prefixo CNAE = segmento (2 dígitos)"),
     porte: str = Query(None),

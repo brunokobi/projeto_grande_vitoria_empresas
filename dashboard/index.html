@@ -81,6 +81,10 @@
     border-radius:7px;background:var(--bg2);border:1px solid var(--line);color:var(--green);
     text-decoration:none;font-size:12px;cursor:pointer}
   .iconbtn:hover{background:var(--green-deep);border-color:var(--green-dim)}
+  .iconbtn.off{color:var(--muted);opacity:.4;cursor:default}
+  .iconbtn.off:hover{background:var(--bg2);border-color:var(--line)}
+  .tag.default{background:var(--bg2);color:var(--muted);border:1px solid var(--line)}
+  input[type=checkbox]{width:auto;accent-color:var(--green)}
   .pager button.pagenum{min-width:34px}
   .pager button.pagenum.active{background:var(--green-dim);color:#04060a}
   /* table */
@@ -105,7 +109,7 @@
   .divida-det .k{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.5px;display:block}
   .divida-det .val{color:var(--text)}
   .tag.pend{background:rgba(255,84,112,.12);color:var(--danger);border:1px solid var(--danger)}
-  .pager{display:flex;justify-content:center;gap:10px;margin:18px 0;align-items:center}
+  .pager{display:flex;justify-content:space-between;gap:10px;margin:18px 0;align-items:center;flex-wrap:wrap}
   .empty{text-align:center;color:var(--muted);padding:40px}
   /* modal */
   .overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:50;display:none;
@@ -195,7 +199,7 @@
       <label class="f">Segmento</label>
       <select id="f_segmento"><option value="">Todos os segmentos</option></select>
       <label class="f">Município</label>
-      <select id="f_municipio"><option value="">Todos</option></select>
+      <div id="f_municipio_group"></div>
       <div class="row2">
         <div><label class="f">Porte</label><select id="f_porte"><option value="">Todos</option></select></div>
         <div><label class="f">Regime</label><select id="f_regime"><option value="">Todos</option></select></div>
@@ -243,17 +247,19 @@
     <!-- RESULTADOS -->
     <div class="card">
       <div class="toolbar">
-        <span class="count"><b id="total">0</b> empresas encontradas</span>
+        <span class="count">🏢 <b id="total">0</b> empresas encontradas</span>
         <div class="spacer" style="flex:1"></div>
       </div>
       <div style="overflow-x:auto">
         <table>
           <thead><tr>
+            <th style="width:30px"><input type="checkbox" id="chk_all" onchange="toggleSelecionarTodos(this)"></th>
             <th class="sortable active" data-ord="razao_social" onclick="ordenarPor('razao_social')">Razão social <span class="arrow">⇅</span></th>
             <th class="sortable" data-ord="municipio" onclick="ordenarPor('municipio')">Município <span class="arrow">⇅</span></th>
             <th>Atividade</th>
             <th class="sortable" data-ord="porte" onclick="ordenarPor('porte')">Porte <span class="arrow">⇅</span></th>
-            <th>Contato</th><th>Situação</th>
+            <th>Contatos</th><th>Situação</th>
+            <th style="width:34px"></th>
           </tr></thead>
           <tbody id="rows"></tbody>
         </table>
@@ -275,7 +281,7 @@
 
 <script>
 const PORTE = {"00":"Não informado","01":"Microempresa","03":"Peq. porte (EPP)","05":"Demais","":"—",null:"—"};
-let pagina = 0; const PP = 50; let ultTotal = 0;
+let pagina = 0; const PP = 15; let ultTotal = 0;
 const $ = id => document.getElementById(id);
 const fmtBRL = v => v==null?"—":Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const esc = s => (s==null?"":String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -287,7 +293,7 @@ function query(){
   add("cnpj",$("f_cnpj").value.trim());
   add("socio",$("f_socio").value.trim());
   add("cnae_prefix",$("f_segmento").value);
-  add("municipio",$("f_municipio").value);
+  document.querySelectorAll("#f_municipio_group input:checked").forEach(cb=>p.append("municipio",cb.value));
   add("porte",$("f_porte").value);
   add("regime_tributario",$("f_regime").value);
   add("tem_pendencia",$("f_pendencia").value);
@@ -322,8 +328,9 @@ async function initEstat(){
   ];
   $("stats").innerHTML = cards.map(([ic,l,n,primary])=>
     `<div class="stat${primary?' primary':''}"><div class="ic">${ic}</div><div><div class="n">${Number(n).toLocaleString('pt-BR')}</div><div class="l">${l}</div></div></div>`).join("");
-  const mun = $("f_municipio");
-  Object.keys(s.por_municipio).forEach(m=> mun.innerHTML += `<option value="${esc(m)}">${esc(m)} (${s.por_municipio[m]})</option>`);
+  const mun = $("f_municipio_group");
+  mun.innerHTML = Object.keys(s.por_municipio).map(m=>
+    `<label class="chk"><input type="checkbox" class="mun-chk" value="${esc(m)}" onchange="onMunicipioChange(this,'${esc(m)}')"> ${esc(m)}<span class="spacer"></span><span class="cnt">${Number(s.por_municipio[m]).toLocaleString('pt-BR')}</span></label>`).join("");
   const pt = $("f_porte");
   Object.keys(s.por_porte).forEach(p=> pt.innerHTML += `<option value="${esc(p)}">${esc(PORTE[p]||p)}</option>`);
   const rg = $("f_regime");
@@ -339,12 +346,15 @@ async function initEstat(){
   chips.innerHTML = Object.keys(s.por_municipio).map(m=>
     `<span class="citychip" id="chip_${esc(m)}" onclick="filtrarCidade('${esc(m)}')">${esc(m)}</span>`).join("");
 }
-function filtrarCidade(m){
-  const atual = $("f_municipio").value;
-  $("f_municipio").value = (atual===m) ? "" : m;
-  document.querySelectorAll(".citychip").forEach(c=>c.classList.remove("active"));
-  if($("f_municipio").value) $("chip_"+m)?.classList.add("active");
+function onMunicipioChange(cb, m){
+  $("chip_"+m)?.classList.toggle("active", cb.checked);
   buscar(true);
+}
+function filtrarCidade(m){
+  const cb = document.querySelector(`#f_municipio_group input[value="${m}"]`);
+  if(!cb) return;
+  cb.checked = !cb.checked;
+  onMunicipioChange(cb, m);
 }
 function atualizar(){ initEstat(); buscar(true); }
 function ordenarPor(campo){
@@ -363,34 +373,52 @@ async function buscar(reset){
   if(reset){ pagina = 0; carregarMapa(); }
   const p = query();
   p.set("limite",PP); p.set("offset",pagina*PP);
-  $("rows").innerHTML = `<tr><td colspan="6" class="loading">carregando…</td></tr>`;
+  $("rows").innerHTML = `<tr><td colspan="8" class="loading">carregando…</td></tr>`;
   const r = await (await fetch("/empresas?"+p.toString())).json();
   ultTotal = r.total;
   $("total").textContent = r.total.toLocaleString('pt-BR');
   $("vazio").style.display = r.itens.length? "none":"block";
   $("rows").innerHTML = r.itens.map(e=>{
     const contato = [
-      e.telefone?`<a class="iconbtn" href="tel:${esc(e.telefone)}" onclick="event.stopPropagation()" title="${esc(e.telefone)}">☎</a>`:"",
-      e.email?`<a class="iconbtn" href="mailto:${esc(e.email)}" onclick="event.stopPropagation()" title="${esc(e.email)}">✉</a>`:"",
+      e.email?`<a class="iconbtn" href="mailto:${esc(e.email)}" onclick="event.stopPropagation()" title="${esc(e.email)}">✉</a>`:`<span class="iconbtn off" title="Sem e-mail">✉</span>`,
+      e.telefone?`<a class="iconbtn" href="tel:${esc(e.telefone)}" onclick="event.stopPropagation()" title="${esc(e.telefone)}">☎</a>`:`<span class="iconbtn off" title="Sem telefone">☎</span>`,
       `<span class="iconbtn" onclick="event.stopPropagation();copiarCnpj('${e.cnpj}',this)" title="Copiar CNPJ">⧉</span>`,
-    ].filter(Boolean).join(" ")||"—";
-    const sit = e.tem_pendencia? `<span class="tag pend">pendência</span>`:`<span class="tag ok">ok</span>`;
+    ].join(" ");
+    const sit = e.tem_pendencia? `<span class="tag pend">Pendência</span>`:`<span class="tag ok">Ativo</span>`;
+    const porteCls = e.porte==="01"?"ok":e.porte==="03"?"warn":"default";
+    const porte = `<span class="tag ${porteCls}">${esc(PORTE[e.porte]||e.porte||"—")}</span>`;
     const nome = esc(e.razao_social||e.nome_fantasia||"(sem nome)");
     return `<tr onclick="abrir('${e.cnpj}')">
-      <td><b>${nome}</b>${e.nome_fantasia&&e.nome_fantasia!==e.razao_social?`<br><span style="color:var(--muted);font-size:12px">${esc(e.nome_fantasia)}</span>`:""}</td>
+      <td onclick="event.stopPropagation()"><input type="checkbox" class="rowchk" onchange="onLinhaChk(this)"></td>
+      <td><b>${nome}</b>${e.nome_fantasia&&e.nome_fantasia!==e.razao_social?`<br><span style="color:var(--muted);font-size:12px">${esc(e.nome_fantasia)}</span>`:""}<br><span class="mono" style="color:var(--muted);font-size:11px">${formatarCnpj(e.cnpj)}</span></td>
       <td>${esc(e.municipio||"—")}</td><td>${esc(e.cnae_desc||e.cnae_principal||"—")}</td>
-      <td>${esc(PORTE[e.porte]||e.porte||"—")}</td><td>${contato}</td><td>${sit}</td></tr>`;
+      <td>${porte}</td><td>${contato}</td><td>${sit}</td>
+      <td onclick="event.stopPropagation();abrir('${e.cnpj}')"><span class="iconbtn" title="Abrir">↗</span></td></tr>`;
   }).join("");
+  $("chk_all").checked = false;
   const tp = Math.ceil(r.total/PP);
   if(!r.total){ $("pager").innerHTML=""; return; }
   let nums = "";
   const ini = Math.max(0, pagina-2), fim = Math.min(tp-1, pagina+2);
   for(let i=ini;i<=fim;i++) nums += `<button class="btn ghost pagenum${i===pagina?' active':''}" onclick="pagina=${i};buscar()">${i+1}</button>`;
+  const desde = pagina*PP+1, ate = Math.min(r.total, pagina*PP+r.itens.length);
   $("pager").innerHTML = `
-    <button class="btn ghost" ${pagina<=0?"disabled":""} onclick="pagina--;buscar()">‹ Anterior</button>
-    ${nums}
-    <span class="count">de ${tp.toLocaleString('pt-BR')}</span>
-    <button class="btn ghost" ${pagina>=tp-1?"disabled":""} onclick="pagina++;buscar()">Próxima ›</button>`;
+    <span class="count">Exibindo ${desde.toLocaleString('pt-BR')}-${ate.toLocaleString('pt-BR')} de ${r.total.toLocaleString('pt-BR')} registros</span>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn ghost" ${pagina<=0?"disabled":""} onclick="pagina--;buscar()">‹</button>
+      ${nums}
+      <button class="btn ghost" ${pagina>=tp-1?"disabled":""} onclick="pagina++;buscar()">›</button>
+    </div>`;
+}
+function formatarCnpj(c){
+  const s = String(c||"").padStart(14,"0");
+  return `${s.slice(0,2)}.${s.slice(2,5)}.${s.slice(5,8)}/${s.slice(8,12)}-${s.slice(12,14)}`;
+}
+function toggleSelecionarTodos(master){
+  document.querySelectorAll("#rows input.rowchk").forEach(cb=>cb.checked=master.checked);
+}
+function onLinhaChk(cb){
+  if(!cb.checked) $("chk_all").checked = false;
 }
 function copiarCnpj(cnpj, el){
   navigator.clipboard?.writeText(cnpj);
@@ -740,8 +768,10 @@ function fechar(){
 function exportar(fmt){ window.location = `/export/empresas.${fmt}?`+query().toString(); }
 function limpar(){
   ["f_texto","f_cnpj","f_socio","f_capmin","f_capmax"].forEach(id=>$(id).value="");
-  ["f_segmento","f_municipio","f_porte","f_regime","f_pendencia"].forEach(id=>$(id).value="");
+  ["f_segmento","f_porte","f_regime","f_pendencia"].forEach(id=>$(id).value="");
   ["f_tel","f_email","f_wpp","f_rede","f_proc","f_sanc","f_amb","f_div","f_escravo","f_cepim","f_lenienc","f_contratos","f_renuncia","f_imune","f_habilitado"].forEach(id=>$(id).checked=false);
+  document.querySelectorAll("#f_municipio_group input").forEach(cb=>cb.checked=false);
+  document.querySelectorAll(".citychip").forEach(c=>c.classList.remove("active"));
   $("f_ordem").value="razao_social"; buscar(true);
 }
 document.addEventListener("keydown",e=>{ if(e.key==="Escape")fechar(); });

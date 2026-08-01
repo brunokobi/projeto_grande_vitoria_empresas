@@ -139,8 +139,11 @@ def _filtros_sql(*, tem_contato=False, tem_fts=False, tem_contratos=False,
             where.append("e.cnpj LIKE ?")
             params.append(f"%{so_digitos}%")
     if municipio:
-        where.append("e.municipio = ?")
-        params.append(_sem_acento(municipio))
+        valores = municipio if isinstance(municipio, (list, tuple, set)) else [municipio]
+        valores = [_sem_acento(v) for v in valores if v]
+        if valores:
+            where.append(f"e.municipio IN ({','.join('?' for _ in valores)})")
+            params.extend(valores)
     if cnae:
         where.append("(e.cnae_principal = ? OR e.cnae_secundarios LIKE ?)")
         params.extend([cnae, f"%{cnae}%"])
