@@ -52,6 +52,7 @@
     border:1px solid var(--green-dim);display:flex;align-items:center;justify-content:center;font-size:17px}
   .stat .n{font-size:24px;font-weight:700;color:var(--green);font-family:'Courier New',monospace;line-height:1.1}
   .stat .l{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-top:3px}
+  .stat .sub{color:var(--muted);font-size:11px;margin-top:4px;opacity:.8}
   /* layout */
   .grid{display:grid;grid-template-columns:290px 1fr;gap:18px;align-items:start}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
@@ -320,14 +321,16 @@ function query(){
 
 async function initEstat(){
   const s = await (await fetch("/estatisticas")).json();
+  const total = s.total_empresas || 1;
+  const pct = n => (n/total*100).toLocaleString('pt-BR',{maximumFractionDigits:1});
   const cards = [
-    ["🏢","Total de empresas", s.total_empresas, true],
-    ["✉️","Com e-mail", s.empresas_com_email],
-    ["☎️","Com telefone", s.empresas_com_telefone],
-    ["⚠️","Com pendência", s.empresas_com_pendencia],
+    ["🏢","Total de empresas", s.total_empresas, true, "cadastradas na região"],
+    ["✉️","Com e-mail", s.empresas_com_email, false, `${pct(s.empresas_com_email)}% do total`],
+    ["☎️","Com telefone", s.empresas_com_telefone, false, `${pct(s.empresas_com_telefone)}% do total`],
+    ["⚠️","Com pendência", s.empresas_com_pendencia, false, `${pct(s.empresas_com_pendencia)}% do total`],
   ];
-  $("stats").innerHTML = cards.map(([ic,l,n,primary])=>
-    `<div class="stat${primary?' primary':''}"><div class="ic">${ic}</div><div><div class="n">${Number(n).toLocaleString('pt-BR')}</div><div class="l">${l}</div></div></div>`).join("");
+  $("stats").innerHTML = cards.map(([ic,l,n,primary,sub])=>
+    `<div class="stat${primary?' primary':''}"><div class="ic">${ic}</div><div><div class="n">${Number(n).toLocaleString('pt-BR')}</div><div class="l">${l}</div><div class="sub">${sub}</div></div></div>`).join("");
   const mun = $("f_municipio_group");
   mun.innerHTML = Object.keys(s.por_municipio).map(m=>
     `<label class="chk"><input type="checkbox" class="mun-chk" value="${esc(m)}" onchange="onMunicipioChange(this,'${esc(m)}')"> ${esc(m)}<span class="spacer"></span><span class="cnt">${Number(s.por_municipio[m]).toLocaleString('pt-BR')}</span></label>`).join("");
