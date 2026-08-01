@@ -167,7 +167,7 @@ Tudo cruzado pelo **CNPJ**, exclusivamente de **fontes públicas oficiais**:
 Lógica de consulta compartilhada (`src/dataset_queries.py`) entre dashboard, API e MCP — todos leem o SQLite em **somente-leitura**.
 
 ### Dashboard web
-`uvicorn api:app` → **http://localhost:8000**. **Mapa geral** da Grande Vitória (MapLibre GL) com todos os pontos geolocalizados — clique num ponto abre a empresa, e os filtros recortam o mapa. Filtros (segmento CNAE, município, porte, regime, tipo de pendência, **flags de risco**: trabalho escravo/CEPIM/leniência, capital, contato/redes, busca), **visão 360º** por empresa com **cards expansíveis** (processos, dívida, sanção, infração e sócios detalhados) + **mapa por satélite** e **export Excel/PDF**.
+`uvicorn api:app` → **http://localhost:8000**. **Mapa geral** da Grande Vitória (MapLibre GL) com todos os pontos geolocalizados — clique num ponto abre a empresa, chips de cidade e toggle Pontos/Calor, e os filtros recortam o mapa. Filtros (CNPJ, busca, sócio, segmento CNAE, **município com seleção múltipla**, porte, regime, tipo de pendência, **flags de risco**: trabalho escravo/CEPIM/leniência, capital, contato/redes), tabela com colunas ordenáveis e paginação de 15, **visão 360º** por empresa com **cards expansíveis** (processos, dívida, sanção, infração e sócios detalhados) + **mapa por satélite** e **export Excel/PDF**.
 
 > A **classificação de leads** (questionário → score 0–100) segue disponível via API (`GET /classificar`) e MCP (`classificar_empresas`) — só foi tirada temporariamente da interface do dashboard.
 
