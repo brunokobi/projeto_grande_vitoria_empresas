@@ -75,6 +75,7 @@ def filtros_comuns(
     com_renuncia_fiscal: bool = Query(None, description="Só empresas com renúncia fiscal federal (valor R$/ano)"),
     com_imune_isento: bool = Query(None, description="Só empresas imunes/isentas de IRPJ"),
     com_habilitado_beneficio: bool = Query(None, description="Só empresas habilitadas a regime de benefício fiscal"),
+    com_vinculo_politico: bool = Query(None, description="Só empresas com vínculo político do sócio (PEP, candidatura ou doação eleitoral)"),
     capital_min: float = Query(None),
     capital_max: float = Query(None),
     ordenar_por: str = Query("razao_social"),
@@ -89,6 +90,7 @@ def filtros_comuns(
         com_contratos_governamentais=com_contratos_governamentais,
         com_renuncia_fiscal=com_renuncia_fiscal, com_imune_isento=com_imune_isento,
         com_habilitado_beneficio=com_habilitado_beneficio,
+        com_vinculo_politico=com_vinculo_politico,
         capital_min=capital_min, capital_max=capital_max, ordenar_por=ordenar_por,
     )
 

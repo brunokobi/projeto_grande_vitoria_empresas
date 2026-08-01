@@ -59,6 +59,7 @@ def buscar_empresas(
     com_renuncia_fiscal: bool = None,
     com_imune_isento: bool = None,
     com_habilitado_beneficio: bool = None,
+    com_vinculo_politico: bool = None,
     capital_min: float = None,
     capital_max: float = None,
     ordenar_por: str = "razao_social",
@@ -88,6 +89,8 @@ def buscar_empresas(
       igrejas, sindicatos, associações).
     - com_habilitado_beneficio: True exige habilitação a regime de
       benefício fiscal específico (ex.: RET - Incorporação Imobiliária).
+    - com_vinculo_politico: True exige vínculo político do sócio (PEP,
+      candidatura no TSE, ou doação eleitoral pessoal).
     - ordenar_por: razao_social | capital_social | municipio | porte | cnpj.
     - limite (máx. 500) e offset para paginação.
 
@@ -105,6 +108,7 @@ def buscar_empresas(
         com_contratos_governamentais=com_contratos_governamentais,
         com_renuncia_fiscal=com_renuncia_fiscal, com_imune_isento=com_imune_isento,
         com_habilitado_beneficio=com_habilitado_beneficio,
+        com_vinculo_politico=com_vinculo_politico,
         capital_min=capital_min, capital_max=capital_max, ordenar_por=ordenar_por,
         limite=limite, offset=offset,
     )

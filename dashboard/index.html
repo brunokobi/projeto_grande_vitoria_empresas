@@ -223,6 +223,7 @@
       <label class="chk"><input type="checkbox" id="f_renuncia"> 💰 Renúncia fiscal federal</label>
       <label class="chk"><input type="checkbox" id="f_imune"> ⛪ Imune/isenta de IRPJ</label>
       <label class="chk"><input type="checkbox" id="f_habilitado"> 🏗️ Habilitada a benefício fiscal</label>
+      <label class="chk"><input type="checkbox" id="f_vinculo"> 🏛️ Vínculo político (sócio)</label>
       <div class="row2">
         <div><label class="f">Capital mín. (R$)</label><input id="f_capmin" type="number" min="0"></div>
         <div><label class="f">Capital máx. (R$)</label><input id="f_capmax" type="number" min="0"></div>
@@ -315,6 +316,7 @@ function query(){
   if($("f_renuncia").checked) p.set("com_renuncia_fiscal","true");
   if($("f_imune").checked) p.set("com_imune_isento","true");
   if($("f_habilitado").checked) p.set("com_habilitado_beneficio","true");
+  if($("f_vinculo").checked) p.set("com_vinculo_politico","true");
   add("ordenar_por",$("f_ordem").value);
   return p;
 }
@@ -689,6 +691,27 @@ function renderBeneficios(arr){
   }).join("");
   return `<div class="sec">💰 Benefícios e renúncias fiscais (${arr.length})</div>${cards}`;
 }
+const _FONTE_VINCULO = {PEP:"🏅 PEP", TSE_CANDIDATURA:"🗳️ Candidatura", TSE_DOACAO:"💰 Doação eleitoral"};
+function renderVinculos(arr){
+  if(!arr||!arr.length) return "";
+  const cards = arr.map(x=>{
+    const kv=(k,v)=>v?`<div><span class="k">${k}</span><span class="val">${v}</span></div>`:"";
+    const rotulo = _FONTE_VINCULO[x.fonte]||x.fonte;
+    return `<details class="divida">
+      <summary><span class="tag warn">${rotulo}</span> <b>${esc(x.nome_socio_vinculado||"")}</b>
+        ${x.ano?`<span style="color:var(--muted)">${esc(x.ano)}</span>`:""}</summary>
+      <div class="divida-det">
+        ${kv("Sócio", esc(x.nome_socio_vinculado))}
+        ${kv("Cargo/função", esc(x.cargo_ou_funcao))}
+        ${kv("Órgão/partido", esc(x.orgao_ou_partido))}
+        ${kv("Ano", esc(x.ano))}
+        ${kv("Situação", esc(x.situacao))}
+        ${kv("Detalhe", esc(x.detalhe))}
+      </div>
+    </details>`;
+  }).join("");
+  return `<div class="sec">🏛️ Vínculos políticos (${arr.length})</div>${cards}`;
+}
 async function abrir(cnpj){
   $("overlay").classList.add("open");
   $("modal").innerHTML = `<div class="body loading">carregando empresa...</div>`;
@@ -757,6 +780,7 @@ async function abrir(cnpj){
       ${renderInfracoes(d.infracoes_ambientais)}
       ${renderContratos(d.contratos_governamentais)}
       ${renderBeneficios(d.beneficios_fiscais)}
+      ${renderVinculos(d.vinculos_politicos)}
 
       <div class="sec">&#128205; Localiza&ccedil;&atilde;o</div>
       ${mapaEmbed(e, d.geolocalizacao)}
@@ -772,7 +796,7 @@ function exportar(fmt){ window.location = `/export/empresas.${fmt}?`+query().toS
 function limpar(){
   ["f_texto","f_cnpj","f_socio","f_capmin","f_capmax"].forEach(id=>$(id).value="");
   ["f_segmento","f_porte","f_regime","f_pendencia"].forEach(id=>$(id).value="");
-  ["f_tel","f_email","f_wpp","f_rede","f_proc","f_sanc","f_amb","f_div","f_escravo","f_cepim","f_lenienc","f_contratos","f_renuncia","f_imune","f_habilitado"].forEach(id=>$(id).checked=false);
+  ["f_tel","f_email","f_wpp","f_rede","f_proc","f_sanc","f_amb","f_div","f_escravo","f_cepim","f_lenienc","f_contratos","f_renuncia","f_imune","f_habilitado","f_vinculo"].forEach(id=>$(id).checked=false);
   document.querySelectorAll("#f_municipio_group input").forEach(cb=>cb.checked=false);
   document.querySelectorAll(".citychip").forEach(c=>c.classList.remove("active"));
   $("f_ordem").value="razao_social"; buscar(true);
