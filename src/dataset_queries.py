@@ -130,9 +130,14 @@ def _filtros_sql(*, tem_contato=False, tem_fts=False, tem_contratos=False,
                  com_trabalho_escravo=None, com_cepim=None, com_leniencia=None,
                  com_contratos_governamentais=None,
                  com_renuncia_fiscal=None, com_imune_isento=None, com_habilitado_beneficio=None,
-                 socio=None):
+                 socio=None, cnpj=None):
     """Monta a cláusula WHERE (sobre o alias `e` = empresas) e os parâmetros."""
     where, params = [], []
+    if cnpj:
+        so_digitos = "".join(c for c in str(cnpj) if c.isdigit())
+        if so_digitos:
+            where.append("e.cnpj LIKE ?")
+            params.append(f"%{so_digitos}%")
     if municipio:
         where.append("e.municipio = ?")
         params.append(_sem_acento(municipio))
@@ -260,6 +265,22 @@ def estatisticas() -> dict:
         if _tabela_existe(conn, "beneficios_fiscais"):
             satelites["beneficios_fiscais"] = conn.execute(
                 "SELECT COUNT(*) FROM beneficios_fiscais").fetchone()[0]
+        # Empresas DISTINTAS com pelo menos 1 registro em cada tabela satélite —
+        # é o número que bate com o resultado real do filtro (ex.: com_processos),
+        # diferente de `registros_por_tabela` (que conta linhas, uma empresa pode
+        # ter várias).
+        empresas_por_flag = {}
+        for chave, tabela in (
+            ("processos_judiciais", "processos_judiciais"),
+            ("sancoes_administrativas", "sancoes_administrativas"),
+            ("infracoes_ambientais", "infracoes_ambientais"),
+            ("dividas_ativas", "dividas_ativas"),
+        ):
+            empresas_por_flag[chave] = conn.execute(
+                f"SELECT COUNT(DISTINCT cnpj_empresa) FROM {tabela}").fetchone()[0]
+        if _tabela_existe(conn, "contratos_governamentais"):
+            empresas_por_flag["contratos_governamentais"] = conn.execute(
+                "SELECT COUNT(DISTINCT cnpj_empresa) FROM contratos_governamentais").fetchone()[0]
     return {
         "total_empresas": total,
         "por_municipio": por_municipio,
@@ -269,6 +290,7 @@ def estatisticas() -> dict:
         "empresas_com_email": com_email,
         "empresas_com_pendencia": com_pendencia,
         "registros_por_tabela": satelites,
+        "empresas_por_flag": empresas_por_flag,
     }
 
 
@@ -293,7 +315,7 @@ def buscar_empresas(municipio=None, cnae=None, cnae_prefix=None, porte=None,
                     com_leniencia=None, com_contratos_governamentais=None,
                     com_renuncia_fiscal=None, com_imune_isento=None,
                     com_habilitado_beneficio=None,
-                    socio=None, ordenar_por="razao_social",
+                    socio=None, cnpj=None, ordenar_por="razao_social",
                     limite=50, offset=0) -> dict:
     """Busca empresas com filtros combináveis. Retorna {'total','itens',...}."""
     ordem = ordenar_por if ordenar_por in _ORDENAR_POR else "razao_social"
@@ -318,7 +340,7 @@ def buscar_empresas(municipio=None, cnae=None, cnae_prefix=None, porte=None,
             com_leniencia=com_leniencia, com_contratos_governamentais=com_contratos_governamentais,
             com_renuncia_fiscal=com_renuncia_fiscal, com_imune_isento=com_imune_isento,
             com_habilitado_beneficio=com_habilitado_beneficio,
-            socio=socio)
+            socio=socio, cnpj=cnpj)
         total = conn.execute(f"SELECT COUNT(*) FROM empresas e{where_sql}", params).fetchone()[0]
         rows = conn.execute(
             f"SELECT e.cnpj, e.razao_social, e.nome_fantasia, e.cnae_principal, e.porte, "

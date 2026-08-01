@@ -25,6 +25,12 @@
   header{position:sticky;top:0;z-index:20;background:rgba(4,6,10,.92);
     border-bottom:1px solid var(--line);backdrop-filter:blur(6px);
     padding:14px 22px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand-icon{width:38px;height:38px;border-radius:10px;flex:none;
+    background:linear-gradient(160deg,var(--green-dim),var(--green-deep));
+    color:#04060a;display:flex;align-items:center;justify-content:center;
+    font-weight:800;font-size:15px;font-family:'Courier New',monospace;
+    box-shadow:0 0 14px rgba(0,255,136,.35)}
   .logo{font-family:'Courier New',monospace;font-weight:bold;font-size:18px;
     letter-spacing:1px;color:var(--green);text-shadow:0 0 12px rgba(0,255,136,.5)}
   .logo small{color:var(--muted);font-size:11px;letter-spacing:2px;display:block;font-weight:normal}
@@ -36,12 +42,16 @@
   .btn.ghost{background:transparent}
   main{max-width:1500px;margin:0 auto;padding:20px}
   /* stat cards */
-  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:18px}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:18px}
   .stat{background:linear-gradient(160deg,var(--panel),var(--bg2));border:1px solid var(--line);
-    border-radius:12px;padding:16px 18px;position:relative;overflow:hidden}
+    border-radius:12px;padding:16px 18px;position:relative;overflow:hidden;
+    display:flex;align-items:center;gap:14px}
   .stat::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--green)}
-  .stat .n{font-size:26px;font-weight:700;color:var(--green);font-family:'Courier New',monospace}
-  .stat .l{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-top:4px}
+  .stat.primary{border-color:var(--green-dim);box-shadow:0 0 20px rgba(0,255,136,.12)}
+  .stat .ic{width:38px;height:38px;border-radius:9px;flex:none;background:var(--green-deep);
+    border:1px solid var(--green-dim);display:flex;align-items:center;justify-content:center;font-size:17px}
+  .stat .n{font-size:24px;font-weight:700;color:var(--green);font-family:'Courier New',monospace;line-height:1.1}
+  .stat .l{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-top:3px}
   /* layout */
   .grid{display:grid;grid-template-columns:290px 1fr;gap:18px;align-items:start}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
@@ -54,6 +64,25 @@
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
   .chk{display:flex;align-items:center;gap:8px;margin:9px 0;font-size:13px;color:var(--text);cursor:pointer}
   .chk input{width:auto}
+  .chk .spacer{flex:1}
+  .chk .cnt{color:var(--muted);font-size:11px;font-family:'Courier New',monospace}
+  .citychip{background:var(--bg2);border:1px solid var(--line);color:var(--text);
+    padding:6px 13px;border-radius:8px;font-size:12px;cursor:pointer;transition:.15s}
+  .citychip:hover,.citychip.active{background:var(--green-deep);border-color:var(--green-dim);color:var(--green)}
+  .maptoggle{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .maptoggle button{background:var(--bg2);color:var(--muted);border:none;padding:6px 12px;
+    font-size:12px;cursor:pointer;font-weight:600}
+  .maptoggle button.active{background:var(--green-deep);color:var(--green)}
+  th.sortable{cursor:pointer;user-select:none}
+  th.sortable:hover{color:var(--green)}
+  th.sortable .arrow{opacity:.35;margin-left:3px}
+  th.sortable.active .arrow{opacity:1;color:var(--green)}
+  .iconbtn{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;
+    border-radius:7px;background:var(--bg2);border:1px solid var(--line);color:var(--green);
+    text-decoration:none;font-size:12px;cursor:pointer}
+  .iconbtn:hover{background:var(--green-deep);border-color:var(--green-dim)}
+  .pager button.pagenum{min-width:34px}
+  .pager button.pagenum.active{background:var(--green-dim);color:#04060a}
   /* table */
   .toolbar{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
   .toolbar .count{color:var(--muted);font-size:13px}
@@ -125,11 +154,15 @@
 </head>
 <body>
 <header>
-  <div class="logo">◢ EMPRESAS · GRANDE VITÓRIA<small>DATASET DE PROSPECÇÃO — ES</small></div>
+  <div class="brand">
+    <div class="brand-icon">GV</div>
+    <div class="logo">EMPRESAS · GRANDE VITÓRIA<small>📍 Espírito Santo · BR</small></div>
+  </div>
   <div class="spacer"></div>
+  <button class="btn ghost" onclick="atualizar()" title="Recarregar dados">↻ Atualizar</button>
   <button class="btn" onclick="exportar('xlsx')">⬇ Excel</button>
   <button class="btn" onclick="exportar('pdf')">⬇ PDF</button>
-  <a class="btn" href="https://github.com/brunokobi/projeto_grande_vitoria_empresas" target="_blank" rel="noopener" style="text-decoration:none">🐙 GitHub</a>
+  <a class="btn ghost" href="https://github.com/brunokobi/projeto_grande_vitoria_empresas" target="_blank" rel="noopener" style="text-decoration:none">🐙 GitHub</a>
 </header>
 
 <main>
@@ -140,7 +173,12 @@
       <span class="count">🗺️ Mapa da Grande Vitória — <b id="mapinfo">carregando…</b></span>
       <div class="spacer" style="flex:1"></div>
       <span style="font-size:11px;color:var(--muted)">🟢 sem pendência · 🔴 com pendência · clique num ponto p/ abrir a empresa</span>
+      <div class="maptoggle">
+        <button id="mt_pontos" class="active" onclick="setMapaModo('pontos')">Pontos</button>
+        <button id="mt_calor" onclick="setMapaModo('calor')">Calor</button>
+      </div>
     </div>
+    <div id="citychips" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"></div>
     <div id="mapa" style="height:440px;border-radius:10px;overflow:hidden"></div>
   </div>
 
@@ -150,6 +188,8 @@
       <h3>⚙ Filtros</h3>
       <label class="f">Busca (razão social / fantasia)</label>
       <input id="f_texto" placeholder="Ex.: construtora, restaurante...">
+      <label class="f">CNPJ</label>
+      <input id="f_cnpj" placeholder="00.000.000/0000-00">
       <label class="f">Sócio (nome)</label>
       <input id="f_socio" placeholder="Ex.: nome de um sócio">
       <label class="f">Segmento</label>
@@ -166,14 +206,15 @@
         <option value="false">Sem pendência (mais "limpas")</option>
         <option value="true">Com pendência (qualquer)</option>
       </select>
-      <label class="chk"><input type="checkbox" id="f_proc"> 📂 Com processos judiciais</label>
-      <label class="chk"><input type="checkbox" id="f_sanc"> 🚫 Com sanções</label>
-      <label class="chk"><input type="checkbox" id="f_amb"> 🌱 Com infração ambiental</label>
-      <label class="chk"><input type="checkbox" id="f_div"> 💸 Com dívida ativa</label>
+      <label class="f">Situação cadastral</label>
+      <label class="chk"><input type="checkbox" id="f_proc"> 📂 Com processos judiciais<span class="spacer"></span><span class="cnt" id="cnt_proc"></span></label>
+      <label class="chk"><input type="checkbox" id="f_sanc"> 🚫 Com sanções<span class="spacer"></span><span class="cnt" id="cnt_sanc"></span></label>
+      <label class="chk"><input type="checkbox" id="f_amb"> 🌱 Com infração ambiental<span class="spacer"></span><span class="cnt" id="cnt_amb"></span></label>
+      <label class="chk"><input type="checkbox" id="f_div"> 💸 Com dívida ativa<span class="spacer"></span><span class="cnt" id="cnt_div"></span></label>
       <label class="chk"><input type="checkbox" id="f_escravo"> ⛓️ Trabalho escravo (Lista Suja)</label>
       <label class="chk"><input type="checkbox" id="f_cepim"> ⛔ CEPIM (impedidas de verba federal)</label>
       <label class="chk"><input type="checkbox" id="f_lenienc"> 🤝 Acordo de leniência</label>
-      <label class="chk"><input type="checkbox" id="f_contratos"> 📄 Contratos com órgãos públicos</label>
+      <label class="chk"><input type="checkbox" id="f_contratos"> 📄 Contratos com órgãos públicos<span class="spacer"></span><span class="cnt" id="cnt_contratos"></span></label>
       <label class="chk"><input type="checkbox" id="f_renuncia"> 💰 Renúncia fiscal federal</label>
       <label class="chk"><input type="checkbox" id="f_imune"> ⛪ Imune/isenta de IRPJ</label>
       <label class="chk"><input type="checkbox" id="f_habilitado"> 🏗️ Habilitada a benefício fiscal</label>
@@ -208,7 +249,10 @@
       <div style="overflow-x:auto">
         <table>
           <thead><tr>
-            <th>Razão social</th><th>Município</th><th>Atividade</th><th>Porte</th>
+            <th class="sortable active" data-ord="razao_social" onclick="ordenarPor('razao_social')">Razão social <span class="arrow">⇅</span></th>
+            <th class="sortable" data-ord="municipio" onclick="ordenarPor('municipio')">Município <span class="arrow">⇅</span></th>
+            <th>Atividade</th>
+            <th class="sortable" data-ord="porte" onclick="ordenarPor('porte')">Porte <span class="arrow">⇅</span></th>
             <th>Contato</th><th>Situação</th>
           </tr></thead>
           <tbody id="rows"></tbody>
@@ -240,6 +284,7 @@ function query(){
   const p = new URLSearchParams();
   const add=(k,v)=>{ if(v!==""&&v!=null&&v!==false) p.set(k,v); };
   add("texto",$("f_texto").value.trim());
+  add("cnpj",$("f_cnpj").value.trim());
   add("socio",$("f_socio").value.trim());
   add("cnae_prefix",$("f_segmento").value);
   add("municipio",$("f_municipio").value);
@@ -270,19 +315,42 @@ function query(){
 async function initEstat(){
   const s = await (await fetch("/estatisticas")).json();
   const cards = [
-    ["Total de empresas", s.total_empresas],
-    ["Com e-mail", s.empresas_com_email],
-    ["Com telefone", s.empresas_com_telefone],
-    ["Com pendência", s.empresas_com_pendencia],
+    ["🏢","Total de empresas", s.total_empresas, true],
+    ["✉️","Com e-mail", s.empresas_com_email],
+    ["☎️","Com telefone", s.empresas_com_telefone],
+    ["⚠️","Com pendência", s.empresas_com_pendencia],
   ];
-  $("stats").innerHTML = cards.map(([l,n])=>
-    `<div class="stat"><div class="n">${Number(n).toLocaleString('pt-BR')}</div><div class="l">${l}</div></div>`).join("");
+  $("stats").innerHTML = cards.map(([ic,l,n,primary])=>
+    `<div class="stat${primary?' primary':''}"><div class="ic">${ic}</div><div><div class="n">${Number(n).toLocaleString('pt-BR')}</div><div class="l">${l}</div></div></div>`).join("");
   const mun = $("f_municipio");
   Object.keys(s.por_municipio).forEach(m=> mun.innerHTML += `<option value="${esc(m)}">${esc(m)} (${s.por_municipio[m]})</option>`);
   const pt = $("f_porte");
   Object.keys(s.por_porte).forEach(p=> pt.innerHTML += `<option value="${esc(p)}">${esc(PORTE[p]||p)}</option>`);
   const rg = $("f_regime");
   Object.keys(s.por_regime_tributario).forEach(r=> rg.innerHTML += `<option value="${esc(r)}">${esc(r)}</option>`);
+  const pf = s.empresas_por_flag||{};
+  const setCnt = (id,n)=>{ const el=$(id); if(el&&n!=null) el.textContent = Number(n).toLocaleString('pt-BR'); };
+  setCnt("cnt_proc", pf.processos_judiciais);
+  setCnt("cnt_sanc", pf.sancoes_administrativas);
+  setCnt("cnt_amb", pf.infracoes_ambientais);
+  setCnt("cnt_div", pf.dividas_ativas);
+  setCnt("cnt_contratos", pf.contratos_governamentais);
+  const chips = $("citychips");
+  chips.innerHTML = Object.keys(s.por_municipio).map(m=>
+    `<span class="citychip" id="chip_${esc(m)}" onclick="filtrarCidade('${esc(m)}')">${esc(m)}</span>`).join("");
+}
+function filtrarCidade(m){
+  const atual = $("f_municipio").value;
+  $("f_municipio").value = (atual===m) ? "" : m;
+  document.querySelectorAll(".citychip").forEach(c=>c.classList.remove("active"));
+  if($("f_municipio").value) $("chip_"+m)?.classList.add("active");
+  buscar(true);
+}
+function atualizar(){ initEstat(); buscar(true); }
+function ordenarPor(campo){
+  $("f_ordem").value = campo;
+  document.querySelectorAll("th.sortable").forEach(th=>th.classList.toggle("active", th.dataset.ord===campo));
+  buscar(true);
 }
 
 async function initSegmentos(){
@@ -301,7 +369,11 @@ async function buscar(reset){
   $("total").textContent = r.total.toLocaleString('pt-BR');
   $("vazio").style.display = r.itens.length? "none":"block";
   $("rows").innerHTML = r.itens.map(e=>{
-    const contato = [e.telefone?"☎":"", e.email?"✉":""].filter(Boolean).join(" ")||"—";
+    const contato = [
+      e.telefone?`<a class="iconbtn" href="tel:${esc(e.telefone)}" onclick="event.stopPropagation()" title="${esc(e.telefone)}">☎</a>`:"",
+      e.email?`<a class="iconbtn" href="mailto:${esc(e.email)}" onclick="event.stopPropagation()" title="${esc(e.email)}">✉</a>`:"",
+      `<span class="iconbtn" onclick="event.stopPropagation();copiarCnpj('${e.cnpj}',this)" title="Copiar CNPJ">⧉</span>`,
+    ].filter(Boolean).join(" ")||"—";
     const sit = e.tem_pendencia? `<span class="tag pend">pendência</span>`:`<span class="tag ok">ok</span>`;
     const nome = esc(e.razao_social||e.nome_fantasia||"(sem nome)");
     return `<tr onclick="abrir('${e.cnpj}')">
@@ -310,10 +382,20 @@ async function buscar(reset){
       <td>${esc(PORTE[e.porte]||e.porte||"—")}</td><td>${contato}</td><td>${sit}</td></tr>`;
   }).join("");
   const tp = Math.ceil(r.total/PP);
-  $("pager").innerHTML = r.total? `
+  if(!r.total){ $("pager").innerHTML=""; return; }
+  let nums = "";
+  const ini = Math.max(0, pagina-2), fim = Math.min(tp-1, pagina+2);
+  for(let i=ini;i<=fim;i++) nums += `<button class="btn ghost pagenum${i===pagina?' active':''}" onclick="pagina=${i};buscar()">${i+1}</button>`;
+  $("pager").innerHTML = `
     <button class="btn ghost" ${pagina<=0?"disabled":""} onclick="pagina--;buscar()">‹ Anterior</button>
-    <span class="count">página ${pagina+1} de ${tp||1}</span>
-    <button class="btn ghost" ${pagina>=tp-1?"disabled":""} onclick="pagina++;buscar()">Próxima ›</button>`:"";
+    ${nums}
+    <span class="count">de ${tp.toLocaleString('pt-BR')}</span>
+    <button class="btn ghost" ${pagina>=tp-1?"disabled":""} onclick="pagina++;buscar()">Próxima ›</button>`;
+}
+function copiarCnpj(cnpj, el){
+  navigator.clipboard?.writeText(cnpj);
+  const orig = el.textContent; el.textContent = "✓";
+  setTimeout(()=>{ el.textContent = orig; }, 900);
 }
 
 function fmtData(v){
@@ -657,13 +739,13 @@ function fechar(){
 }
 function exportar(fmt){ window.location = `/export/empresas.${fmt}?`+query().toString(); }
 function limpar(){
-  ["f_texto","f_socio","f_capmin","f_capmax"].forEach(id=>$(id).value="");
+  ["f_texto","f_cnpj","f_socio","f_capmin","f_capmax"].forEach(id=>$(id).value="");
   ["f_segmento","f_municipio","f_porte","f_regime","f_pendencia"].forEach(id=>$(id).value="");
   ["f_tel","f_email","f_wpp","f_rede","f_proc","f_sanc","f_amb","f_div","f_escravo","f_cepim","f_lenienc","f_contratos","f_renuncia","f_imune","f_habilitado"].forEach(id=>$(id).checked=false);
   $("f_ordem").value="razao_social"; buscar(true);
 }
 document.addEventListener("keydown",e=>{ if(e.key==="Escape")fechar(); });
-["f_texto","f_socio","f_capmin","f_capmax"].forEach(id=>
+["f_texto","f_cnpj","f_socio","f_capmin","f_capmax"].forEach(id=>
   $(id).addEventListener("keydown",e=>{ if(e.key==="Enter")buscar(true); }));
 
 let MAPA=null, MAPA_READY=false, _pendentes=null;
@@ -701,6 +783,14 @@ function initMapa(){
         "circle-stroke-width":1, "circle-stroke-color":"#0b3d1a",
         "circle-color":["case",["get","pend"],"#ff5470","#39ff14"],
         "circle-opacity":0.85}});
+    MAPA.addLayer({id:"calor", type:"heatmap", source:"empresas", layout:{visibility:"none"},
+      paint:{
+        "heatmap-weight":1,
+        "heatmap-intensity":["interpolate",["linear"],["zoom"], 8,1, 15,3],
+        "heatmap-radius":["interpolate",["linear"],["zoom"], 8,8, 15,26],
+        "heatmap-color":["interpolate",["linear"],["heatmap-density"],
+          0,"rgba(0,0,0,0)", 0.2,"#0a3d28", 0.4,"#12b866", 0.7,"#00ff88", 1,"#ffcf4d"],
+        "heatmap-opacity":0.8}});
     MAPA.on("click","ponto",(e)=>{ const p=e.features[0].properties; if(p.cnpj) abrir(p.cnpj); });
     MAPA.on("mouseenter","ponto",(e)=>{ MAPA.getCanvas().style.cursor="pointer";
       popup.setLngLat(e.features[0].geometry.coordinates.slice()).setText(e.features[0].properties.nome).addTo(MAPA); });
@@ -708,6 +798,13 @@ function initMapa(){
     MAPA_READY=true;
     if(_pendentes){ MAPA.getSource("empresas").setData(_pendentes); _pendentes=null; }
   });
+}
+function setMapaModo(modo){
+  if(!MAPA_READY) return;
+  MAPA.setLayoutProperty("ponto","visibility", modo==="pontos"?"visible":"none");
+  MAPA.setLayoutProperty("calor","visibility", modo==="calor"?"visible":"none");
+  $("mt_pontos").classList.toggle("active", modo==="pontos");
+  $("mt_calor").classList.toggle("active", modo==="calor");
 }
 async function carregarMapa(){
   if(!MAPA) return;

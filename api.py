@@ -51,6 +51,7 @@ DASHBOARD_HTML = config.BASE_DIR / "dashboard" / "index.html"
 # Filtros compartilhados entre /empresas e os exports
 # --------------------------------------------------------------------------
 def filtros_comuns(
+    cnpj: str = Query(None, description="Busca por CNPJ (aceita com ou sem máscara)"),
     municipio: str = Query(None),
     cnae: str = Query(None),
     cnae_prefix: str = Query(None, description="Prefixo CNAE = segmento (2 dígitos)"),
@@ -79,7 +80,7 @@ def filtros_comuns(
     ordenar_por: str = Query("razao_social"),
 ) -> dict:
     return dict(
-        municipio=municipio, cnae=cnae, cnae_prefix=cnae_prefix, porte=porte,
+        cnpj=cnpj, municipio=municipio, cnae=cnae, cnae_prefix=cnae_prefix, porte=porte,
         regime_tributario=regime_tributario, texto=texto, socio=socio, tem_pendencia=tem_pendencia,
         com_telefone=com_telefone, com_email=com_email, com_whatsapp=com_whatsapp,
         com_rede_social=com_rede_social, com_processos=com_processos,
