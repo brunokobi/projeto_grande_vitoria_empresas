@@ -94,7 +94,7 @@
   .toolbar .count b{color:var(--green);font-family:'Courier New',monospace;font-size:16px}
   table{width:100%;border-collapse:collapse;font-size:13px}
   th{text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px;
-    padding:10px;border-bottom:1px solid var(--line);background:var(--panel)}
+    padding:10px;border-bottom:1px solid var(--line);background:var(--panel);white-space:nowrap;vertical-align:middle}
   td{padding:10px;border-bottom:1px solid #0c1a12}
   tbody tr{cursor:pointer;transition:.1s}
   tbody tr:hover{background:rgba(0,255,136,.06)}
@@ -382,11 +382,11 @@ async function buscar(reset){
   $("total").textContent = r.total.toLocaleString('pt-BR');
   $("vazio").style.display = r.itens.length? "none":"block";
   $("rows").innerHTML = r.itens.map(e=>{
-    const contato = [
+    const contato = `<span style="display:inline-flex;gap:6px;white-space:nowrap">` + [
       e.email?`<a class="iconbtn" href="mailto:${esc(e.email)}" onclick="event.stopPropagation()" title="${esc(e.email)}">✉</a>`:`<span class="iconbtn off" title="Sem e-mail">✉</span>`,
       e.telefone?`<a class="iconbtn" href="tel:${esc(e.telefone)}" onclick="event.stopPropagation()" title="${esc(e.telefone)}">☎</a>`:`<span class="iconbtn off" title="Sem telefone">☎</span>`,
       `<span class="iconbtn" onclick="event.stopPropagation();copiarCnpj('${e.cnpj}',this)" title="Copiar CNPJ">⧉</span>`,
-    ].join(" ");
+    ].join("") + `</span>`;
     const sit = e.tem_pendencia? `<span class="tag pend">Pendência</span>`:`<span class="tag ok">Ativo</span>`;
     const porteCls = e.porte==="01"?"ok":e.porte==="03"?"warn":"default";
     const porte = `<span class="tag ${porteCls}">${esc(PORTE[e.porte]||e.porte||"—")}</span>`;
