@@ -503,9 +503,12 @@ async function initMapaModal(geo, e){
   const cont = document.getElementById("mapa_modal");
   if(!cont) return;
   if(_modalMap){ try{ _modalMap.remove(); }catch(_){} _modalMap=null; }
-  let lat=null, lng=null, aprox=false;
-  if(geo && geo.latitude && geo.longitude){ lat=+geo.latitude; lng=+geo.longitude; }
-  else {
+  let lat=null, lng=null, aprox=false, motivoAprox="pelo endereço";
+  if(geo && geo.latitude && geo.longitude){
+    lat=+geo.latitude; lng=+geo.longitude;
+    if(geo.precisao==="cep"){ aprox=true; motivoAprox="pelo CEP"; }
+    else if(geo.precisao==="bairro"){ aprox=true; motivoAprox="pelo bairro"; }
+  } else {
     // sem coordenadas da etapa geo → geocodifica o endereço na hora (Nominatim/OSM, grátis)
     cont.innerHTML = `<div class="mapamsg">buscando o endere&ccedil;o no mapa…</div>`;
     const q = [e.logradouro, e.numero, e.bairro, e.cep, e.municipio, e.uf, "Brasil"].filter(Boolean).join(", ");
@@ -516,12 +519,12 @@ async function initMapaModal(geo, e){
     if(lat==null){ cont.innerHTML = `<div class="mapamsg">N&atilde;o foi poss&iacute;vel localizar o endere&ccedil;o no mapa. Use "Abrir no Google Maps" abaixo.</div>`; return; }
   }
   cont.innerHTML = "";
-  _modalMap = new maplibregl.Map({container:"mapa_modal", style:_ESTILO_SAT, center:[lng,lat], zoom: aprox?16:17, cooperativeGestures:true, locale:_LOCALE_MAPA});
+  _modalMap = new maplibregl.Map({container:"mapa_modal", style:_ESTILO_SAT, center:[lng,lat], zoom: aprox?15:17, cooperativeGestures:true, locale:_LOCALE_MAPA});
   _modalMap.addControl(new maplibregl.NavigationControl(), "top-right");
   new maplibregl.Marker({color: aprox?"#f5a623":"#39ff14"}).setLngLat([lng,lat]).addTo(_modalMap);
   if(aprox){
     cont.style.position="relative";
-    const b=document.createElement("div"); b.className="mapaprox"; b.textContent="📍 aprox. pelo endereço";
+    const b=document.createElement("div"); b.className="mapaprox"; b.textContent=`📍 aprox. ${motivoAprox}`;
     cont.appendChild(b);
   }
 }

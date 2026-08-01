@@ -97,6 +97,10 @@ def _tabela_existe(conn, nome: str) -> bool:
     ).fetchone() is not None
 
 
+def _coluna_existe(conn, tabela: str, coluna: str) -> bool:
+    return any(r[1] == coluna for r in conn.execute(f"PRAGMA table_info({tabela})"))
+
+
 def _fts_query(texto: str) -> str:
     """Converte texto livre numa query FTS5 (prefixo de cada palavra, AND
     implícito) — ex.: 'cyber suite' -> 'cyber* suite*'. Cada termo é escapado
@@ -390,9 +394,10 @@ def pontos_mapa(limite=20000, **filtros):
         base = ("FROM empresas e JOIN enriquecimento_places ep "
                 "ON ep.cnpj_empresa = e.cnpj WHERE " + cond)
         total = conn.execute(f"SELECT COUNT(*) {base}", params).fetchone()[0]
+        col_precisao = "ep.precisao" if _coluna_existe(conn, "enriquecimento_places", "precisao") else "NULL AS precisao"
         rows = conn.execute(
             f"SELECT e.cnpj, e.razao_social, e.nome_fantasia, e.municipio, "
-            f"ep.latitude AS lat, ep.longitude AS lng, {_PENDENCIA_EXPR} AS tem_pendencia "
+            f"ep.latitude AS lat, ep.longitude AS lng, {col_precisao}, {_PENDENCIA_EXPR} AS tem_pendencia "
             f"{base} LIMIT ?", params + [limite]).fetchall()
     return {"total": total, "limite": limite, "pontos": [dict(r) for r in rows]}
 
@@ -632,8 +637,9 @@ def obter_empresa(cnpj: str) -> dict:
                 "SELECT tipo, ano, valor, tipo_entidade, beneficio_fiscal, base_legal, "
                 "inicio_habilitacao, fim_habilitacao FROM beneficios_fiscais "
                 "WHERE cnpj_empresa = ? ORDER BY ano DESC LIMIT 100", (cnpj,))]
+        col_precisao = "precisao" if _coluna_existe(conn, "enriquecimento_places", "precisao") else "NULL AS precisao"
         geo = conn.execute(
-            "SELECT latitude, longitude FROM enriquecimento_places WHERE cnpj_empresa = ?",
+            f"SELECT latitude, longitude, {col_precisao} FROM enriquecimento_places WHERE cnpj_empresa = ?",
             (cnpj,)).fetchone()
         contato = None
         if _tabela_existe(conn, "enriquecimento_contato"):
