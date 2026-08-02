@@ -368,9 +368,14 @@ async function initEstat(){
   chips.innerHTML = Object.keys(s.por_municipio).map(m=>
     `<span class="citychip" id="chip_${esc(m)}" onclick="filtrarCidade('${esc(m)}')">${esc(m)}</span>`).join("");
 }
+let _buscarTimer = null;
+function buscarDebounced(){
+  clearTimeout(_buscarTimer);
+  _buscarTimer = setTimeout(()=>buscar(true), 300);
+}
 function onMunicipioChange(cb, m){
   $("chip_"+m)?.classList.toggle("active", cb.checked);
-  buscar(true);
+  buscarDebounced();
 }
 function filtrarCidade(m){
   const cb = document.querySelector(`#f_municipio_group input[value="${m}"]`);
