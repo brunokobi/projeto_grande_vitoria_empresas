@@ -155,7 +155,11 @@ Tudo cruzado pelo **CNPJ**, exclusivamente de **fontes públicas oficiais**:
 | **OpenStreetMap / Nominatim** | Geolocalização (mapa; fallback por endereço) | 🚧 |
 | **DJEN / CNJ** (Comunica API) | Processos judiciais (por nome da parte) | 🚧 |
 | **CGU** — Portal da Transparência | **Contratos com órgãos públicos federais** (objeto, valor, vigência) | ✅ |
-| **CGU** — Portal da Transparência | **Renúncias/Benefícios Fiscais** (valor por ano, imunidade/isenção IRPJ, habilitação) | ✅ |
+| **PNCP** (Portal Nacional de Contratações Públicas) | **Contratos municipais, estaduais e federais** (unificados desde 2023 — cobertura bem maior que o Portal da Transparência) | ✅ |
+| **CGU** — Portal da Transparência | **Renúncias/Benefícios Fiscais federais** (valor por ano, imunidade/isenção IRPJ, habilitação) | ✅ |
+| **SEDES-ES** — Programa COMPETE-ES | **Incentivo fiscal de ICMS estadual** (portaria de habilitação, vigência, exclusão) | ✅ |
+| **INPI** | **Marcas registradas** (sinal indireto de atividade/inovação) | ✅ |
+| **TSE** | **Vínculo político do sócio** — candidaturas e doações eleitorais declaradas (cruzado por nome+CPF mascarado) | ✅ |
 | IEMA-ES · RAIS/CAGED | Ambiental estadual · nº de empregados | 🔭 planejado |
 
 > A construção/atualização do dataset é feita por um pipeline de extração mantido em repositório separado. Este é o **produto de consumo**.
@@ -175,7 +179,7 @@ Lógica de consulta compartilhada (`src/dataset_queries.py`) entre dashboard, AP
 
 ### API REST (FastAPI) — docs em `/docs`
 - `GET /estatisticas` · `GET /segmentos`
-- `GET /empresas` — busca com filtros (município, `cnae_prefix`, porte, regime, `socio` (nome), `tem_pendencia`, `com_processos`/`com_sancoes`/`com_ambiental`/`com_divida`, `com_trabalho_escravo`/`com_cepim`/`com_leniencia`/`com_contratos_governamentais`/`com_renuncia_fiscal`/`com_imune_isento`/`com_habilitado_beneficio`, `com_telefone`/`com_email`/`com_whatsapp`/`com_rede_social`, capital, ordenação, paginação)
+- `GET /empresas` — busca com filtros (município, `cnae_prefix`, porte, regime, `socio` (nome), `tem_pendencia`, `com_processos`/`com_sancoes`/`com_ambiental`/`com_divida`, `com_trabalho_escravo`/`com_cepim`/`com_leniencia`/`com_contratos_governamentais`/`com_contrato_pncp`/`com_renuncia_fiscal`/`com_imune_isento`/`com_habilitado_beneficio`/`com_incentivo_estadual`/`com_marca_registrada`/`com_vinculo_politico`, `com_telefone`/`com_email`/`com_whatsapp`/`com_rede_social`, capital, ordenação, paginação)
 - `GET /empresas/perto` — busca por **raio (km) a partir de um ponto** (`lat`/`lon`), ordenado por distância, combinável com os mesmos filtros de `/empresas`
 - `GET /mapa` — pontos geolocalizados (lat/lng) com os mesmos filtros, para o mapa
 - `GET /empresas/{cnpj}` — visão 360º (cadastro, sócios+rede, pendências detalhadas, geo)
