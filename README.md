@@ -160,9 +160,8 @@ Tudo cruzado pelo **CNPJ**, exclusivamente de **fontes públicas oficiais**:
 | **SEDES-ES** — Programa COMPETE-ES | **Incentivo fiscal de ICMS estadual** (portaria de habilitação, vigência, exclusão) | ✅ |
 | **INPI** | **Marcas registradas** (sinal indireto de atividade/inovação) | ✅ |
 | **TSE** | **Vínculo político do sócio** — candidaturas e doações eleitorais declaradas (cruzado por nome+CPF mascarado) | ✅ |
-| IEMA-ES · RAIS/CAGED | Ambiental estadual · nº de empregados | 🔭 planejado |
 
-> A construção/atualização do dataset é feita por um pipeline de extração mantido em repositório separado. Este é o **produto de consumo**.
+> A construção/atualização do dataset é feita por um pipeline de extração mantido em repositório separado. Este é o **produto de consumo** — o histórico completo de fontes já testadas (implementadas e descartadas, com o motivo de cada descarte) fica documentado lá, não aqui.
 
 ---
 
