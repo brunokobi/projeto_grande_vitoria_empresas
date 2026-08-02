@@ -123,7 +123,7 @@
     align-items:flex-start;justify-content:center;padding:30px 16px;overflow-y:auto}
   .overlay.open{display:flex}
   .modal{background:var(--panel);border:1px solid var(--green-dim);border-radius:14px;
-    max-width:960px;width:100%;box-shadow:0 0 40px rgba(0,255,136,.15)}
+    max-width:960px;width:100%;box-shadow:0 0 40px rgba(0,255,136,.15);overflow:hidden}
   .modal .top{padding:20px 24px;border-bottom:1px solid var(--line);
     background:linear-gradient(120deg,var(--green-deep),transparent)}
   .modal .top h2{margin:0 0 4px;color:#fff;font-size:20px}
@@ -687,31 +687,33 @@ function renderInfracoes(arr){
   }).join("");
   return `<div class="sec">🌱 Infrações ambientais (${arr.length})</div>${cards}`;
 }
-const _POLO = {ATIVO:"Autor(a) (polo ativo)", PASSIVO:"Réu/Ré (polo passivo)"};
+const _POLO_LABEL = {"Réu":"Réu/Ré", "Autor":"Autor(a)", "Terceiro":"Terceiro"};
 function renderProcessos(arr){
   if(!arr||!arr.length) return "";
   const cards = arr.map(x=>{
     const kv=(k,v)=>v?`<div><span class="k">${k}</span><span class="val">${v}</span></div>`:"";
     const fuzzy = (x.match_confianca||"").toLowerCase()==="fuzzy";
-    const polo = _POLO[(x.polo||"").toUpperCase()] || esc(x.polo);
+    const poloLabel = _POLO_LABEL[x.polo] || esc(x.polo) || "—";
+    const poloTag = x.polo==="Réu" ? `<span class="tag pend">Réu</span>` : `<span class="tag default">${esc(poloLabel)}</span>`;
     const viaSocio = x.nome_socio_vinculado
       ? ` <span class="tag pend" title="Processo pessoal encontrado pelo nome do sócio, não da empresa">via sócio: ${esc(x.nome_socio_vinculado)}</span>`
       : "";
     return `<details class="divida">
       <summary><b>${esc(x.numero_processo||"—")}</b> <span style="color:var(--muted)">${esc(x.tribunal||"")}</span>
+        ${poloTag}
         ${fuzzy?'<span class="tag warn">correspondência aproximada</span>':""}${viaSocio}
         <span style="color:var(--muted)">${idadeTexto(x.data_ultima_movimentacao)}</span></summary>
       <div class="divida-det">
         ${kv("Classe", esc(x.classe))}
         ${kv("Assunto", esc(x.assunto))}
-        ${kv("Posição da empresa", polo)}
+        ${kv("Posição da empresa", poloLabel)}
         ${kv("Situação", esc(x.status))}
         ${kv("Última movimentação", fmtData(x.data_ultima_movimentacao))}
         ${kv("Vínculo", x.nome_socio_vinculado?`Processo pessoal do sócio ${esc(x.nome_socio_vinculado)}, não da empresa diretamente`:"")}
       </div>
     </details>`;
   }).join("");
-  return `<div class="sec">📂 Processos judiciais (${arr.length})</div>${cards}`;
+  return `<div class="sec">📂 Processos judiciais (${arr.length}) <span style="font-size:11px;color:var(--muted);font-weight:normal;text-transform:none;letter-spacing:0">— só conta como pendência quando a empresa é ré</span></div>${cards}`;
 }
 function renderSancoes(arr){
   if(!arr||!arr.length) return "";
@@ -913,7 +915,7 @@ async function abrir(cnpj){
 
       <div class="sec">&#9878; Situa&ccedil;&atilde;o jur&iacute;dico-fiscal</div>
       <div class="statgrid">
-        ${statTile("&#9878;&#65039;", rz.qtd_processos, "Processos judiciais")}
+        ${statTile("&#9878;&#65039;", rz.qtd_processos, "Processos judiciais", (rz.qtd_processos_re||0)>0)}
         ${statTile("&#128683;", rz.qtd_sancoes, "Sanções")}
         ${statTile("&#127793;", rz.qtd_infracoes_ambientais, "Infrações ambientais")}
       </div>
@@ -962,7 +964,7 @@ function abrirSobre(){
         <div class="item"><b>CEIS/CNEP</b> (CGU) — sanções federais, incluindo Lista Suja do trabalho escravo (MTE), CEPIM e acordos de leniência</div>
         <div class="item"><b>TCEES</b> — sanções do Tribunal de Contas do Espírito Santo</div>
         <div class="item"><b>IBAMA</b> — infrações ambientais</div>
-        <div class="item"><b>DJEN/CNJ</b> (Comunica API do PJe) — processos judiciais, localizados pelo nome da empresa (a API pública do DataJud não expõe as partes por CNPJ)</div>
+        <div class="item"><b>DJEN/CNJ</b> (Comunica API do PJe) — processos judiciais, localizados pelo nome da empresa (a API pública do DataJud não expõe as partes por CNPJ). Só conta como pendência quando a empresa aparece como <b>ré</b> — sendo autora (ex.: cobrando uma dívida) não é tratado como risco</div>
       </div>
       <div class="sec">Contratos públicos e propriedade intelectual</div>
       <div class="lista">

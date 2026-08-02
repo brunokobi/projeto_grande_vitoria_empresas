@@ -117,7 +117,10 @@ _ORDENAR_POR = {"razao_social", "capital_social", "municipio", "porte", "cnpj"}
 # Expressão de pendência jurídico-fiscal (empresa tem registro em qualquer
 # tabela satélite). Usada tanto como filtro quanto como coluna calculada.
 _PENDENCIA_EXPR = (
-    "(EXISTS (SELECT 1 FROM processos_judiciais p WHERE p.cnpj_empresa = e.cnpj) "
+    # Processo judicial só conta como pendência quando a empresa é RÉ — sendo
+    # autora (ex.: cobrando uma dívida) não é um passivo/risco para quem
+    # avalia a empresa como prospect.
+    "(EXISTS (SELECT 1 FROM processos_judiciais p WHERE p.cnpj_empresa = e.cnpj AND p.polo = 'Réu') "
     "OR EXISTS (SELECT 1 FROM sancoes_administrativas s WHERE s.cnpj_empresa = e.cnpj) "
     "OR EXISTS (SELECT 1 FROM infracoes_ambientais i WHERE i.cnpj_empresa = e.cnpj) "
     "OR EXISTS (SELECT 1 FROM dividas_ativas d WHERE d.cnpj_empresa = e.cnpj))"
@@ -194,7 +197,8 @@ def _filtros_sql(*, tem_contato=False, tem_fts=False, tem_contratos=False,
         where.append("NOT " + _PENDENCIA_EXPR)
     # Filtros por tipo específico de pendência jurídico-fiscal.
     if com_processos:
-        where.append("EXISTS (SELECT 1 FROM processos_judiciais p WHERE p.cnpj_empresa = e.cnpj)")
+        # Só conta como pendência quando a empresa é ré — ver _PENDENCIA_EXPR.
+        where.append("EXISTS (SELECT 1 FROM processos_judiciais p WHERE p.cnpj_empresa = e.cnpj AND p.polo = 'Réu')")
     if com_sancoes:
         where.append("EXISTS (SELECT 1 FROM sancoes_administrativas s WHERE s.cnpj_empresa = e.cnpj)")
     if com_ambiental:
@@ -303,8 +307,12 @@ def estatisticas() -> dict:
         # diferente de `registros_por_tabela` (que conta linhas, uma empresa pode
         # ter várias).
         empresas_por_flag = {}
+        # Processo judicial só conta como pendência quando a empresa é ré
+        # (ver _PENDENCIA_EXPR) — sendo autora não é um risco/passivo.
+        empresas_por_flag["processos_judiciais"] = conn.execute(
+            "SELECT COUNT(DISTINCT cnpj_empresa) FROM processos_judiciais "
+            "WHERE polo = 'Réu'").fetchone()[0]
         for chave, tabela in (
-            ("processos_judiciais", "processos_judiciais"),
             ("sancoes_administrativas", "sancoes_administrativas"),
             ("infracoes_ambientais", "infracoes_ambientais"),
             ("dividas_ativas", "dividas_ativas"),
@@ -670,6 +678,7 @@ def obter_empresa(cnpj: str) -> dict:
             "data_ultima_movimentacao, match_confianca, nome_socio_vinculado "
             "FROM processos_judiciais WHERE cnpj_empresa = ? "
             "ORDER BY data_ultima_movimentacao DESC LIMIT 100", (cnpj,))]
+        processos_re = [p for p in processos if p.get("polo") == "Réu"]
         sancoes = [dict(r) for r in conn.execute(
             "SELECT tipo, motivo, orgao_sancionador, data_inicio, data_fim, "
             "fundamentacao, numero_processo, ano_processo, numero_deliberacao, ano_deliberacao, "
@@ -746,6 +755,7 @@ def obter_empresa(cnpj: str) -> dict:
         "resumo": {
             "qtd_socios": len(socios),
             "qtd_processos": len(processos),
+            "qtd_processos_re": len(processos_re),
             "qtd_sancoes": len(sancoes),
             "qtd_infracoes_ambientais": len(ambiental),
             "qtd_dividas_ativas": len(dividas),
@@ -755,6 +765,8 @@ def obter_empresa(cnpj: str) -> dict:
             "qtd_contratos_pncp": len(contratos_pncp),
             "qtd_marcas_inpi": len(marcas_inpi),
             "valor_total_divida_ativa": valor_divida,
-            "tem_pendencia_juridica_ou_fiscal": bool(processos or sancoes or ambiental or dividas),
+            # Só conta como pendência quando a empresa é RÉ no processo — ser
+            # autora (ex.: cobrando uma dívida) não é um passivo/risco.
+            "tem_pendencia_juridica_ou_fiscal": bool(processos_re or sancoes or ambiental or dividas),
         },
     }
