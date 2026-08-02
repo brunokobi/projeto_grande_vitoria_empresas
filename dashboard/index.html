@@ -16,6 +16,7 @@
     --amber:#ffcf4d;
   }
   *{box-sizing:border-box}
+  html,body{overflow-x:hidden;max-width:100vw}
   body{margin:0;background:var(--bg);color:var(--text);
     font-family:'Segoe UI',system-ui,sans-serif;font-size:14px;
     background-image:radial-gradient(circle at 20% -10%,rgba(0,255,136,.06),transparent 40%),
@@ -60,6 +61,7 @@
   /* layout */
   .grid{display:grid;grid-template-columns:290px 1fr;gap:18px;align-items:start}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .filtercard{position:sticky;top:80px;max-height:calc(100vh - 96px);overflow-y:auto}
   .card h3{margin:0 0 12px;font-size:13px;letter-spacing:1px;text-transform:uppercase;color:var(--green);
     border-bottom:1px solid var(--line);padding-bottom:8px}
   label.f{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:12px 0 4px}
@@ -158,7 +160,41 @@
     color:var(--muted);font-size:13px;text-align:center;padding:12px}
   .mapaprox{position:absolute;bottom:6px;left:6px;z-index:2;background:#0b1a0f;color:#f5a623;
     border:1px solid #f5a623;border-radius:5px;font-size:11px;padding:2px 6px}
-  @media(max-width:900px){.grid{grid-template-columns:1fr}}
+  @media(max-width:900px){
+    .grid{grid-template-columns:1fr}
+    .filtercard{position:static;max-height:none;overflow-y:visible}
+  }
+  @media(max-width:640px){
+    main{padding:12px}
+    header{padding:10px 12px;gap:6px}
+    header .spacer{flex-basis:100%;height:0}
+    .logo{font-size:14px}
+    .logo small{font-size:9px;letter-spacing:1px}
+    .btn{padding:6px 9px;font-size:12px}
+    .lbl{display:none}
+    .stats{grid-template-columns:1fr;gap:8px}
+    .stat{padding:12px}
+    .stat .n{font-size:19px}
+    #mapa{height:280px !important}
+    .maplegend{display:none}
+    .toolbar{flex-direction:column;align-items:flex-start}
+    .toolbar .spacer{display:none}
+    #citychips{gap:6px !important;flex-wrap:nowrap !important;overflow-x:auto;padding-bottom:4px}
+    .citychip{padding:4px 8px;font-size:10px;flex:none}
+    table{font-size:12px}
+    th,td{padding:8px 6px}
+    .col-chk,.col-atividade{display:none}
+    .overlay{padding:14px 8px}
+    .modal .top{padding:14px 16px}
+    .modal .top h2{font-size:17px}
+    .modal .body{padding:14px}
+    .lista .item{padding:7px 10px;font-size:12.5px}
+    .kv{grid-template-columns:1fr 1fr}
+    .divida-det{grid-template-columns:1fr}
+  }
+  @media(max-width:400px){
+    .kv{grid-template-columns:1fr}
+  }
 </style>
 </head>
 <body>
@@ -168,10 +204,10 @@
     <div class="logo">EMPRESAS · GRANDE VITÓRIA<small>📍 Espírito Santo · BR</small></div>
   </div>
   <div class="spacer"></div>
-  <button class="btn" onclick="atualizar()" title="Recarregar dados">↻ Atualizar</button>
-  <button class="btn" onclick="exportar('xlsx')">⬇ Excel</button>
-  <button class="btn" onclick="exportar('pdf')">⬇ PDF</button>
-  <a class="btn" href="https://github.com/brunokobi/projeto_grande_vitoria_empresas" target="_blank" rel="noopener" style="text-decoration:none">🐙 GitHub</a>
+  <button class="btn" onclick="atualizar()" title="Recarregar dados">↻<span class="lbl"> Atualizar</span></button>
+  <button class="btn" onclick="exportar('xlsx')" title="Exportar Excel">⬇<span class="lbl"> Excel</span></button>
+  <button class="btn" onclick="exportar('pdf')" title="Exportar PDF">⬇<span class="lbl"> PDF</span></button>
+  <a class="btn" href="https://github.com/brunokobi/projeto_grande_vitoria_empresas" target="_blank" rel="noopener" title="Ver no GitHub" style="text-decoration:none">🐙<span class="lbl"> GitHub</span></a>
   <button class="helpbtn" onclick="abrirSobre()" title="Sobre as fontes de dados">?</button>
 </header>
 
@@ -182,7 +218,7 @@
     <div class="toolbar">
       <span class="count">🗺️ Mapa da Grande Vitória — <b id="mapinfo">carregando…</b></span>
       <div class="spacer" style="flex:1"></div>
-      <span style="font-size:11px;color:var(--muted)">🟢 sem pendência · 🔴 com pendência · clique num ponto p/ abrir a empresa</span>
+      <span class="maplegend" style="font-size:11px;color:var(--muted)">🟢 sem pendência · 🔴 com pendência · clique num ponto p/ abrir a empresa</span>
       <div class="maptoggle">
         <button id="mt_pontos" class="active" onclick="setMapaModo('pontos')">Pontos</button>
         <button id="mt_calor" onclick="setMapaModo('calor')">Calor</button>
@@ -194,7 +230,7 @@
 
   <div class="grid">
     <!-- FILTROS -->
-    <div class="card" style="position:sticky;top:80px;max-height:calc(100vh - 96px);overflow-y:auto">
+    <div class="card filtercard">
       <h3>⚙ Filtros</h3>
       <label class="f">Busca (razão social / fantasia)</label>
       <input id="f_texto" placeholder="Ex.: construtora, restaurante...">
@@ -229,6 +265,8 @@
       <label class="chk"><input type="checkbox" id="f_imune"> ⛪ Imune/isenta de IRPJ</label>
       <label class="chk"><input type="checkbox" id="f_habilitado"> 🏗️ Habilitada a benefício fiscal</label>
       <label class="chk"><input type="checkbox" id="f_vinculo"> 🏛️ Vínculo político (sócio)</label>
+      <label class="chk"><input type="checkbox" id="f_pncp"> 📜 Contrato via PNCP</label>
+      <label class="chk"><input type="checkbox" id="f_marca"> ™️ Marca registrada (INPI)</label>
       <div class="row2">
         <div><label class="f">Capital mín. (R$)</label><input id="f_capmin" type="number" min="0"></div>
         <div><label class="f">Capital máx. (R$)</label><input id="f_capmax" type="number" min="0"></div>
@@ -260,13 +298,13 @@
       <div style="overflow-x:auto">
         <table>
           <thead><tr>
-            <th style="width:30px"><input type="checkbox" id="chk_all" onchange="toggleSelecionarTodos(this)"></th>
+            <th class="col-chk" style="width:30px"><input type="checkbox" id="chk_all" onchange="toggleSelecionarTodos(this)"></th>
             <th class="sortable active" data-ord="razao_social" onclick="ordenarPor('razao_social')">Razão social <span class="arrow">⇅</span></th>
             <th class="sortable" data-ord="municipio" onclick="ordenarPor('municipio')">Município <span class="arrow">⇅</span></th>
-            <th>Atividade</th>
+            <th class="col-atividade">Atividade</th>
             <th class="sortable" data-ord="porte" onclick="ordenarPor('porte')">Porte <span class="arrow">⇅</span></th>
             <th>Contatos</th><th>Situação</th>
-            <th style="width:34px"></th>
+            <th class="col-chk" style="width:34px"></th>
           </tr></thead>
           <tbody id="rows"></tbody>
         </table>
@@ -334,6 +372,8 @@ function query(){
   if($("f_imune").checked) p.set("com_imune_isento","true");
   if($("f_habilitado").checked) p.set("com_habilitado_beneficio","true");
   if($("f_vinculo").checked) p.set("com_vinculo_politico","true");
+  if($("f_pncp").checked) p.set("com_contrato_pncp","true");
+  if($("f_marca").checked) p.set("com_marca_registrada","true");
   add("ordenar_por",$("f_ordem").value);
   return p;
 }
@@ -416,11 +456,11 @@ async function buscar(reset){
     const porte = `<span class="tag ${porteCls}">${esc(PORTE[e.porte]||e.porte||"—")}</span>`;
     const nome = esc(e.razao_social||e.nome_fantasia||"(sem nome)");
     return `<tr onclick="abrir('${e.cnpj}')">
-      <td onclick="event.stopPropagation()"><input type="checkbox" class="rowchk" onchange="onLinhaChk(this)"></td>
+      <td class="col-chk" onclick="event.stopPropagation()"><input type="checkbox" class="rowchk" onchange="onLinhaChk(this)"></td>
       <td><b>${nome}</b>${e.nome_fantasia&&e.nome_fantasia!==e.razao_social?`<br><span style="color:var(--muted);font-size:12px">${esc(e.nome_fantasia)}</span>`:""}<br><span class="mono" style="color:var(--muted);font-size:11px">${formatarCnpj(e.cnpj)}</span></td>
-      <td>${esc(e.municipio||"—")}</td><td>${esc(e.cnae_desc||e.cnae_principal||"—")}</td>
+      <td>${esc(e.municipio||"—")}</td><td class="col-atividade">${esc(e.cnae_desc||e.cnae_principal||"—")}</td>
       <td>${porte}</td><td>${contato}</td><td>${sit}</td>
-      <td onclick="event.stopPropagation();abrir('${e.cnpj}')"><span class="iconbtn" title="Abrir">↗</span></td></tr>`;
+      <td class="col-chk" onclick="event.stopPropagation();abrir('${e.cnpj}')"><span class="iconbtn" title="Abrir">↗</span></td></tr>`;
   }).join("");
   $("chk_all").checked = false;
   const tp = Math.ceil(r.total/PP);
@@ -737,6 +777,48 @@ function renderVinculos(arr){
   }).join("");
   return `<div class="sec">🏛️ Vínculos políticos (${arr.length})</div>${cards}`;
 }
+function renderContratosPncp(arr){
+  if(!arr||!arr.length) return "";
+  const cards = arr.map(x=>{
+    const kv=(k,v)=>v?`<div><span class="k">${k}</span><span class="val">${v}</span></div>`:"";
+    const valor = x.valor_global||x.valor_inicial;
+    return `<details class="divida">
+      <summary><b>${valor?fmtBRL(valor):"valor n/d"}</b> <span style="color:var(--muted)">${esc(x.orgao_nome||"")}</span>
+        ${x.data_assinatura?`<span style="color:var(--muted)">${fmtData(x.data_assinatura)}</span>`:""}</summary>
+      <div class="divida-det">
+        ${kv("Objeto", esc((x.objeto||"").slice(0,300)))}
+        ${kv("Órgão", esc(x.orgao_nome))}
+        ${kv("Unidade", esc(x.unidade_nome))}
+        ${kv("Local", [x.municipio,x.uf].filter(Boolean).join("/"))}
+        ${kv("Categoria", esc(x.categoria))}
+        ${kv("Nº controle PNCP", x.numero_controle_pncp?`<span class="mono">${esc(x.numero_controle_pncp)}</span>`:"")}
+        ${kv("Assinatura", fmtData(x.data_assinatura))}
+        ${kv("Vigência", [fmtData(x.data_inicio_vigencia),fmtData(x.data_fim_vigencia)].filter(Boolean).join(" — "))}
+        ${kv("Valor inicial", x.valor_inicial?fmtBRL(x.valor_inicial):"")}
+        ${kv("Valor global", x.valor_global?fmtBRL(x.valor_global):"")}
+      </div>
+    </details>`;
+  }).join("");
+  return `<div class="sec">📜 Contratos via PNCP (${arr.length})</div>${cards}`;
+}
+function renderMarcas(arr){
+  if(!arr||!arr.length) return "";
+  const cards = arr.map(x=>{
+    const kv=(k,v)=>v?`<div><span class="k">${k}</span><span class="val">${v}</span></div>`:"";
+    return `<details class="divida">
+      <summary><b>${esc(x.nome_marca||"(sem nome)")}</b> <span style="color:var(--muted)">${esc(x.situacao||"")}</span></summary>
+      <div class="divida-det">
+        ${kv("Marca", esc(x.nome_marca))}
+        ${kv("Situação", esc(x.situacao))}
+        ${kv("Nº INPI", x.numero_inpi?`<span class="mono">${esc(x.numero_inpi)}</span>`:"")}
+        ${kv("Depósito", fmtData(x.data_deposito))}
+        ${kv("Concessão", fmtData(x.data_concessao))}
+        ${kv("Vigência até", fmtData(x.data_vigencia))}
+      </div>
+    </details>`;
+  }).join("");
+  return `<div class="sec">™️ Marcas registradas — INPI (${arr.length})</div>${cards}`;
+}
 async function abrir(cnpj){
   $("overlay").classList.add("open");
   $("modal").innerHTML = `<div class="body loading">carregando empresa...</div>`;
@@ -806,6 +888,8 @@ async function abrir(cnpj){
       ${renderContratos(d.contratos_governamentais)}
       ${renderBeneficios(d.beneficios_fiscais)}
       ${renderVinculos(d.vinculos_politicos)}
+      ${renderContratosPncp(d.contratos_pncp)}
+      ${renderMarcas(d.marcas_inpi)}
 
       <div class="sec">&#128205; Localiza&ccedil;&atilde;o</div>
       ${mapaEmbed(e, d.geolocalizacao)}
@@ -840,9 +924,16 @@ function abrirSobre(){
         <div class="item"><b>IBAMA</b> — infrações ambientais</div>
         <div class="item"><b>DJEN/CNJ</b> (Comunica API do PJe) — processos judiciais, localizados pelo nome da empresa (a API pública do DataJud não expõe as partes por CNPJ)</div>
       </div>
-      <div class="sec">Benefícios e contratos públicos</div>
+      <div class="sec">Contratos públicos e propriedade intelectual</div>
       <div class="lista">
-        <div class="item">Contratos com órgãos públicos federais, benefícios/renúncia fiscal e vínculos políticos declarados, quando disponíveis nas bases públicas correspondentes</div>
+        <div class="item"><b>PNCP</b> (Portal Nacional de Contratações Públicas) — contratos municipais, estaduais e federais, unificados numa API só desde 2023</div>
+        <div class="item"><b>Portal da Transparência</b> (Compras.gov) — contratos exclusivamente federais (fonte histórica, mais restrita que o PNCP)</div>
+        <div class="item"><b>INPI</b> — marcas registradas (usado como sinal indireto de atividade/inovação)</div>
+        <div class="item">Benefícios/renúncia fiscal federal e habilitação a regime de benefício, quando disponíveis nas bases públicas correspondentes</div>
+      </div>
+      <div class="sec">Vínculos políticos</div>
+      <div class="lista">
+        <div class="item"><b>TSE</b> — candidaturas e doações eleitorais declaradas por sócios (pessoa exposta politicamente)</div>
       </div>
       <div class="sec">Localização e contato</div>
       <div class="lista">
@@ -858,7 +949,7 @@ function exportar(fmt){ window.location = `/export/empresas.${fmt}?`+query().toS
 function limpar(){
   ["f_texto","f_cnpj","f_socio","f_capmin","f_capmax"].forEach(id=>$(id).value="");
   ["f_segmento","f_porte","f_regime","f_pendencia"].forEach(id=>$(id).value="");
-  ["f_tel","f_email","f_wpp","f_rede","f_proc","f_sanc","f_amb","f_div","f_escravo","f_cepim","f_lenienc","f_contratos","f_renuncia","f_imune","f_habilitado","f_vinculo"].forEach(id=>$(id).checked=false);
+  ["f_tel","f_email","f_wpp","f_rede","f_proc","f_sanc","f_amb","f_div","f_escravo","f_cepim","f_lenienc","f_contratos","f_renuncia","f_imune","f_habilitado","f_vinculo","f_pncp","f_marca"].forEach(id=>$(id).checked=false);
   document.querySelectorAll("#f_municipio_group input").forEach(cb=>cb.checked=false);
   document.querySelectorAll(".citychip").forEach(c=>c.classList.remove("active"));
   $("f_ordem").value="razao_social"; buscar(true);
