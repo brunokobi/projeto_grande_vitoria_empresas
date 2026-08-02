@@ -60,6 +60,9 @@ def buscar_empresas(
     com_imune_isento: bool = None,
     com_habilitado_beneficio: bool = None,
     com_vinculo_politico: bool = None,
+    com_contrato_pncp: bool = None,
+    com_marca_registrada: bool = None,
+    com_incentivo_estadual: bool = None,
     capital_min: float = None,
     capital_max: float = None,
     ordenar_por: str = "razao_social",
@@ -91,6 +94,12 @@ def buscar_empresas(
       benefício fiscal específico (ex.: RET - Incorporação Imobiliária).
     - com_vinculo_politico: True exige vínculo político do sócio (PEP,
       candidatura no TSE, ou doação eleitoral pessoal).
+    - com_contrato_pncp: True exige contrato via PNCP (Portal Nacional de
+      Contratações Públicas — municipal/estadual/federal, cobertura bem
+      mais ampla que com_contratos_governamentais, que é só federal).
+    - com_marca_registrada: True exige marca registrada no INPI.
+    - com_incentivo_estadual: True exige incentivo fiscal de ICMS estadual
+      (Programa COMPETE-ES).
     - ordenar_por: razao_social | capital_social | municipio | porte | cnpj.
     - limite (máx. 500) e offset para paginação.
 
@@ -109,6 +118,8 @@ def buscar_empresas(
         com_renuncia_fiscal=com_renuncia_fiscal, com_imune_isento=com_imune_isento,
         com_habilitado_beneficio=com_habilitado_beneficio,
         com_vinculo_politico=com_vinculo_politico,
+        com_contrato_pncp=com_contrato_pncp, com_marca_registrada=com_marca_registrada,
+        com_incentivo_estadual=com_incentivo_estadual,
         capital_min=capital_min, capital_max=capital_max, ordenar_por=ordenar_por,
         limite=limite, offset=offset,
     )
@@ -160,10 +171,11 @@ def obter_empresa(cnpj: str) -> dict:
     """Visão 360º de uma empresa pelo CNPJ (14 dígitos): dados cadastrais,
     sócios, complemento JUCEES, geolocalização, todas as pendências
     (processos, sanções, infrações ambientais, dívida ativa), vínculos
-    políticos de sócios (PEP, candidaturas do TSE), contratos com órgãos
-    públicos federais e benefícios/renúncias fiscais (renúncia fiscal por
-    ano, imunidade/isenção de IRPJ, habilitação a regime de benefício —
-    Portal da Transparência), com um resumo agregado.
+    políticos de sócios (PEP, candidaturas e doações no TSE), contratos com
+    órgãos públicos (federais via Portal da Transparência e municipais/
+    estaduais/federais via PNCP), benefícios/renúncias fiscais (renúncia
+    fiscal por ano, imunidade/isenção de IRPJ, habilitação a regime de
+    benefício) e marcas registradas no INPI, com um resumo agregado.
     Retorna null se o CNPJ não estiver na base."""
     resultado = dataset_queries.obter_empresa(cnpj)
     if resultado is None:

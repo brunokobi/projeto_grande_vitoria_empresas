@@ -76,6 +76,9 @@ def filtros_comuns(
     com_imune_isento: bool = Query(None, description="Só empresas imunes/isentas de IRPJ"),
     com_habilitado_beneficio: bool = Query(None, description="Só empresas habilitadas a regime de benefício fiscal"),
     com_vinculo_politico: bool = Query(None, description="Só empresas com vínculo político do sócio (PEP, candidatura ou doação eleitoral)"),
+    com_contrato_pncp: bool = Query(None, description="Só empresas com contrato via PNCP (municipal/estadual/federal)"),
+    com_marca_registrada: bool = Query(None, description="Só empresas com marca registrada no INPI"),
+    com_incentivo_estadual: bool = Query(None, description="Só empresas com incentivo fiscal de ICMS estadual (COMPETE-ES)"),
     capital_min: float = Query(None),
     capital_max: float = Query(None),
     ordenar_por: str = Query("razao_social"),
@@ -91,6 +94,8 @@ def filtros_comuns(
         com_renuncia_fiscal=com_renuncia_fiscal, com_imune_isento=com_imune_isento,
         com_habilitado_beneficio=com_habilitado_beneficio,
         com_vinculo_politico=com_vinculo_politico,
+        com_contrato_pncp=com_contrato_pncp, com_marca_registrada=com_marca_registrada,
+        com_incentivo_estadual=com_incentivo_estadual,
         capital_min=capital_min, capital_max=capital_max, ordenar_por=ordenar_por,
     )
 

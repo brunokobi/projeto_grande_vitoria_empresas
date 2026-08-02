@@ -125,7 +125,7 @@ _PENDENCIA_EXPR = (
 
 
 def _filtros_sql(*, tem_contato=False, tem_fts=False, tem_contratos=False,
-                 tem_beneficios=False, tem_vinculos=False,
+                 tem_beneficios=False, tem_vinculos=False, tem_pncp=False, tem_marcas=False,
                  municipio=None, cnae=None, cnae_prefix=None,
                  porte=None, regime_tributario=None, texto=None, tem_pendencia=None,
                  com_telefone=None, com_email=None, com_whatsapp=None,
@@ -134,7 +134,8 @@ def _filtros_sql(*, tem_contato=False, tem_fts=False, tem_contratos=False,
                  com_trabalho_escravo=None, com_cepim=None, com_leniencia=None,
                  com_contratos_governamentais=None,
                  com_renuncia_fiscal=None, com_imune_isento=None, com_habilitado_beneficio=None,
-                 com_vinculo_politico=None,
+                 com_vinculo_politico=None, com_contrato_pncp=None, com_marca_registrada=None,
+                 com_incentivo_estadual=None,
                  socio=None, cnpj=None):
     """Monta a cláusula WHERE (sobre o alias `e` = empresas) e os parâmetros."""
     where, params = [], []
@@ -215,7 +216,7 @@ def _filtros_sql(*, tem_contato=False, tem_fts=False, tem_contratos=False,
             where.append("0")  # tabela ainda não existe nesta cópia do dataset → sem resultados
         else:
             where.append("EXISTS (SELECT 1 FROM contratos_governamentais c WHERE c.cnpj_empresa = e.cnpj)")
-    if com_renuncia_fiscal or com_imune_isento or com_habilitado_beneficio:
+    if com_renuncia_fiscal or com_imune_isento or com_habilitado_beneficio or com_incentivo_estadual:
         if not tem_beneficios:
             where.append("0")  # tabela ainda não existe nesta cópia do dataset → sem resultados
         else:
@@ -228,11 +229,24 @@ def _filtros_sql(*, tem_contato=False, tem_fts=False, tem_contratos=False,
             if com_habilitado_beneficio:
                 where.append("EXISTS (SELECT 1 FROM beneficios_fiscais b WHERE b.cnpj_empresa = e.cnpj "
                              "AND b.tipo = 'HABILITADO')")
+            if com_incentivo_estadual:
+                where.append("EXISTS (SELECT 1 FROM beneficios_fiscais b WHERE b.cnpj_empresa = e.cnpj "
+                             "AND b.tipo = 'COMPETE_ES')")
     if com_vinculo_politico:
         if not tem_vinculos:
             where.append("0")  # tabela ainda não existe nesta cópia do dataset → sem resultados
         else:
             where.append("EXISTS (SELECT 1 FROM vinculos_politicos v WHERE v.cnpj_empresa = e.cnpj)")
+    if com_contrato_pncp:
+        if not tem_pncp:
+            where.append("0")  # tabela ainda não existe nesta cópia do dataset → sem resultados
+        else:
+            where.append("EXISTS (SELECT 1 FROM contratos_pncp cp WHERE cp.cnpj_empresa = e.cnpj)")
+    if com_marca_registrada:
+        if not tem_marcas:
+            where.append("0")  # tabela ainda não existe nesta cópia do dataset → sem resultados
+        else:
+            where.append("EXISTS (SELECT 1 FROM marcas_inpi m WHERE m.cnpj_empresa = e.cnpj)")
     if com_whatsapp or com_rede_social:
         if not tem_contato:
             where.append("0")  # etapa `contato` ainda não rodou → sem resultados
@@ -278,6 +292,12 @@ def estatisticas() -> dict:
         if _tabela_existe(conn, "beneficios_fiscais"):
             satelites["beneficios_fiscais"] = conn.execute(
                 "SELECT COUNT(*) FROM beneficios_fiscais").fetchone()[0]
+        if _tabela_existe(conn, "contratos_pncp"):
+            satelites["contratos_pncp"] = conn.execute(
+                "SELECT COUNT(*) FROM contratos_pncp").fetchone()[0]
+        if _tabela_existe(conn, "marcas_inpi"):
+            satelites["marcas_inpi"] = conn.execute(
+                "SELECT COUNT(*) FROM marcas_inpi").fetchone()[0]
         # Empresas DISTINTAS com pelo menos 1 registro em cada tabela satélite —
         # é o número que bate com o resultado real do filtro (ex.: com_processos),
         # diferente de `registros_por_tabela` (que conta linhas, uma empresa pode
@@ -328,6 +348,8 @@ def buscar_empresas(municipio=None, cnae=None, cnae_prefix=None, porte=None,
                     com_leniencia=None, com_contratos_governamentais=None,
                     com_renuncia_fiscal=None, com_imune_isento=None,
                     com_habilitado_beneficio=None, com_vinculo_politico=None,
+                    com_contrato_pncp=None, com_marca_registrada=None,
+                    com_incentivo_estadual=None,
                     socio=None, cnpj=None, ordenar_por="razao_social",
                     limite=50, offset=0) -> dict:
     """Busca empresas com filtros combináveis. Retorna {'total','itens',...}."""
@@ -340,9 +362,12 @@ def buscar_empresas(municipio=None, cnae=None, cnae_prefix=None, porte=None,
         tem_contratos = _tabela_existe(conn, "contratos_governamentais")
         tem_beneficios = _tabela_existe(conn, "beneficios_fiscais")
         tem_vinculos = _tabela_existe(conn, "vinculos_politicos")
+        tem_pncp = _tabela_existe(conn, "contratos_pncp")
+        tem_marcas = _tabela_existe(conn, "marcas_inpi")
         where_sql, params = _filtros_sql(
             tem_contato=tem_contato, tem_fts=tem_fts, tem_contratos=tem_contratos,
             tem_beneficios=tem_beneficios, tem_vinculos=tem_vinculos,
+            tem_pncp=tem_pncp, tem_marcas=tem_marcas,
             municipio=municipio, cnae=cnae,
             cnae_prefix=cnae_prefix, porte=porte, regime_tributario=regime_tributario,
             texto=texto, tem_pendencia=tem_pendencia, com_telefone=com_telefone,
@@ -355,6 +380,8 @@ def buscar_empresas(municipio=None, cnae=None, cnae_prefix=None, porte=None,
             com_renuncia_fiscal=com_renuncia_fiscal, com_imune_isento=com_imune_isento,
             com_habilitado_beneficio=com_habilitado_beneficio,
             com_vinculo_politico=com_vinculo_politico,
+            com_contrato_pncp=com_contrato_pncp, com_marca_registrada=com_marca_registrada,
+            com_incentivo_estadual=com_incentivo_estadual,
             socio=socio, cnpj=cnpj)
         total = conn.execute(f"SELECT COUNT(*) FROM empresas e{where_sql}", params).fetchone()[0]
         rows = conn.execute(
@@ -384,10 +411,13 @@ def pontos_mapa(limite=20000, **filtros):
         tem_contratos = _tabela_existe(conn, "contratos_governamentais")
         tem_beneficios = _tabela_existe(conn, "beneficios_fiscais")
         tem_vinculos = _tabela_existe(conn, "vinculos_politicos")
+        tem_pncp = _tabela_existe(conn, "contratos_pncp")
+        tem_marcas = _tabela_existe(conn, "marcas_inpi")
         where_sql, params = _filtros_sql(tem_contato=tem_contato, tem_fts=tem_fts,
                                           tem_contratos=tem_contratos,
                                           tem_beneficios=tem_beneficios,
-                                          tem_vinculos=tem_vinculos, **filtros)
+                                          tem_vinculos=tem_vinculos, tem_pncp=tem_pncp,
+                                          tem_marcas=tem_marcas, **filtros)
         cond = "ep.latitude IS NOT NULL"
         if where_sql:
             cond += " AND " + where_sql[len(" WHERE "):]
@@ -429,10 +459,13 @@ def buscar_por_raio(lat: float, lon: float, raio_km: float = 5, limite=50, offse
         tem_contratos = _tabela_existe(conn, "contratos_governamentais")
         tem_beneficios = _tabela_existe(conn, "beneficios_fiscais")
         tem_vinculos = _tabela_existe(conn, "vinculos_politicos")
+        tem_pncp = _tabela_existe(conn, "contratos_pncp")
+        tem_marcas = _tabela_existe(conn, "marcas_inpi")
         where_sql, params = _filtros_sql(tem_contato=tem_contato, tem_fts=tem_fts,
                                           tem_contratos=tem_contratos,
                                           tem_beneficios=tem_beneficios,
-                                          tem_vinculos=tem_vinculos, **filtros)
+                                          tem_vinculos=tem_vinculos, tem_pncp=tem_pncp,
+                                          tem_marcas=tem_marcas, **filtros)
         cond = ("ep.latitude BETWEEN ? AND ? AND ep.longitude BETWEEN ? AND ? "
                 "AND distancia_km(?, ?, ep.latitude, ep.longitude) <= ?")
         cond_params = [lat - lat_delta, lat + lat_delta, lon - lon_delta, lon + lon_delta,
@@ -543,10 +576,13 @@ def exportar_empresas(max_linhas=20000, **filtros) -> list:
         tem_contratos = _tabela_existe(conn, "contratos_governamentais")
         tem_beneficios = _tabela_existe(conn, "beneficios_fiscais")
         tem_vinculos = _tabela_existe(conn, "vinculos_politicos")
+        tem_pncp = _tabela_existe(conn, "contratos_pncp")
+        tem_marcas = _tabela_existe(conn, "marcas_inpi")
         where_sql, params = _filtros_sql(tem_contato=tem_contato, tem_fts=tem_fts,
                                           tem_contratos=tem_contratos,
                                           tem_beneficios=tem_beneficios,
-                                          tem_vinculos=tem_vinculos, **filtros)
+                                          tem_vinculos=tem_vinculos, tem_pncp=tem_pncp,
+                                          tem_marcas=tem_marcas, **filtros)
         if tem_contato:
             join = " LEFT JOIN enriquecimento_contato ec ON ec.cnpj_empresa = e.cnpj"
             cols_contato = "ec.whatsapp, ec.site, ec.instagram, ec.facebook, ec.linkedin"
@@ -637,6 +673,19 @@ def obter_empresa(cnpj: str) -> dict:
                 "SELECT tipo, ano, valor, tipo_entidade, beneficio_fiscal, base_legal, "
                 "inicio_habilitacao, fim_habilitacao FROM beneficios_fiscais "
                 "WHERE cnpj_empresa = ? ORDER BY ano DESC LIMIT 100", (cnpj,))]
+        contratos_pncp = []
+        if _tabela_existe(conn, "contratos_pncp"):
+            contratos_pncp = [dict(r) for r in conn.execute(
+                "SELECT numero_controle_pncp, orgao_nome, unidade_nome, municipio, uf, categoria, "
+                "objeto, data_assinatura, data_inicio_vigencia, data_fim_vigencia, "
+                "valor_inicial, valor_global FROM contratos_pncp "
+                "WHERE cnpj_empresa = ? ORDER BY data_assinatura DESC LIMIT 100", (cnpj,))]
+        marcas_inpi = []
+        if _tabela_existe(conn, "marcas_inpi"):
+            marcas_inpi = [dict(r) for r in conn.execute(
+                "SELECT numero_inpi, nome_marca, situacao, data_deposito, data_concessao, "
+                "data_vigencia FROM marcas_inpi WHERE cnpj_empresa = ? "
+                "ORDER BY data_deposito DESC LIMIT 100", (cnpj,))]
         col_precisao = "precisao" if _coluna_existe(conn, "enriquecimento_places", "precisao") else "NULL AS precisao"
         geo = conn.execute(
             f"SELECT latitude, longitude, {col_precisao} FROM enriquecimento_places WHERE cnpj_empresa = ?",
@@ -663,6 +712,8 @@ def obter_empresa(cnpj: str) -> dict:
         "vinculos_politicos": vinculos_politicos,
         "contratos_governamentais": contratos_governamentais,
         "beneficios_fiscais": beneficios_fiscais,
+        "contratos_pncp": contratos_pncp,
+        "marcas_inpi": marcas_inpi,
         "resumo": {
             "qtd_socios": len(socios),
             "qtd_processos": len(processos),
@@ -672,6 +723,8 @@ def obter_empresa(cnpj: str) -> dict:
             "qtd_vinculos_politicos": len(vinculos_politicos),
             "qtd_contratos_governamentais": len(contratos_governamentais),
             "qtd_beneficios_fiscais": len(beneficios_fiscais),
+            "qtd_contratos_pncp": len(contratos_pncp),
+            "qtd_marcas_inpi": len(marcas_inpi),
             "valor_total_divida_ativa": valor_divida,
             "tem_pendencia_juridica_ou_fiscal": bool(processos or sancoes or ambiental or dividas),
         },

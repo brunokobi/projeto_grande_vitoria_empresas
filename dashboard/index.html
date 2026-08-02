@@ -267,6 +267,7 @@
       <label class="chk"><input type="checkbox" id="f_vinculo"> 🏛️ Vínculo político (sócio)</label>
       <label class="chk"><input type="checkbox" id="f_pncp"> 📜 Contrato via PNCP</label>
       <label class="chk"><input type="checkbox" id="f_marca"> ™️ Marca registrada (INPI)</label>
+      <label class="chk"><input type="checkbox" id="f_incentivo_es"> 💵 Incentivo fiscal ICMS (COMPETE-ES)</label>
       <div class="row2">
         <div><label class="f">Capital mín. (R$)</label><input id="f_capmin" type="number" min="0"></div>
         <div><label class="f">Capital máx. (R$)</label><input id="f_capmax" type="number" min="0"></div>
@@ -374,6 +375,7 @@ function query(){
   if($("f_vinculo").checked) p.set("com_vinculo_politico","true");
   if($("f_pncp").checked) p.set("com_contrato_pncp","true");
   if($("f_marca").checked) p.set("com_marca_registrada","true");
+  if($("f_incentivo_es").checked) p.set("com_incentivo_estadual","true");
   add("ordenar_por",$("f_ordem").value);
   return p;
 }
@@ -732,7 +734,7 @@ function renderContratos(arr){
   }).join("");
   return `<div class="sec">📄 Contratos com órgãos públicos (${arr.length})</div>${cards}`;
 }
-const _TIPO_BENEFICIO = {RENUNCIA:"💰 Renúncia fiscal", IMUNE_ISENTO:"⛪ Imune/isento", HABILITADO:"🏗️ Habilitado a benefício"};
+const _TIPO_BENEFICIO = {RENUNCIA:"💰 Renúncia fiscal", IMUNE_ISENTO:"⛪ Imune/isento", HABILITADO:"🏗️ Habilitado a benefício", COMPETE_ES:"💵 Incentivo ICMS (Compete-ES)"};
 function renderBeneficios(arr){
   if(!arr||!arr.length) return "";
   const cards = arr.map(x=>{
@@ -949,7 +951,7 @@ function exportar(fmt){ window.location = `/export/empresas.${fmt}?`+query().toS
 function limpar(){
   ["f_texto","f_cnpj","f_socio","f_capmin","f_capmax"].forEach(id=>$(id).value="");
   ["f_segmento","f_porte","f_regime","f_pendencia"].forEach(id=>$(id).value="");
-  ["f_tel","f_email","f_wpp","f_rede","f_proc","f_sanc","f_amb","f_div","f_escravo","f_cepim","f_lenienc","f_contratos","f_renuncia","f_imune","f_habilitado","f_vinculo","f_pncp","f_marca"].forEach(id=>$(id).checked=false);
+  ["f_tel","f_email","f_wpp","f_rede","f_proc","f_sanc","f_amb","f_div","f_escravo","f_cepim","f_lenienc","f_contratos","f_renuncia","f_imune","f_habilitado","f_vinculo","f_pncp","f_marca","f_incentivo_es"].forEach(id=>$(id).checked=false);
   document.querySelectorAll("#f_municipio_group input").forEach(cb=>cb.checked=false);
   document.querySelectorAll(".citychip").forEach(c=>c.classList.remove("active"));
   $("f_ordem").value="razao_social"; buscar(true);
