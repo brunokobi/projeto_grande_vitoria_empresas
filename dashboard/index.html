@@ -291,6 +291,18 @@ const PORTE = {"00":"Não informado","01":"Microempresa","03":"Peq. porte (EPP)"
 let pagina = 0; const PP = 15; let ultTotal = 0;
 const $ = id => document.getElementById(id);
 const fmtBRL = v => v==null?"—":Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+
+// Cache de respostas por URL — repetir o mesmo filtro (ou voltar numa página já
+// vista) reaproveita o resultado em vez de refazer a requisição ao servidor.
+const _reqCache = new Map();
+const CACHE_MAX = 100;
+async function fetchJSONCached(url){
+  if(_reqCache.has(url)) return _reqCache.get(url);
+  const data = await (await fetch(url)).json();
+  if(_reqCache.size >= CACHE_MAX) _reqCache.delete(_reqCache.keys().next().value);
+  _reqCache.set(url, data);
+  return data;
+}
 const esc = s => (s==null?"":String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 function query(){
@@ -366,7 +378,7 @@ function filtrarCidade(m){
   cb.checked = !cb.checked;
   onMunicipioChange(cb, m);
 }
-function atualizar(){ initEstat(); buscar(true); }
+function atualizar(){ _reqCache.clear(); initEstat(); buscar(true); }
 function ordenarPor(campo){
   $("f_ordem").value = campo;
   document.querySelectorAll("th.sortable").forEach(th=>th.classList.toggle("active", th.dataset.ord===campo));
@@ -384,7 +396,7 @@ async function buscar(reset){
   const p = query();
   p.set("limite",PP); p.set("offset",pagina*PP);
   $("rows").innerHTML = `<tr><td colspan="8" class="loading">carregando…</td></tr>`;
-  const r = await (await fetch("/empresas?"+p.toString())).json();
+  const r = await fetchJSONCached("/empresas?"+p.toString());
   ultTotal = r.total;
   $("total").textContent = r.total.toLocaleString('pt-BR');
   $("vazio").style.display = r.itens.length? "none":"block";
@@ -723,7 +735,7 @@ function renderVinculos(arr){
 async function abrir(cnpj){
   $("overlay").classList.add("open");
   $("modal").innerHTML = `<div class="body loading">carregando empresa...</div>`;
-  const d = await (await fetch("/empresas/"+cnpj)).json();
+  const d = await fetchJSONCached("/empresas/"+cnpj);
   const e = d.empresa, c = d.contato||{}, j = d.jucees, rz = d.resumo;
   const kv = (icon,k,v)=> `<div><div class="k">${icon} ${k}</div><div class="v">${esc(v)||"-"}</div></div>`;
   const kvRaw = (icon,k,v)=> `<div><div class="k">${icon} ${k}</div><div class="v">${v||"-"}</div></div>`;
@@ -913,7 +925,7 @@ async function carregarMapa(){
   $("mapinfo").textContent = "carregando…";
   let d;
   const p = query(); p.set("limite", 400000);
-  try{ d = await (await fetch("/mapa?"+p.toString())).json(); }
+  try{ d = await fetchJSONCached("/mapa?"+p.toString()); }
   catch(e){ $("mapinfo").textContent = "erro ao carregar o mapa"; return; }
   const fc = {type:"FeatureCollection", features:(d.pontos||[]).map(e=>({
     type:"Feature", geometry:{type:"Point", coordinates:[e.lng, e.lat]},
