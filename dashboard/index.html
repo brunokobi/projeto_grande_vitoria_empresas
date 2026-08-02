@@ -133,6 +133,21 @@
   .badges{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
   .badge{background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:5px 11px;font-size:12px;color:var(--text)}
   .badge b{color:var(--green)}
+  .badge.pill{border-radius:20px;display:inline-flex;align-items:center;gap:5px;font-weight:600}
+  .badge.pill.status-ok{background:rgba(0,255,136,.12);color:var(--green);border-color:var(--green-dim)}
+  .badge.pill.status-warn{background:rgba(255,207,77,.12);color:var(--amber);border-color:var(--amber)}
+  .alertbar{margin-top:10px;padding:9px 14px;border-radius:8px;font-size:13px;font-weight:600;
+    display:flex;align-items:center;gap:8px;background:rgba(255,84,112,.12);
+    border:1px solid var(--danger);color:var(--danger)}
+  .alertbar.ok{background:rgba(0,255,136,.1);border-color:var(--green-dim);color:var(--green)}
+  .statgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:10px 0}
+  .statgrid.wide{grid-template-columns:1fr 1fr}
+  .stattile{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:14px 8px;text-align:center}
+  .stattile .ic{font-size:18px;margin-bottom:6px}
+  .stattile .n{font-size:21px;font-weight:700;font-family:'Courier New',monospace;color:var(--text);line-height:1.1}
+  .stattile .l{font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:5px}
+  .stattile.risk{background:rgba(255,84,112,.08);border-color:var(--danger)}
+  .stattile.risk .n,.stattile.risk .ic{color:var(--danger)}
   .sec{margin:20px 0 8px;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--green);
     border-bottom:1px solid var(--line);padding-bottom:6px}
   .kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
@@ -190,6 +205,8 @@
     .modal .body{padding:14px}
     .lista .item{padding:7px 10px;font-size:12.5px}
     .kv{grid-template-columns:1fr 1fr}
+    .statgrid{grid-template-columns:1fr 1fr}
+    .statgrid.wide{grid-template-columns:1fr}
     .divida-det{grid-template-columns:1fr}
   }
   @media(max-width:400px){
@@ -838,6 +855,12 @@ async function abrir(cnpj){
   const e = d.empresa, c = d.contato||{}, j = d.jucees, rz = d.resumo;
   const kv = (icon,k,v)=> `<div><div class="k">${icon} ${k}</div><div class="v">${esc(v)||"-"}</div></div>`;
   const kvRaw = (icon,k,v)=> `<div><div class="k">${icon} ${k}</div><div class="v">${v||"-"}</div></div>`;
+  const statTile = (icon,n,label,riskOverride)=>{
+    const isNumeric = typeof n === "number";
+    const risk = riskOverride!=null ? riskOverride : (isNumeric && n>0);
+    const display = isNumeric ? Number(n).toLocaleString('pt-BR') : (n||"—");
+    return `<div class="stattile${risk?' risk':''}"><div class="ic">${icon}</div><div class="n">${display}</div><div class="l">${label}</div></div>`;
+  };
   const contatos = [];
   if(e.telefone) contatos.push(`<a href="tel:${esc(e.telefone)}">&#9742; ${esc(e.telefone)}</a>`);
   if(e.email) contatos.push(`<a href="mailto:${esc(e.email)}">&#9993; ${esc(e.email)}</a>`);
@@ -851,22 +874,25 @@ async function abrir(cnpj){
   const cnae = e.cnae_principal_desc
     ? `${esc(e.cnae_principal_desc)} <span style="color:var(--muted)">(${esc(e.cnae_principal)})</span>`
     : esc(e.cnae_principal||"-");
-  const pend = rz.tem_pendencia_juridica_ou_fiscal
-    ? `<span class="tag pend">&#9888; tem pend&ecirc;ncia jur&iacute;dico-fiscal</span>` : `<span class="tag ok">&#10003; sem pend&ecirc;ncias</span>`;
+  const temPend = rz.tem_pendencia_juridica_ou_fiscal;
+  const alertBar = temPend
+    ? `<div class="alertbar">&#9888;&#65039; Pend&ecirc;ncia jur&iacute;dico-fiscal</div>`
+    : `<div class="alertbar ok">&#10003; Sem pend&ecirc;ncias jur&iacute;dico-fiscais</div>`;
+  const situacaoAtiva = /ativ/i.test(e.situacao_cadastral_desc||e.situacao_cadastral||"");
 
   $("modal").innerHTML = `
     <div class="top">
       <span class="close" onclick="fechar()">&#10005;</span>
-      <h2>&#127970; ${esc(e.razao_social||e.nome_fantasia||"-")}</h2>
-      <div class="sub">&#127991; CNPJ <b>${esc(e.cnpj)}</b> ${e.nome_fantasia?"&middot; "+esc(e.nome_fantasia):""}</div>
+      <h2>${esc(e.razao_social||e.nome_fantasia||"-")}</h2>
+      <div class="sub"># ${formatarCnpj(e.cnpj)} ${e.nome_fantasia&&e.nome_fantasia!==e.razao_social?"&middot; "+esc(e.nome_fantasia):""}</div>
       <div class="badges">
-        <span class="badge">&#127991; Porte: <b>${esc(PORTE[e.porte]||e.porte||"-")}</b></span>
-        <span class="badge">&#129534; Regime: <b>${esc(e.regime_tributario||"-")}</b></span>
-        <span class="badge">&#128205; <b>${esc(e.municipio||"-")}</b></span>
-        <span class="badge">&#128176; Capital: <b>${fmtBRL(e.capital_social)}</b></span>
-        <span class="badge">&#9989; <b>${esc(e.situacao_cadastral_desc||e.situacao_cadastral||"-")}</b></span>
-        ${pend}
+        <span class="badge pill">&#127970; ${esc(PORTE[e.porte]||e.porte||"-")}</span>
+        <span class="badge pill">&#9878;&#65039; ${esc(e.regime_tributario||"-")}</span>
+        <span class="badge pill">&#128205; ${esc(e.municipio||"-")}${e.uf?"/"+esc(e.uf):""}</span>
+        <span class="badge pill">&#128176; ${fmtBRL(e.capital_social)}</span>
+        <span class="badge pill ${situacaoAtiva?'status-ok':'status-warn'}">&#9679; ${esc(e.situacao_cadastral_desc||e.situacao_cadastral||"-")}</span>
       </div>
+      ${alertBar}
     </div>
     <div class="body">
       <div class="sec">&#128231; Contato &amp; redes</div>
@@ -886,12 +912,14 @@ async function abrir(cnpj){
       ${renderSocios(d.socios)}
 
       <div class="sec">&#9878; Situa&ccedil;&atilde;o jur&iacute;dico-fiscal</div>
-      <div class="kv">
-        ${kv("&#128194;","Processos judiciais", rz.qtd_processos)}
-        ${kv("&#128683;","San&ccedil;&otilde;es", rz.qtd_sancoes)}
-        ${kv("&#127793;","Infra&ccedil;&otilde;es ambientais", rz.qtd_infracoes_ambientais)}
-        ${kv("&#128209;","D&iacute;vidas ativas", rz.qtd_dividas_ativas)}
-        ${kv("&#128184;","Total em d&iacute;vida ativa", fmtBRL(rz.valor_total_divida_ativa))}
+      <div class="statgrid">
+        ${statTile("&#9878;&#65039;", rz.qtd_processos, "Processos judiciais")}
+        ${statTile("&#128683;", rz.qtd_sancoes, "Sanções")}
+        ${statTile("&#127793;", rz.qtd_infracoes_ambientais, "Infrações ambientais")}
+      </div>
+      <div class="statgrid wide">
+        ${statTile("&#9888;&#65039;", rz.qtd_dividas_ativas, "Dívidas ativas")}
+        ${statTile("&#128293;", fmtBRL(rz.valor_total_divida_ativa), "Total em dívida ativa", (rz.valor_total_divida_ativa||0)>0)}
       </div>
       ${renderProcessos(d.processos_judiciais)}
       ${renderDividas(d.dividas_ativas, e.capital_social)}
