@@ -311,9 +311,38 @@ def estatisticas() -> dict:
         ):
             empresas_por_flag[chave] = conn.execute(
                 f"SELECT COUNT(DISTINCT cnpj_empresa) FROM {tabela}").fetchone()[0]
+        # Subtipos de sanção administrativa (mesma tabela, coluna `tipo`).
+        for chave, tipo in (
+            ("trabalho_escravo", "TRABALHO_ESCRAVO"),
+            ("cepim", "CEPIM"),
+            ("leniencia", "LENIENCIA"),
+        ):
+            empresas_por_flag[chave] = conn.execute(
+                "SELECT COUNT(DISTINCT cnpj_empresa) FROM sancoes_administrativas WHERE tipo = ?",
+                (tipo,)).fetchone()[0]
         if _tabela_existe(conn, "contratos_governamentais"):
             empresas_por_flag["contratos_governamentais"] = conn.execute(
                 "SELECT COUNT(DISTINCT cnpj_empresa) FROM contratos_governamentais").fetchone()[0]
+        if _tabela_existe(conn, "vinculos_politicos"):
+            empresas_por_flag["vinculos_politicos"] = conn.execute(
+                "SELECT COUNT(DISTINCT cnpj_empresa) FROM vinculos_politicos").fetchone()[0]
+        if _tabela_existe(conn, "contratos_pncp"):
+            empresas_por_flag["contratos_pncp"] = conn.execute(
+                "SELECT COUNT(DISTINCT cnpj_empresa) FROM contratos_pncp").fetchone()[0]
+        if _tabela_existe(conn, "marcas_inpi"):
+            empresas_por_flag["marcas_inpi"] = conn.execute(
+                "SELECT COUNT(DISTINCT cnpj_empresa) FROM marcas_inpi").fetchone()[0]
+        if _tabela_existe(conn, "beneficios_fiscais"):
+            # Subtipos de benefício fiscal (mesma tabela, coluna `tipo`).
+            for chave, tipo in (
+                ("renuncia_fiscal", "RENUNCIA"),
+                ("imune_isento", "IMUNE_ISENTO"),
+                ("habilitado_beneficio", "HABILITADO"),
+                ("incentivo_estadual", "COMPETE_ES"),
+            ):
+                empresas_por_flag[chave] = conn.execute(
+                    "SELECT COUNT(DISTINCT cnpj_empresa) FROM beneficios_fiscais WHERE tipo = ?",
+                    (tipo,)).fetchone()[0]
     return {
         "total_empresas": total,
         "por_municipio": por_municipio,
