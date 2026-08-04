@@ -521,6 +521,16 @@ function copiarCnpj(cnpj, el){
   const orig = el.textContent; el.textContent = "✓";
   setTimeout(()=>{ el.textContent = orig; }, 900);
 }
+function linkEmpresa(cnpj){
+  const url = new URL(location.href);
+  url.searchParams.set("empresa", cnpj);
+  return url.toString();
+}
+function copiarLinkEmpresa(cnpj, el){
+  navigator.clipboard?.writeText(linkEmpresa(cnpj));
+  const orig = el.innerHTML; el.innerHTML = "&#10003;";
+  setTimeout(()=>{ el.innerHTML = orig; }, 900);
+}
 
 function fmtData(v){
   if(!v) return "";
@@ -543,6 +553,12 @@ function idadeTexto(v){
   if(meses<12) return `há ${meses} ${meses>1?'meses':'mês'}`;
   const anos=Math.floor(meses/12);
   return `há ${anos} ${anos>1?'anos':'ano'}`;
+}
+function anosEmpresaTexto(v){
+  const d=parseData(v); if(!d) return "";
+  const anos=Math.floor((Date.now()-d.getTime())/(365.25*864e5));
+  if(anos<1) return "novo";
+  return `${anos} ${anos===1?'ano':'anos'}`;
 }
 function ehAjuizada(x){
   const a=(x.ajuizada||"").toUpperCase();
@@ -855,9 +871,14 @@ function renderMarcas(arr){
   }).join("");
   return `<div class="sec">™️ Marcas registradas — INPI (${arr.length})</div>${cards}`;
 }
-async function abrir(cnpj){
+async function abrir(cnpj, viaPopstate){
   $("overlay").classList.add("open");
   $("modal").innerHTML = `<div class="body loading">carregando empresa...</div>`;
+  if(!viaPopstate){
+    const url = new URL(location.href);
+    url.searchParams.set("empresa", cnpj);
+    history.pushState({empresa:cnpj}, "", url);
+  }
   const d = await fetchJSONCached("/empresas/"+cnpj);
   const e = d.empresa, c = d.contato||{}, j = d.jucees, rz = d.resumo;
   const kv = (icon,k,v)=> `<div><div class="k">${icon} ${k}</div><div class="v">${esc(v)||"-"}</div></div>`;
@@ -890,6 +911,7 @@ async function abrir(cnpj){
   $("modal").innerHTML = `
     <div class="top">
       <span class="close" onclick="fechar()">&#10005;</span>
+      <span class="iconbtn" style="float:right;margin-right:8px" onclick="copiarLinkEmpresa('${e.cnpj}',this)" title="Copiar link desta empresa">&#128279;</span>
       <h2>${esc(e.razao_social||e.nome_fantasia||"-")}</h2>
       <div class="sub"># ${formatarCnpj(e.cnpj)} ${e.nome_fantasia&&e.nome_fantasia!==e.razao_social?"&middot; "+esc(e.nome_fantasia):""}</div>
       <div class="badges">
@@ -897,6 +919,7 @@ async function abrir(cnpj){
         <span class="badge pill">&#9878;&#65039; ${esc(e.regime_tributario||"-")}</span>
         <span class="badge pill">&#128205; ${esc(e.municipio||"-")}${e.uf?"/"+esc(e.uf):""}</span>
         <span class="badge pill">&#128176; ${fmtBRL(e.capital_social)}</span>
+        ${e.data_inicio_atividade?`<span class="badge pill" title="Abertura: ${fmtData(e.data_inicio_atividade)}">&#127881; ${anosEmpresaTexto(e.data_inicio_atividade)}</span>`:""}
         <span class="badge pill ${situacaoAtiva?'status-ok':'status-warn'}">&#9679; ${esc(e.situacao_cadastral_desc||e.situacao_cadastral||"-")}</span>
       </div>
       ${alertBar}
@@ -944,9 +967,16 @@ async function abrir(cnpj){
     </div>`;
   initMapaModal(d.geolocalizacao, e);
 }
-function fechar(){
+function fechar(viaPopstate){
   $("overlay").classList.remove("open");
   if(_modalMap){ try{ _modalMap.remove(); }catch(_){} _modalMap=null; }
+  if(!viaPopstate){
+    const url = new URL(location.href);
+    if(url.searchParams.has("empresa")){
+      url.searchParams.delete("empresa");
+      history.pushState({}, "", url);
+    }
+  }
 }
 function abrirSobre(){
   $("overlay").classList.add("open");
@@ -1073,13 +1103,21 @@ async function carregarMapa(){
   catch(e){ $("mapinfo").textContent = "erro ao carregar o mapa"; return; }
   const fc = {type:"FeatureCollection", features:(d.pontos||[]).map(e=>({
     type:"Feature", geometry:{type:"Point", coordinates:[e.lng, e.lat]},
-    properties:{cnpj:e.cnpj, nome:e.razao_social||e.nome_fantasia||e.cnpj, pend: !!e.tem_pendencia}
+    properties:{cnpj:e.cnpj, nome:e.nome, pend: !!e.tem_pendencia}
   }))};
   if(MAPA_READY) MAPA.getSource("empresas").setData(fc); else _pendentes = fc;
   const cap = (d.total>d.limite) ? ` (mostrando ${d.limite.toLocaleString('pt-BR')} de ${d.total.toLocaleString('pt-BR')})` : "";
   $("mapinfo").textContent = `${(d.total||0).toLocaleString('pt-BR')} empresas geolocalizadas${cap}`;
 }
-(async ()=>{ await initEstat(); await initSegmentos(); initMapa(); buscar(true); })();
+window.addEventListener("popstate", ()=>{
+  const cnpj = new URLSearchParams(location.search).get("empresa");
+  if(cnpj) abrir(cnpj, true); else fechar(true);
+});
+(async ()=>{
+  await initEstat(); await initSegmentos(); initMapa(); buscar(true);
+  const cnpjInicial = new URLSearchParams(location.search).get("empresa");
+  if(cnpjInicial) abrir(cnpjInicial, true);
+})();
 </script>
 </body>
 </html>

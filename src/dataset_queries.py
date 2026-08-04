@@ -437,9 +437,10 @@ def buscar_empresas(municipio=None, cnae=None, cnae_prefix=None, porte=None,
 
 def pontos_mapa(limite=20000, **filtros):
     """Empresas geocodificadas (lat/long) que batem nos filtros — para o mapa
-    do dashboard. Retorna {'total', 'limite', 'pontos':[{cnpj,razao_social,
-    nome_fantasia,municipio,lat,lng,tem_pendencia}]}. `total` é quantas batem
-    (pode passar do limite; o mapa mostra até `limite`)."""
+    do dashboard. Retorna {'total', 'limite', 'pontos':[{cnpj,nome,lat,lng,
+    tem_pendencia}]}. `total` é quantas batem (pode passar do limite; o mapa
+    mostra até `limite`). Só traz os campos que o mapa realmente desenha —
+    payload menor, resposta mais rápida no filtro."""
     filtros.pop("ordenar_por", None)
     limite = max(1, min(int(limite), 400000))
     with _conn() as conn:
@@ -461,10 +462,10 @@ def pontos_mapa(limite=20000, **filtros):
         base = ("FROM empresas e JOIN enriquecimento_places ep "
                 "ON ep.cnpj_empresa = e.cnpj WHERE " + cond)
         total = conn.execute(f"SELECT COUNT(*) {base}", params).fetchone()[0]
-        col_precisao = "ep.precisao" if _coluna_existe(conn, "enriquecimento_places", "precisao") else "NULL AS precisao"
         rows = conn.execute(
-            f"SELECT e.cnpj, e.razao_social, e.nome_fantasia, e.municipio, "
-            f"ep.latitude AS lat, ep.longitude AS lng, {col_precisao}, {_PENDENCIA_EXPR} AS tem_pendencia "
+            f"SELECT e.cnpj, "
+            f"COALESCE(NULLIF(e.razao_social,''), NULLIF(e.nome_fantasia,''), e.cnpj) AS nome, "
+            f"ep.latitude AS lat, ep.longitude AS lng, {_PENDENCIA_EXPR} AS tem_pendencia "
             f"{base} LIMIT ?", params + [limite]).fetchall()
     return {"total": total, "limite": limite, "pontos": [dict(r) for r in rows]}
 
