@@ -907,6 +907,8 @@ async function abrir(cnpj, viaPopstate){
     ? `<div class="alertbar">&#9888;&#65039; Pend&ecirc;ncia jur&iacute;dico-fiscal</div>`
     : `<div class="alertbar ok">&#10003; Sem pend&ecirc;ncias jur&iacute;dico-fiscais</div>`;
   const situacaoAtiva = /ativ/i.test(e.situacao_cadastral_desc||e.situacao_cadastral||"");
+  const dataAbertura = (j&&j.data_constituicao) || e.data_situacao;
+  const aberturaAprox = !(j&&j.data_constituicao);
 
   $("modal").innerHTML = `
     <div class="top">
@@ -919,7 +921,7 @@ async function abrir(cnpj, viaPopstate){
         <span class="badge pill">&#9878;&#65039; ${esc(e.regime_tributario||"-")}</span>
         <span class="badge pill">&#128205; ${esc(e.municipio||"-")}${e.uf?"/"+esc(e.uf):""}</span>
         <span class="badge pill">&#128176; ${fmtBRL(e.capital_social)}</span>
-        ${e.data_inicio_atividade?`<span class="badge pill" title="Abertura: ${fmtData(e.data_inicio_atividade)}">&#127881; ${anosEmpresaTexto(e.data_inicio_atividade)}</span>`:""}
+        ${dataAbertura?`<span class="badge pill" title="${aberturaAprox?'Abertura (aprox., data da situação cadastral): ':'Abertura (constituição JUCEES): '}${fmtData(dataAbertura)}">&#127881; ${anosEmpresaTexto(dataAbertura)}</span>`:""}
         <span class="badge pill ${situacaoAtiva?'status-ok':'status-warn'}">&#9679; ${esc(e.situacao_cadastral_desc||e.situacao_cadastral||"-")}</span>
       </div>
       ${alertBar}
