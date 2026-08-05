@@ -681,7 +681,7 @@ def obter_empresa(cnpj: str) -> dict:
             "ORDER BY data_ultima_movimentacao DESC LIMIT 100", (cnpj,))]
         processos_re = [p for p in processos if p.get("polo") == "Réu"]
         sancoes = [dict(r) for r in conn.execute(
-            "SELECT tipo, motivo, orgao_sancionador, data_inicio, data_fim, "
+            "SELECT tipo, motivo, orgao_sancionador, data_inicio, data_fim, valor_multa, "
             "fundamentacao, numero_processo, ano_processo, numero_deliberacao, ano_deliberacao, "
             "nome_socio_vinculado "
             "FROM sancoes_administrativas WHERE cnpj_empresa = ? LIMIT 100", (cnpj,))]
@@ -735,6 +735,14 @@ def obter_empresa(cnpj: str) -> dict:
                 "SELECT whatsapp, site, instagram, facebook, linkedin "
                 "FROM enriquecimento_contato WHERE cnpj_empresa = ?", (cnpj,)).fetchone()
     valor_divida = sum(d["valor"] for d in dividas if d.get("valor"))
+    valor_sancoes = sum(s["valor_multa"] for s in sancoes if s.get("valor_multa"))
+    valor_ambiental = sum(a["valor_multa"] for a in ambiental if a.get("valor_multa"))
+    valor_contratos_gov = sum(
+        (c.get("valor_final") or c.get("valor_inicial") or 0) for c in contratos_governamentais)
+    valor_renuncia = sum(
+        b["valor"] for b in beneficios_fiscais if b.get("tipo") == "RENUNCIA" and b.get("valor"))
+    valor_pncp = sum(
+        (p.get("valor_global") or p.get("valor_inicial") or 0) for p in contratos_pncp)
     emp = dict(empresa)
     emp["cnae_principal_desc"] = cnae_desc(emp.get("cnae_principal"))
     emp["situacao_cadastral_desc"] = situacao_desc(emp.get("situacao_cadastral"))
@@ -766,6 +774,11 @@ def obter_empresa(cnpj: str) -> dict:
             "qtd_contratos_pncp": len(contratos_pncp),
             "qtd_marcas_inpi": len(marcas_inpi),
             "valor_total_divida_ativa": valor_divida,
+            "valor_total_sancoes": valor_sancoes,
+            "valor_total_infracoes_ambientais": valor_ambiental,
+            "valor_total_contratos_governamentais": valor_contratos_gov,
+            "valor_total_renuncia_fiscal": valor_renuncia,
+            "valor_total_contratos_pncp": valor_pncp,
             # Só conta como pendência quando a empresa é RÉ no processo — ser
             # autora (ex.: cobrando uma dívida) não é um passivo/risco.
             "tem_pendencia_juridica_ou_fiscal": bool(processos_re or sancoes or ambiental or dividas),
