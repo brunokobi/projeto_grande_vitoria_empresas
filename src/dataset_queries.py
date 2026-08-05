@@ -53,6 +53,19 @@ def situacao_desc(codigo):
     return _SITUACAO.get(str(codigo or "").strip())
 
 
+def url_jusbrasil(numero_processo) -> str | None:
+    """Monta a URL de busca do Jusbrasil a partir do número do processo,
+    extraindo só os 20 dígitos do padrão CNJ puro — descarta sufixos como
+    "TRT17" que às vezes vêm junto no dado bruto. Mesma lógica usada no
+    botão "Ver Processo" do dashboard (dashboard/index.html)."""
+    if not numero_processo:
+        return None
+    cnj = re.sub(r"\D", "", str(numero_processo))[:20]
+    if not cnj:
+        return None
+    return f"https://www.jusbrasil.com.br/busca?q={cnj}"
+
+
 def _sem_acento(texto: str) -> str:
     if not texto:
         return ""
@@ -679,6 +692,8 @@ def obter_empresa(cnpj: str) -> dict:
             "data_ultima_movimentacao, match_confianca, nome_socio_vinculado "
             "FROM processos_judiciais WHERE cnpj_empresa = ? "
             "ORDER BY data_ultima_movimentacao DESC LIMIT 100", (cnpj,))]
+        for p in processos:
+            p["url_jusbrasil"] = url_jusbrasil(p.get("numero_processo"))
         processos_re = [p for p in processos if p.get("polo") == "Réu"]
         sancoes = [dict(r) for r in conn.execute(
             "SELECT tipo, motivo, orgao_sancionador, data_inicio, data_fim, valor_multa, "
