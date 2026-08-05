@@ -708,10 +708,6 @@ function renderInfracoes(arr){
   return `<div class="sec">🌱 Infrações ambientais (${arr.length})</div>${cards}`;
 }
 const _POLO_LABEL = {"Réu":"Réu/Ré", "Autor":"Autor(a)", "Terceiro":"Terceiro"};
-function getJusbrasilUrl(rawProcessNumber){
-  const cnjOnly = (rawProcessNumber||"").replace(/[^\d]/g,"").slice(0,20);
-  return `https://www.jusbrasil.com.br/busca?q=${cnjOnly}`;
-}
 function renderProcessos(arr){
   if(!arr||!arr.length) return "";
   const cards = arr.map(x=>{
@@ -734,7 +730,7 @@ function renderProcessos(arr){
         ${kv("Situação", esc(x.status))}
         ${kv("Última movimentação", fmtData(x.data_ultima_movimentacao))}
         ${kv("Vínculo", x.nome_socio_vinculado?`Processo pessoal do sócio ${esc(x.nome_socio_vinculado)}, não da empresa diretamente`:"")}
-        ${x.numero_processo?`<a class="maplink" href="${getJusbrasilUrl(x.numero_processo)}" target="_blank" rel="noopener noreferrer">Ver Processo &#8599;</a>`:""}
+        ${x.url_jusbrasil?`<a class="maplink" href="${esc(x.url_jusbrasil)}" target="_blank" rel="noopener noreferrer">Ver Processo &#8599;</a>`:""}
       </div>
     </details>`;
   }).join("");

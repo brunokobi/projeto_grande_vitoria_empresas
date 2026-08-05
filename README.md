@@ -129,7 +129,7 @@ Em desenvolvimento ativo. Estado atual:
 |---|---|
 | 🏢 **Cadastro** | CNPJ, razão social, CNAE (por nome), porte, regime, capital, endereço, situação |
 | 👥 **Sócios + rede** | Quadro societário (nome, qualificação, faixa etária) e **em quais outras empresas o mesmo sócio aparece** |
-| ⚖️ **Situação jurídico-fiscal detalhada** | Dívida ativa (tipo de tributo, ajuizamento, risco), sanções federais/estaduais (fundamentação), infrações IBAMA (valor, gravidade), processos (DJEN) |
+| ⚖️ **Situação jurídico-fiscal detalhada** | Dívida ativa (tipo de tributo, ajuizamento, risco), sanções federais/estaduais (fundamentação, valor da multa), infrações IBAMA (valor, gravidade), processos (DJEN, com **link direto pro Jusbrasil**), contratos públicos e renúncia fiscal — **cards com total em R$ de cada categoria**, só exibidos quando a empresa tem algum resultado |
 | 🚩 **Flags de risco** | **Lista Suja do trabalho escravo** (MTE), **CEPIM** (impedidas de verba federal), **acordos de leniência** — filtráveis |
 | 📄 **Contratos públicos** | Contratos federais (Portal da Transparência): órgão, objeto, valor, vigência |
 | 🗺️ **Mapa interativo** | Mapa geral da Grande Vitória com todos os pontos (clique → empresa) e **satélite** na visão 360º; filtros recortam o mapa |
@@ -170,7 +170,7 @@ Tudo cruzado pelo **CNPJ**, exclusivamente de **fontes públicas oficiais**:
 Lógica de consulta compartilhada (`src/dataset_queries.py`) entre dashboard, API e MCP — todos leem o SQLite em **somente-leitura**.
 
 ### Dashboard web
-`uvicorn api:app` → **http://localhost:8000**. **Mapa geral** da Grande Vitória (MapLibre GL) com todos os pontos geolocalizados — clique num ponto abre a empresa, chips de cidade e toggle Pontos/Calor, e os filtros recortam o mapa. Filtros (CNPJ, busca, sócio, segmento CNAE, **município com seleção múltipla**, porte, regime, tipo de pendência, **flags de risco**: trabalho escravo/CEPIM/leniência, capital, contato/redes), tabela com colunas ordenáveis e paginação de 15, **visão 360º** por empresa com **cards expansíveis** (processos, dívida, sanção, infração e sócios detalhados) + **mapa por satélite** e **export Excel/PDF**.
+`uvicorn api:app` → **http://localhost:8000**. **Mapa geral** da Grande Vitória (MapLibre GL) com todos os pontos geolocalizados — clique num ponto abre a empresa, chips de cidade e toggle Pontos/Calor, e os filtros recortam o mapa (payload enxuto: só os campos que o mapa desenha, sem inflar o JSON a cada filtro aplicado). Filtros (CNPJ, busca, sócio, segmento CNAE, **município com seleção múltipla**, porte, regime, tipo de pendência, **flags de risco**: trabalho escravo/CEPIM/leniência, capital, contato/redes) — cada checkbox de pendência **só aparece quando tem resultado** (some se zerado). **Visão 360º** por empresa com **cards expansíveis** (processos com link direto pro Jusbrasil, dívida, sanção, infração e sócios detalhados), **cards de resumo** cobrindo todas as categorias (quantidade + valor total em R$ quando aplicável, layout que nunca deixa espaço vazio nem passa de 3 linhas), **tag de idade da empresa** (constituição JUCEES ou situação cadastral), **link direto pra empresa via URL** (`?empresa=<cnpj>`, com botão de copiar) + **mapa por satélite** e **export Excel/PDF**.
 
 > A **classificação de leads** (questionário → score 0–100) segue disponível via API (`GET /classificar`) e MCP (`classificar_empresas`) — só foi tirada temporariamente da interface do dashboard.
 
@@ -188,6 +188,8 @@ Lógica de consulta compartilhada (`src/dataset_queries.py`) entre dashboard, AP
 
 ### Servidor MCP
 Ferramentas `estatisticas`, `buscar_empresas`, `buscar_empresas_perto` (busca por raio — aceita coordenada ou um **endereço em texto livre**, geocodificado automaticamente), `obter_empresa`, `classificar_empresas` para o Claude e outros clientes MCP. Duas formas de conectar: **remoto**, direto em `https://empresas.brunokobi.duckdns.org/mcp/` (sem instalar nada); ou **local**, via `.mcp.json` (detectado automaticamente pelo Claude Code após o `setup.sh`).
+
+`obter_empresa` já devolve um `resumo` agregado (mesma lógica dos cards do dashboard) com quantidade **e** valor total em R$ de cada categoria — processos, sanções, infrações ambientais, dívida ativa, contratos públicos, renúncia fiscal e contratos PNCP — além do **link direto pro Jusbrasil** em cada processo (`url_jusbrasil`). É dado suficiente pra pedir ao Claude (ou outro cliente MCP) **"me dá um parecer completo dessa empresa"** e receber uma análise em cima de tudo isso, sem precisar cruzar nada manualmente.
 
 📘 **Tutorial completo de conexão** (Claude Desktop, Claude Code, Cursor, Windsurf, VS Code/Copilot, Cline): **[MCP.md](MCP.md)**.
 
