@@ -754,6 +754,7 @@ function renderSancoes(arr){
       <summary><span class="tag pend">${esc(x.tipo||'Sanção')}</span> <span style="color:var(--muted)">${esc(x.motivo||'')}</span>${viaSocio}</summary>
       <div class="divida-det">
         ${kv("Órgão sancionador", esc(x.orgao_sancionador))}
+        ${kv("Valor da multa", x.valor_multa?fmtBRL(x.valor_multa):"")}
         ${kv("Fundamentação legal", esc(x.fundamentacao))}
         ${kv("Período", periodo)}
         ${kv("Processo", proc)}
@@ -887,11 +888,31 @@ async function abrir(cnpj, viaPopstate){
   const e = d.empresa, c = d.contato||{}, j = d.jucees, rz = d.resumo;
   const kv = (icon,k,v)=> `<div><div class="k">${icon} ${k}</div><div class="v">${esc(v)||"-"}</div></div>`;
   const kvRaw = (icon,k,v)=> `<div><div class="k">${icon} ${k}</div><div class="v">${v||"-"}</div></div>`;
-  const statTile = (icon,n,label,riskOverride)=>{
+  // `bruto` é o valor numérico cru pra decidir se esconde o card (zerado);
+  // pros tiles monetários `n` já chega formatado (fmtBRL), então o "bruto"
+  // tem que vir à parte — pros de contagem simples, `n` já é o bruto.
+  const statTile = (icon,n,label,riskOverride,bruto)=>{
+    const cru = bruto!=null ? bruto : n;
+    if(!(cru>0)) return "";
     const isNumeric = typeof n === "number";
     const risk = riskOverride!=null ? riskOverride : (isNumeric && n>0);
     const display = isNumeric ? Number(n).toLocaleString('pt-BR') : (n||"—");
     return `<div class="stattile${risk?' risk':''}"><div class="ic">${icon}</div><div class="n">${display}</div><div class="l">${label}</div></div>`;
+  };
+  // Monta a grade de cards a partir só dos tiles com resultado (statTile já
+  // devolve "" pros zerados) — nunca deixa coluna vazia nem passa de 3
+  // linhas: calcula quantas colunas cabem em 3 linhas pra essa quantidade
+  // de cards, e usa flexbox (não grid) pra a última linha, se sobrar
+  // incompleta, esticar e preencher em vez de deixar buraco.
+  const statsGrid = (...tiles)=>{
+    const cards = tiles.filter(Boolean);
+    if(!cards.length) return "";
+    // Base de 3 colunas (flex-grow preenche linha incompleta sem buraco);
+    // só passa de 3 quando precisa pra não estourar 3 linhas (n>9).
+    const cols = Math.max(3, Math.ceil(cards.length/3));
+    return `<div class="statgrid" style="display:flex;flex-wrap:wrap;gap:10px">`+
+      cards.map(c=>`<div style="flex:1 1 calc(${(100/cols).toFixed(4)}% - 10px)">${c}</div>`).join("")+
+      `</div>`;
   };
   const contatos = [];
   if(e.telefone) contatos.push(`<a href="tel:${esc(e.telefone)}">&#9742; ${esc(e.telefone)}</a>`);
@@ -948,15 +969,23 @@ async function abrir(cnpj, viaPopstate){
       ${renderSocios(d.socios)}
 
       <div class="sec">&#9878; Situa&ccedil;&atilde;o jur&iacute;dico-fiscal</div>
-      <div class="statgrid">
-        ${statTile("&#9878;&#65039;", rz.qtd_processos, "Processos judiciais", (rz.qtd_processos_re||0)>0)}
-        ${statTile("&#128683;", rz.qtd_sancoes, "Sanções")}
-        ${statTile("&#127793;", rz.qtd_infracoes_ambientais, "Infrações ambientais")}
-      </div>
-      <div class="statgrid wide">
-        ${statTile("&#9888;&#65039;", rz.qtd_dividas_ativas, "Dívidas ativas")}
-        ${statTile("&#128293;", fmtBRL(rz.valor_total_divida_ativa), "Total em dívida ativa", (rz.valor_total_divida_ativa||0)>0)}
-      </div>
+      ${statsGrid(
+        statTile("&#9878;&#65039;", rz.qtd_processos, "Processos judiciais", (rz.qtd_processos_re||0)>0),
+        statTile("&#128683;", rz.qtd_sancoes, "Sanções"),
+        statTile("&#128176;", fmtBRL(rz.valor_total_sancoes), "Total em multas administrativas", true, rz.valor_total_sancoes),
+        statTile("&#127793;", rz.qtd_infracoes_ambientais, "Infrações ambientais"),
+        statTile("&#127793;", fmtBRL(rz.valor_total_infracoes_ambientais), "Total em multas ambientais", true, rz.valor_total_infracoes_ambientais),
+        statTile("&#9888;&#65039;", rz.qtd_dividas_ativas, "Dívidas ativas"),
+        statTile("&#128293;", fmtBRL(rz.valor_total_divida_ativa), "Total em dívida ativa", true, rz.valor_total_divida_ativa),
+        statTile("&#128196;", rz.qtd_contratos_governamentais, "Contratos públicos"),
+        statTile("&#128196;", fmtBRL(rz.valor_total_contratos_governamentais), "Total em contratos públicos", true, rz.valor_total_contratos_governamentais),
+        statTile("&#128176;", rz.qtd_beneficios_fiscais, "Benefícios fiscais"),
+        statTile("&#128176;", fmtBRL(rz.valor_total_renuncia_fiscal), "Total em renúncia fiscal", true, rz.valor_total_renuncia_fiscal),
+        statTile("&#128220;", rz.qtd_contratos_pncp, "Contratos via PNCP"),
+        statTile("&#128220;", fmtBRL(rz.valor_total_contratos_pncp), "Total em contratos PNCP", true, rz.valor_total_contratos_pncp),
+        statTile("&#127963;&#65039;", rz.qtd_vinculos_politicos, "Vínculos políticos"),
+        statTile("&#8482;&#65039;", rz.qtd_marcas_inpi, "Marcas registradas"),
+      )}
       ${renderProcessos(d.processos_judiciais)}
       ${renderDividas(d.dividas_ativas, e.capital_social)}
       ${renderSancoes(d.sancoes_administrativas)}
