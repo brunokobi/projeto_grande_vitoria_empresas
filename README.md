@@ -100,8 +100,8 @@ Em desenvolvimento ativo. Estado atual:
 | **CEPIM** (impedidas de verba federal) · **Acordos de Leniência** (CGU) | ✅ pronto |
 | **Lista Suja do trabalho escravo** (MTE) | ✅ pronto |
 | **Mapa interativo** (MapLibre) + **satélite** na visão 360º | ✅ pronto |
-| Geocodificação (coordenadas de todas as empresas) | 🚧 rodando 24/7 na VPS — **84,5% concluído** (snapshot 02/08/2026) |
-| Processos judiciais (**DJEN/CNJ**, por nome da parte) | 🚧 rodando numa máquina local (ver nota) — **681 mil processos já publicados** |
+| Geocodificação (coordenadas de todas as empresas) | 🚧 rodando 24/7 na VPS — **98,5% concluído** (snapshot 05/08/2026) |
+| Processos judiciais (**DJEN/CNJ**, por nome da parte) | 🚧 rodando numa máquina local (ver nota) — **1,08 milhão de processos já publicados** |
 | Contato & redes sociais (WhatsApp, site, Instagram…) | 🧪 implementado |
 | Dashboard · API · MCP · export Excel/PDF | ✅ funcionais |
 | **Classificação de leads** (via API/MCP) | ✅ funciona — 🚧 removida temporariamente da UI do dashboard |
