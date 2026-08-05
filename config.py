@@ -4,6 +4,7 @@ Configuração do repositório de CONSUMO (dashboard + API + MCP).
 Só o necessário para consultar o dataset. A parte de extração/ETL (fontes,
 chaves, URLs) fica no repositório privado de extração.
 """
+import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -16,6 +17,11 @@ DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 # de API) continuam só no repositório de extração.
 CHECKPOINT_DIR = BASE_DIR / "data" / "checkpoints"
 CHECKPOINT_DIR.mkdir(parents=True, exist_ok=True)
+
+# Notificação de visita no dashboard via Telegram (opcional — se algum dos
+# dois faltar, src/notificar_telegram.py simplesmente não envia nada).
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN") or None
+TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID") or None
 
 # Segmentos de mercado (divisão CNAE = 2 primeiros dígitos do CNAE principal)
 # usados no filtro de "segmento" do dashboard. Ordem por relevância na região.

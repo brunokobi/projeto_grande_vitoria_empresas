@@ -12,11 +12,11 @@ Docs da API: http://localhost:8000/docs
 import contextlib
 import io
 
-from fastapi import FastAPI, HTTPException, Query, Depends
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, Request, Depends
 from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
 
 import config
-from src import dataset_queries, geocode as geocode_lib
+from src import dataset_queries, geocode as geocode_lib, notificar_telegram
 from mcp_server import mcp
 
 # Expõe o mesmo servidor MCP (mcp_server.py) por HTTP em /mcp, além do uso
@@ -104,8 +104,13 @@ def filtros_comuns(
 # Dashboard + API JSON
 # --------------------------------------------------------------------------
 @app.get("/", include_in_schema=False)
-def dashboard():
+def dashboard(request: Request, background_tasks: BackgroundTasks):
     if DASHBOARD_HTML.exists():
+        background_tasks.add_task(
+            notificar_telegram.notificar_visita_dashboard,
+            request.headers.get("x-forwarded-for"),
+            request.client.host if request.client else None,
+        )
         # Sem isso o navegador pode ficar horas sem revalidar com o servidor
         # (heurística padrão de cache), servindo uma versão antiga do
         # dashboard.html mesmo depois de um deploy novo.
