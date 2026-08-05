@@ -351,6 +351,32 @@ def estatisticas() -> dict:
                 empresas_por_flag[chave] = conn.execute(
                     "SELECT COUNT(DISTINCT cnpj_empresa) FROM beneficios_fiscais WHERE tipo = ?",
                     (tipo,)).fetchone()[0]
+
+        # Soma monetária dos flags que carregam valor (multa, dívida,
+        # contrato...) — só pros que fazem sentido; o dashboard usa isso pra
+        # mostrar o total ao lado da contagem no filtro.
+        valor_total_por_flag = {
+            "sancoes_administrativas": conn.execute(
+                "SELECT COALESCE(SUM(valor_multa),0) FROM sancoes_administrativas").fetchone()[0],
+            "infracoes_ambientais": conn.execute(
+                "SELECT COALESCE(SUM(valor_multa),0) FROM infracoes_ambientais").fetchone()[0],
+            "dividas_ativas": conn.execute(
+                "SELECT COALESCE(SUM(valor),0) FROM dividas_ativas").fetchone()[0],
+        }
+        if _tabela_existe(conn, "beneficios_fiscais"):
+            valor_total_por_flag["renuncia_fiscal"] = conn.execute(
+                "SELECT COALESCE(SUM(valor),0) FROM beneficios_fiscais WHERE tipo = 'RENUNCIA'"
+            ).fetchone()[0]
+        if _tabela_existe(conn, "contratos_governamentais"):
+            valor_total_por_flag["contratos_governamentais"] = conn.execute(
+                "SELECT COALESCE(SUM(COALESCE(valor_final, valor_inicial)),0) "
+                "FROM contratos_governamentais"
+            ).fetchone()[0]
+        if _tabela_existe(conn, "contratos_pncp"):
+            valor_total_por_flag["contratos_pncp"] = conn.execute(
+                "SELECT COALESCE(SUM(COALESCE(valor_global, valor_inicial)),0) "
+                "FROM contratos_pncp"
+            ).fetchone()[0]
     return {
         "total_empresas": total,
         "por_municipio": por_municipio,
@@ -361,6 +387,7 @@ def estatisticas() -> dict:
         "empresas_com_pendencia": com_pendencia,
         "registros_por_tabela": satelites,
         "empresas_por_flag": empresas_por_flag,
+        "valor_total_por_flag": valor_total_por_flag,
     }
 
 
