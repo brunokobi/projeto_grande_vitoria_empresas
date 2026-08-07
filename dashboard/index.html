@@ -525,6 +525,13 @@ function copiarCnpj(cnpj, el){
   const orig = el.textContent; el.textContent = "✓";
   setTimeout(()=>{ el.textContent = orig; }, 900);
 }
+function copiarGeo(el){
+  const {lat,lng} = el.dataset;
+  if(lat==null||lng==null) return;
+  navigator.clipboard?.writeText(`${lat}, ${lng}`);
+  const orig = el.innerHTML; el.innerHTML = "&#10003;";
+  setTimeout(()=>{ el.innerHTML = orig; }, 900);
+}
 function linkEmpresa(cnpj){
   const url = new URL(location.href);
   url.searchParams.set("empresa", cnpj);
@@ -624,6 +631,8 @@ async function initMapaModal(geo, e){
     }catch(_){}
     if(lat==null){ cont.innerHTML = `<div class="mapamsg">N&atilde;o foi poss&iacute;vel localizar o endere&ccedil;o no mapa. Use "Abrir no Google Maps" abaixo.</div>`; return; }
   }
+  const btnGeo = document.getElementById("btn_copiar_geo");
+  if(btnGeo){ btnGeo.style.display=""; btnGeo.dataset.lat=lat; btnGeo.dataset.lng=lng; }
   cont.innerHTML = "";
   _modalMap = new maplibregl.Map({container:"mapa_modal", style:_ESTILO_SAT, center:[lng,lat], zoom: aprox?15:17, cooperativeGestures:true, locale:_LOCALE_MAPA});
   _modalMap.addControl(new maplibregl.NavigationControl(), "top-right");
@@ -995,6 +1004,7 @@ async function abrir(cnpj, viaPopstate){
       <div class="sec">&#128205; Localiza&ccedil;&atilde;o</div>
       ${mapaEmbed(e, d.geolocalizacao)}
       <a class="maplink" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(endereco)}" target="_blank">Abrir no Google Maps &#8599;</a>
+      <span class="iconbtn" id="btn_copiar_geo" style="display:none;margin-left:8px;vertical-align:middle" title="Copiar coordenadas (lat, lng)" onclick="copiarGeo(this)">&#9678;</span>
     </div>`;
   initMapaModal(d.geolocalizacao, e);
 }
