@@ -222,8 +222,8 @@
   </div>
   <div class="spacer"></div>
   <button class="btn" onclick="atualizar()" title="Recarregar dados">↻<span class="lbl"> Atualizar</span></button>
-  <button class="btn" onclick="exportar('xlsx')" title="Exportar Excel">⬇<span class="lbl"> Excel</span></button>
-  <button class="btn" onclick="exportar('pdf')" title="Exportar PDF">⬇<span class="lbl"> PDF</span></button>
+  <button class="btn" onclick="abrirExportar('xlsx')" title="Exportar Excel">⬇<span class="lbl"> Excel</span></button>
+  <button class="btn" onclick="abrirExportar('pdf')" title="Exportar PDF">⬇<span class="lbl"> PDF</span></button>
   <a class="btn" href="https://github.com/brunokobi/projeto_grande_vitoria_empresas" target="_blank" rel="noopener" title="Ver no GitHub" style="text-decoration:none">🐙<span class="lbl"> GitHub</span></a>
   <button class="helpbtn" onclick="abrirSobre()" title="Sobre as fontes de dados">?</button>
 </header>
@@ -1064,7 +1064,48 @@ function abrirSobre(){
       <p style="color:var(--muted);font-size:12px;margin-top:16px">Código aberto: <a href="https://github.com/brunokobi/projeto_grande_vitoria_empresas" target="_blank" rel="noopener">github.com/brunokobi/projeto_grande_vitoria_empresas</a></p>
     </div>`;
 }
-function exportar(fmt){ window.location = `/export/empresas.${fmt}?`+query().toString(); }
+function exportar(fmt, colunas){
+  const p = query();
+  (colunas||[]).forEach(c=>p.append("colunas", c));
+  window.location = `/export/empresas.${fmt}?`+p.toString();
+}
+let _colunasExportCache = null;
+let _colunasExportSelecionadas = null;
+async function abrirExportar(fmt){
+  if(!_colunasExportCache){
+    _colunasExportCache = await (await fetch("/export/colunas")).json();
+    _colunasExportSelecionadas = new Set(_colunasExportCache.padrao);
+  }
+  $("overlay").classList.add("open");
+  const disp = _colunasExportCache.disponiveis;
+  const itens = Object.keys(disp).map(k=>
+    `<label class="chk"><input type="checkbox" class="col-exp" value="${k}" ${_colunasExportSelecionadas.has(k)?"checked":""}> ${esc(disp[k])}</label>`
+  ).join("");
+  $("modal").innerHTML = `
+    <div class="top">
+      <span class="close" onclick="fechar()">&times;</span>
+      <h2>&#11015; Exportar ${fmt==="xlsx"?"Excel":"PDF"}</h2>
+      <div class="sub">Escolha as colunas que vão aparecer no arquivo</div>
+    </div>
+    <div class="body">
+      <div style="margin-bottom:12px">
+        <button class="btn ghost" onclick="marcarColunasExport(true)">Marcar todas</button>
+        <button class="btn ghost" onclick="marcarColunasExport(false)">Desmarcar todas</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:2px 14px">${itens}</div>
+      <button class="btn" style="margin-top:18px;width:100%" onclick="gerarExport('${fmt}')">Gerar ${fmt==="xlsx"?"Excel":"PDF"}</button>
+    </div>`;
+}
+function marcarColunasExport(marcar){
+  document.querySelectorAll(".col-exp").forEach(cb=>cb.checked=marcar);
+}
+function gerarExport(fmt){
+  const marcados = Array.from(document.querySelectorAll(".col-exp:checked")).map(cb=>cb.value);
+  if(!marcados.length){ alert("Marque pelo menos uma coluna."); return; }
+  _colunasExportSelecionadas = new Set(marcados);
+  exportar(fmt, marcados);
+  fechar();
+}
 function limpar(){
   ["f_texto","f_cnpj","f_socio","f_capmin","f_capmax"].forEach(id=>$(id).value="");
   ["f_segmento","f_porte","f_regime","f_pendencia"].forEach(id=>$(id).value="");

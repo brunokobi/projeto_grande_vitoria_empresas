@@ -221,24 +221,35 @@ def get_classificar(
 # --------------------------------------------------------------------------
 # Exports
 # --------------------------------------------------------------------------
-_COLUNAS_EXPORT = [
-    ("cnpj", "CNPJ"), ("razao_social", "Razão social"),
-    ("nome_fantasia", "Nome fantasia"), ("municipio", "Município"),
-    ("bairro", "Bairro"), ("cnae_principal", "CNAE"),
-    ("cnae_desc", "Atividade (CNAE)"), ("porte", "Porte"),
-    ("capital_social", "Capital social"), ("regime_tributario", "Regime"),
-    ("telefone", "Telefone"), ("email", "E-mail"), ("whatsapp", "WhatsApp"),
-    ("site", "Site"), ("instagram", "Instagram"), ("facebook", "Facebook"),
-    ("linkedin", "LinkedIn"), ("tem_pendencia", "Pendência"),
-]
+@app.get("/export/colunas", summary="Colunas disponíveis pra exportação (Excel/PDF)")
+def get_colunas_export():
+    return {
+        "disponiveis": dataset_queries.colunas_export_disponiveis(),
+        "padrao": dataset_queries.COLUNAS_EXPORT_PADRAO,
+    }
+
+
+def _fmt_valor_export(v):
+    """Formata valor pra exibição em texto (PDF) — BRL pra número grande de
+    capital/lat/lng mantém casas decimais, resto vira string direta."""
+    if v is None:
+        return ""
+    if isinstance(v, bool):
+        return "SIM" if v else "—"
+    return str(v)
 
 
 @app.get("/export/empresas.xlsx", summary="Exporta a lista filtrada em Excel")
-def export_xlsx(filtros: dict = Depends(filtros_comuns)):
+def export_xlsx(
+    filtros: dict = Depends(filtros_comuns),
+    colunas: list[str] = Query(None, description="Chaves de /export/colunas — vazio usa a seleção padrão"),
+):
     import pandas as pd
-    dados = dataset_queries.exportar_empresas(max_linhas=20000, **filtros)
-    df = pd.DataFrame(dados, columns=[c for c, _ in _COLUNAS_EXPORT])
-    df = df.rename(columns=dict(_COLUNAS_EXPORT))
+    colunas_validas = dataset_queries.colunas_export_valida(colunas)
+    catalogo = dataset_queries.colunas_export_disponiveis()
+    dados = dataset_queries.exportar_empresas(max_linhas=20000, colunas=colunas_validas, **filtros)
+    df = pd.DataFrame(dados, columns=colunas_validas)
+    df = df.rename(columns={c: catalogo[c] for c in colunas_validas})
     buf = io.BytesIO()
     with pd.ExcelWriter(buf, engine="openpyxl") as w:
         df.to_excel(w, index=False, sheet_name="Empresas")
@@ -251,7 +262,10 @@ def export_xlsx(filtros: dict = Depends(filtros_comuns)):
 
 
 @app.get("/export/empresas.pdf", summary="Exporta a lista filtrada em PDF")
-def export_pdf(filtros: dict = Depends(filtros_comuns)):
+def export_pdf(
+    filtros: dict = Depends(filtros_comuns),
+    colunas: list[str] = Query(None, description="Chaves de /export/colunas — vazio usa a seleção padrão"),
+):
     from reportlab.lib.pagesizes import A4, landscape
     from reportlab.lib import colors
     from reportlab.lib.units import mm
@@ -259,23 +273,25 @@ def export_pdf(filtros: dict = Depends(filtros_comuns)):
     from reportlab.lib.styles import getSampleStyleSheet
 
     LIMITE_PDF = 1500
-    dados = dataset_queries.exportar_empresas(max_linhas=LIMITE_PDF, **filtros)
+    colunas_validas = dataset_queries.colunas_export_valida(colunas)
+    dados = dataset_queries.exportar_empresas(max_linhas=LIMITE_PDF, colunas=colunas_validas, **filtros)
 
     verde = colors.HexColor("#00c853")
-    cabecalho = ["CNPJ", "Razão social", "Município", "CNAE", "Telefone", "E-mail", "Pend."]
+    rotulo_peso = dataset_queries.colunas_export_rotulo_peso(colunas_validas)
+    cabecalho = [r for r, _ in rotulo_peso]
+    pesos = [p for _, p in rotulo_peso]
+    largura_util = landscape(A4)[0] - 24 * mm
+    col_widths = [largura_util * (p / sum(pesos)) for p in pesos]
+    # Trunca proporcional à largura da coluna (mm da coluna / mm por char)
+    cortes = [max(4, int(w / mm / 1.7)) for w in col_widths]
 
     def corta(v, n):
-        s = "" if v is None else str(v)
+        s = _fmt_valor_export(v)
         return s if len(s) <= n else s[: n - 1] + "…"
 
     linhas = [cabecalho]
     for d in dados:
-        linhas.append([
-            corta(d.get("cnpj"), 14), corta(d.get("razao_social"), 38),
-            corta(d.get("municipio"), 12), corta(d.get("cnae_principal"), 8),
-            corta(d.get("telefone"), 15), corta(d.get("email"), 30),
-            "SIM" if d.get("tem_pendencia") else "—",
-        ])
+        linhas.append([corta(d.get(c), n) for c, n in zip(colunas_validas, cortes)])
 
     buf = io.BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=landscape(A4),
@@ -286,13 +302,13 @@ def export_pdf(filtros: dict = Depends(filtros_comuns)):
         f"<b>Empresas da Grande Vitória (ES)</b> — {len(dados)} empresas"
         + (f" (limitado a {LIMITE_PDF})" if len(dados) >= LIMITE_PDF else ""),
         styles["Title"])
-    tabela = Table(linhas, repeatRows=1,
-                   colWidths=[26 * mm, 78 * mm, 26 * mm, 18 * mm, 30 * mm, 62 * mm, 14 * mm])
+    fonte = 7 if len(colunas_validas) <= 10 else 6
+    tabela = Table(linhas, repeatRows=1, colWidths=col_widths)
     tabela.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), verde),
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.black),
         ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("FONTSIZE", (0, 0), (-1, -1), 7),
+        ("FONTSIZE", (0, 0), (-1, -1), fonte),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#eafaf0")]),
         ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#c8e6d4")),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
