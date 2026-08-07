@@ -615,12 +615,81 @@ def classificar_empresas(objetivo="generico", pref_telefone=None, pref_email=Non
             "criterios_ativos": len(termos), "itens": itens}
 
 
-def exportar_empresas(max_linhas=20000, **filtros) -> list:
-    """Retorna TODAS as empresas que batem com os filtros (até max_linhas),
-    com colunas úteis de prospecção incluindo contato/redes se disponíveis."""
+# Catálogo de colunas exportáveis (Excel/PDF) — chave: (rótulo, expressão SQL
+# ou None se calculada em Python depois da query, largura relativa no PDF).
+# A largura é só um peso relativo (não é mm/pt): colunas de texto longo
+# (razão social, e-mail) pesam mais que colunas curtas (UF, pendência).
+_COLUNAS_EXPORT_CATALOGO = {
+    "cnpj": ("CNPJ", "e.cnpj", 2.0),
+    "razao_social": ("Razão social", "e.razao_social", 5.0),
+    "nome_fantasia": ("Nome fantasia", "e.nome_fantasia", 4.0),
+    "municipio": ("Município", "e.municipio", 2.0),
+    "bairro": ("Bairro", "e.bairro", 2.5),
+    "logradouro": ("Logradouro", "e.logradouro", 4.0),
+    "numero": ("Número", "e.numero", 1.0),
+    "cep": ("CEP", "e.cep", 1.3),
+    "uf": ("UF", "e.uf", 0.6),
+    "cnae_principal": ("CNAE", "e.cnae_principal", 1.2),
+    "cnae_desc": ("Atividade (CNAE)", None, 4.0),
+    "porte": ("Porte", "e.porte", 1.0),
+    "capital_social": ("Capital social", "e.capital_social", 1.8),
+    "regime_tributario": ("Regime", "e.regime_tributario", 1.6),
+    "situacao_cadastral": ("Situação cadastral", "e.situacao_cadastral", 1.5),
+    "data_situacao": ("Data da situação", "e.data_situacao", 1.3),
+    "telefone": ("Telefone", "e.telefone", 1.8),
+    "email": ("E-mail", "e.email", 3.5),
+    "whatsapp": ("WhatsApp", "ec.whatsapp", 2.8),
+    "site": ("Site", "ec.site", 3.0),
+    "instagram": ("Instagram", "ec.instagram", 2.5),
+    "facebook": ("Facebook", "ec.facebook", 2.5),
+    "linkedin": ("LinkedIn", "ec.linkedin", 2.5),
+    "latitude": ("Latitude", "ep.latitude", 1.3),
+    "longitude": ("Longitude", "ep.longitude", 1.3),
+    "nire": ("NIRE", "j.nire", 1.5),
+    "natureza_juridica": ("Natureza jurídica", "j.natureza_juridica", 3.0),
+    "data_constituicao": ("Constituição (JUCEES)", "j.data_constituicao", 1.5),
+    "tem_pendencia": ("Pendência", None, 0.8),
+}
+_COLS_CONTATO = {"whatsapp", "site", "instagram", "facebook", "linkedin"}
+_COLS_GEO = {"latitude", "longitude"}
+_COLS_JUCEES = {"nire", "natureza_juridica", "data_constituicao"}
+
+# Seleção padrão — mesmas colunas exportadas antes de existir seleção.
+COLUNAS_EXPORT_PADRAO = [
+    "cnpj", "razao_social", "nome_fantasia", "municipio", "bairro",
+    "cnae_principal", "cnae_desc", "porte", "capital_social", "regime_tributario",
+    "telefone", "email", "whatsapp", "site", "instagram", "facebook", "linkedin",
+    "tem_pendencia",
+]
+
+
+def colunas_export_disponiveis() -> dict:
+    """{chave: rótulo} de todas as colunas que dá pra exportar — pro
+    dashboard montar a lista de checkboxes antes de gerar Excel/PDF."""
+    return {k: v[0] for k, v in _COLUNAS_EXPORT_CATALOGO.items()}
+
+
+def colunas_export_valida(colunas) -> list:
+    """Filtra `colunas` pras chaves conhecidas do catálogo — usa
+    COLUNAS_EXPORT_PADRAO se vier vazio/tudo inválido."""
+    return [c for c in (colunas or []) if c in _COLUNAS_EXPORT_CATALOGO] or list(COLUNAS_EXPORT_PADRAO)
+
+
+def colunas_export_rotulo_peso(colunas) -> list:
+    """[(rótulo, peso_pdf)] na mesma ordem de `colunas` — usada pro cálculo
+    de largura das colunas no PDF de exportação."""
+    return [(_COLUNAS_EXPORT_CATALOGO[c][0], _COLUNAS_EXPORT_CATALOGO[c][2]) for c in colunas]
+
+
+def exportar_empresas(max_linhas=20000, colunas=None, **filtros) -> list:
+    """Retorna as empresas que batem com os filtros (até max_linhas), só com
+    as colunas pedidas em `colunas` (chaves de _COLUNAS_EXPORT_CATALOGO) —
+    usa COLUNAS_EXPORT_PADRAO se `colunas` vier vazio/inválido."""
     filtros.pop("limite", None); filtros.pop("offset", None)
     ordem = filtros.pop("ordenar_por", "razao_social")
     ordem = ordem if ordem in _ORDENAR_POR else "razao_social"
+    colunas = colunas_export_valida(colunas)
+
     with _conn() as conn:
         tem_contato = _tabela_existe(conn, "enriquecimento_contato")
         tem_fts = _tabela_existe(conn, "empresas_fts")
@@ -634,24 +703,45 @@ def exportar_empresas(max_linhas=20000, **filtros) -> list:
                                           tem_beneficios=tem_beneficios,
                                           tem_vinculos=tem_vinculos, tem_pncp=tem_pncp,
                                           tem_marcas=tem_marcas, **filtros)
-        if tem_contato:
-            join = " LEFT JOIN enriquecimento_contato ec ON ec.cnpj_empresa = e.cnpj"
-            cols_contato = "ec.whatsapp, ec.site, ec.instagram, ec.facebook, ec.linkedin"
-        else:
-            join = ""
-            cols_contato = ("NULL AS whatsapp, NULL AS site, NULL AS instagram, "
-                            "NULL AS facebook, NULL AS linkedin")
-        sql = (f"SELECT e.cnpj, e.razao_social, e.nome_fantasia, e.municipio, e.bairro, "
-               f"e.cnae_principal, e.porte, e.capital_social, e.regime_tributario, "
-               f"e.telefone, e.email, {cols_contato}, "
-               f"{_PENDENCIA_EXPR} AS tem_pendencia "
-               f"FROM empresas e{join}{where_sql} ORDER BY e.{ordem} LIMIT ?")
+
+        precisa_contato = bool(_COLS_CONTATO & set(colunas)) and tem_contato
+        precisa_geo = bool(_COLS_GEO & set(colunas))
+        precisa_jucees = bool(_COLS_JUCEES & set(colunas))
+        joins = []
+        if precisa_contato:
+            joins.append("LEFT JOIN enriquecimento_contato ec ON ec.cnpj_empresa = e.cnpj")
+        if precisa_geo:
+            joins.append("LEFT JOIN enriquecimento_places ep ON ep.cnpj_empresa = e.cnpj")
+        if precisa_jucees:
+            joins.append("LEFT JOIN registros_jucees j ON j.cnpj_empresa = e.cnpj")
+
+        selects = ["e.cnpj AS cnpj"]
+        # cnae_desc é calculada em Python a partir de cnae_principal — busca
+        # cnae_principal só internamente se não foi pedida explicitamente.
+        if "cnae_desc" in colunas and "cnae_principal" not in colunas:
+            selects.append("e.cnae_principal AS cnae_principal")
+        for c in colunas:
+            if c in ("cnpj", "cnae_desc"):
+                continue
+            if c == "tem_pendencia":
+                selects.append(f"{_PENDENCIA_EXPR} AS tem_pendencia")
+                continue
+            if c in _COLS_CONTATO and not precisa_contato:
+                selects.append(f"NULL AS {c}")
+                continue
+            _, expr, _ = _COLUNAS_EXPORT_CATALOGO[c]
+            selects.append(f"{expr} AS {c}")
+
+        sql = (f"SELECT {', '.join(selects)} FROM empresas e "
+               f"{' '.join(joins)}{where_sql} ORDER BY e.{ordem} LIMIT ?")
         rows = conn.execute(sql, params + [int(max_linhas)]).fetchall()
+
     saida = []
     for r in rows:
         d = dict(r)
-        d["cnae_desc"] = cnae_desc(d.get("cnae_principal"))
-        saida.append(d)
+        if "cnae_desc" in colunas:
+            d["cnae_desc"] = cnae_desc(d.get("cnae_principal"))
+        saida.append({c: d.get(c) for c in colunas})
     return saida
 
 
