@@ -14,7 +14,9 @@ from zoneinfo import ZoneInfo
 import config
 
 TELEGRAM_API_URL = "https://api.telegram.org/bot{token}/sendMessage"
-GEOLOCALIZACAO_URL = "https://ipapi.co/{ip}/json/"
+# ipapi.co tem limite gratuito muito curto (rate-limita rápido em uso real);
+# ipwho.is não pede chave e aguenta bem mais volume de graça.
+GEOLOCALIZACAO_URL = "https://ipwho.is/{ip}"
 _PREFIXOS_LOCAIS = ("127.", "10.", "192.168.", "172.16.", "::1")
 
 
@@ -32,9 +34,9 @@ def _geolocalizar(ip: str) -> str:
     try:
         with urllib.request.urlopen(GEOLOCALIZACAO_URL.format(ip=ip), timeout=4) as resp:
             d = json.load(resp)
-        if d.get("error"):
+        if not d.get("success", True):
             return ip
-        partes = [p for p in (d.get("city"), d.get("region"), d.get("country_name")) if p]
+        partes = [p for p in (d.get("city"), d.get("region"), d.get("country")) if p]
         return ", ".join(partes) if partes else ip
     except Exception:
         return ip
