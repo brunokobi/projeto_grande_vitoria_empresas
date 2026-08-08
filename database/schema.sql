@@ -43,7 +43,11 @@ CREATE TABLE IF NOT EXISTS processos_judiciais (
     polo                        TEXT,      -- autor / réu
     status                      TEXT,
     data_ultima_movimentacao    TEXT,
-    match_confianca             TEXT       -- 'direto' (CNPJ explícito) ou 'fuzzy'
+    match_confianca             TEXT       -- 'nome' (via DJEN, casado por razão social e
+                                            -- confirmado nos destinatarios da publicacao)
+                                            -- ou 'socio' (via socio em comum) -- nunca 'direto'
+                                            -- nesta tabela: nao ha fonte que traga CNPJ
+                                            -- explicito de processo (ver docs/DATAJUD-vs-DJEN.md)
 );
 
 CREATE TABLE IF NOT EXISTS sancoes_administrativas (
@@ -60,7 +64,11 @@ CREATE TABLE IF NOT EXISTS sancoes_administrativas (
     ano_processo        TEXT,       -- TCEES
     numero_deliberacao  TEXT,       -- TCEES
     ano_deliberacao     TEXT,       -- TCEES
-    match_confianca     TEXT
+    match_confianca     TEXT       -- 'direto' (a propria empresa esta na lista da fonte)
+                                    -- ou 'socio' (empresa marcada via socio em comum com
+                                    -- entidade sancionada -- so ocorre em CEIS ate agora;
+                                    -- ver risco de circularidade com metapath de socio comum
+                                    -- em docs/research_plan.md do repo experimento2026)
 );
 
 CREATE TABLE IF NOT EXISTS infracoes_ambientais (
@@ -77,7 +85,8 @@ CREATE TABLE IF NOT EXISTS infracoes_ambientais (
     municipio_infracao TEXT,      -- MUNICIPIO
     uf_infracao       TEXT,       -- UF
     enquadramento     TEXT,       -- DS_ENQUADRAMENTO_ADMINISTRATIVO
-    match_confianca   TEXT
+    match_confianca   TEXT       -- 'direto' -- unico valor observado (fonte IBAMA/IEMA
+                                  -- traz CNPJ explicito do autuado)
 );
 
 CREATE TABLE IF NOT EXISTS dividas_ativas (
