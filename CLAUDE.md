@@ -33,20 +33,33 @@ python main.py --etapa contato   # WhatsApp + site + redes sociais (grátis, ret
 python main.py --etapa exportar  # gera output/*.csv e *.xlsx
 ```
 
-## Estado atual (22/07/2026)
+## Estado atual (reconferido no banco real em 08/08/2026)
 
-Rodado numa primeira máquina, base do mês **2026-07** da Receita:
+Rodado numa primeira máquina, base do mês **2026-07** da Receita. **`datajud` foi
+descontinuado e substituído por `djen`** (a API pública do DataJud não expõe partes
+do processo — impossível casar por CNPJ; o DJEN casa por nome da razão social,
+confirmado contra os destinatários da publicação — ver `src/djen_client.py`). Tabela
+abaixo conferida direto em `data/grande_vitoria.db`, não só nos checkpoints:
 
-| Etapa    | Resultado                                    | Status |
-|----------|----------------------------------------------|--------|
-| cnpj     | 344.130 empresas ativas                      | ✅ ok  |
-| jucees   | 88.349 registros vinculados                  | ✅ ok  |
-| sancoes  | 158.675 registros de dívida ativa (PGFN)     | ✅ ok  |
-| tcees    | 17 sanções estaduais                         | ✅ ok  |
-| ibama    | 1.326 infrações ambientais                   | ✅ ok  |
-| datajud  | ~83/344.130 (pausado — retomável)            | ⏸️ parcial |
-| geo      | ~1.776/344.130 (pausado — retomável)         | ⏸️ parcial |
-| exportar | —                                            | ⏳ pendente |
+| Etapa    | Resultado                                                       | Status |
+|----------|------------------------------------------------------------------|--------|
+| cnpj     | 344.130 empresas ativas                                         | ✅ ok  |
+| jucees   | 88.349 registros vinculados                                     | ✅ ok  |
+| sancoes  | 322 sanções administrativas / 188 empresas distintas (CEIS/CNEP/CEPIM/TCEES/TRABALHO_ESCRAVO) | ✅ ok |
+| dívida ativa (PGFN) | 158.675 registros / 32.754 empresas                  | ✅ ok  |
+| tcees    | 17 sanções estaduais (já incluídas em `sancoes_administrativas`) | ✅ ok  |
+| ibama    | 1.323 infrações ambientais                                       | ✅ ok  |
+| djen     | 110.489 registros em `processos_judiciais` / 2.374 empresas casadas por nome — pipeline ainda rodando | ⏸️ em andamento |
+| geo      | ~1.776/344.130 (pausado — retomável)                             | ⏸️ parcial |
+| exportar | —                                                                 | ⏳ pendente |
+
+**Achado ao reconferir `sancoes_administrativas`**: das 188 empresas positivas, 148
+têm `match_confianca='direto'` (a própria empresa está na lista da fonte) e 41 têm
+`match_confianca='socio'` (marcada só por ter sócio em comum com entidade sancionada —
+ocorre apenas dentro do CEIS). Relevante para quem consome este dataset em
+`experimento2026`: ~22% do rótulo de risco usado ali já é construído via sócio comum,
+o que gera risco de circularidade com a hipótese de metapath sócio-comum daquela
+dissertação (ver `docs/research_plan.md`, seções 5 e 9, naquele repo).
 
 Distribuição cnpj: Vila Velha 90.865, Serra 85.636, Vitória 78.872,
 Cariacica 51.479, Guarapari 23.710, Viana 11.038, Fundão 2.530.
