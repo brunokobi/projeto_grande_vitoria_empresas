@@ -35,6 +35,20 @@ def estatisticas() -> dict:
 
 
 @mcp.tool()
+def ranking_doacoes_eleitorais(limite: int = 20) -> dict:
+    """Ranking de doações eleitorais (TSE) — responde direto perguntas como
+    "quais candidatos mais receberam doação" ou "quais empresas mais
+    doaram", sem precisar varrer empresa por empresa. Devolve 4 listas já
+    ordenadas: candidatos_por_quantidade, candidatos_por_valor,
+    empresas_por_quantidade, empresas_por_valor (cada item com nº de
+    doações e valor total em R$; nas empresas, também os sócios envolvidos).
+
+    Atenção: o vínculo é por SÓCIO — se a mesma pessoa é sócia de várias
+    empresas, a doação aparece em todas elas (não são doações distintas)."""
+    return dataset_queries.ranking_doacoes_eleitorais(limite=limite)
+
+
+@mcp.tool()
 def buscar_empresas(
     municipio: str = None,
     cnae: str = None,
