@@ -159,7 +159,7 @@ Tudo cruzado pelo **CNPJ**, exclusivamente de **fontes públicas oficiais**:
 | **CGU** — Portal da Transparência | **Renúncias/Benefícios Fiscais federais** (valor por ano, imunidade/isenção IRPJ, habilitação) | ✅ |
 | **SEDES-ES** — Programa COMPETE-ES | **Incentivo fiscal de ICMS estadual** (portaria de habilitação, vigência, exclusão) | ✅ |
 | **INPI** | **Marcas registradas** (sinal indireto de atividade/inovação) | ✅ |
-| **TSE** | **Vínculo político do sócio** — candidaturas e doações eleitorais declaradas (cruzado por nome+CPF mascarado) | ✅ |
+| **TSE** | **Vínculo político do sócio** — candidaturas e doações eleitorais declaradas em 2016/2018/2020/2022/2024 (municipal e geral, cruzado por nome+CPF mascarado) | ✅ |
 
 > A construção/atualização do dataset é feita por um pipeline de extração mantido em repositório separado. Este é o **produto de consumo** — o histórico completo de fontes já testadas (implementadas e descartadas, com o motivo de cada descarte) fica documentado lá, não aqui.
 
