@@ -153,7 +153,7 @@ Tudo cruzado pelo **CNPJ**, exclusivamente de **fontes públicas oficiais**:
 | **TCEES** | Sanções estaduais (processo/deliberação) | ✅ |
 | **IBAMA** | Infrações ambientais (valor da multa, gravidade, situação) | ✅ |
 | **MTE** — Cadastro de Empregadores | **Lista Suja** do trabalho escravo | ✅ |
-| **OpenStreetMap / Nominatim** | Geolocalização (mapa; fallback por endereço) | 🚧 |
+| **OpenStreetMap / Nominatim** | Geolocalização (mapa; fallback por endereço) | ✅ |
 | **DJEN / CNJ** (Comunica API) | Processos judiciais (por nome da parte) | 🚧 |
 | **CGU** — Portal da Transparência | **Contratos com órgãos públicos federais** (objeto, valor, vigência) | ✅ |
 | **PNCP** (Portal Nacional de Contratações Públicas) | **Contratos municipais, estaduais e federais** (unificados desde 2023 — cobertura bem maior que o Portal da Transparência) | ✅ |
