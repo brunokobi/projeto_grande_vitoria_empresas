@@ -501,6 +501,55 @@ def pontos_mapa(limite=20000, **filtros):
     return {"total": total, "limite": limite, "pontos": [dict(r) for r in rows]}
 
 
+# Código IBGE dos 7 municípios — pra casar com reference/municipios_grande_vitoria.geojson
+# (fronteiras de https://github.com/tbrugz/geodata-br, derivado da malha do IBGE;
+# a API oficial de malhas do IBGE estava fora do ar quando isso foi feito).
+_MUNICIPIOS_IBGE = {
+    "VITORIA": "3205309", "VILA VELHA": "3205200", "SERRA": "3205002",
+    "CARIACICA": "3201308", "VIANA": "3205101", "GUARAPARI": "3202405",
+    "FUNDAO": "3202207",
+}
+
+
+def risco_por_municipio(**filtros) -> list:
+    """Total de empresas e % com pendência jurídico-fiscal por município,
+    respeitando os mesmos filtros do dashboard — usado pro choropleth do
+    mapa (substituiu o heatmap por ponto, que saturava com 344 mil pontos
+    e virava só uma mancha sólida, sem diferenciar nada)."""
+    filtros.pop("ordenar_por", None)
+    with _conn() as conn:
+        tem_contato = _tabela_existe(conn, "enriquecimento_contato")
+        tem_fts = _tabela_existe(conn, "empresas_fts")
+        tem_contratos = _tabela_existe(conn, "contratos_governamentais")
+        tem_beneficios = _tabela_existe(conn, "beneficios_fiscais")
+        tem_vinculos = _tabela_existe(conn, "vinculos_politicos")
+        tem_pncp = _tabela_existe(conn, "contratos_pncp")
+        tem_marcas = _tabela_existe(conn, "marcas_inpi")
+        where_sql, params = _filtros_sql(tem_contato=tem_contato, tem_fts=tem_fts,
+                                          tem_contratos=tem_contratos,
+                                          tem_beneficios=tem_beneficios,
+                                          tem_vinculos=tem_vinculos, tem_pncp=tem_pncp,
+                                          tem_marcas=tem_marcas, **filtros)
+        cond = where_sql[len(" WHERE "):] if where_sql else "1=1"
+        rows = conn.execute(
+            f"SELECT e.municipio AS municipio, COUNT(*) AS total, "
+            f"SUM(CASE WHEN {_PENDENCIA_EXPR} THEN 1 ELSE 0 END) AS com_pendencia "
+            f"FROM empresas e WHERE {cond} GROUP BY e.municipio", params
+        ).fetchall()
+    saida = []
+    for r in rows:
+        total = r["total"]
+        pend = r["com_pendencia"] or 0
+        saida.append({
+            "municipio": r["municipio"],
+            "ibge_id": _MUNICIPIOS_IBGE.get(r["municipio"]),
+            "total": total,
+            "com_pendencia": pend,
+            "pct_pendencia": round(100 * pend / total, 2) if total else 0,
+        })
+    return saida
+
+
 def buscar_por_raio(lat: float, lon: float, raio_km: float = 5, limite=50, offset=0, **filtros) -> dict:
     """Empresas geocodificadas dentro de um raio (km) de um ponto (lat, lon),
     ordenadas da mais próxima pra mais longe. Combina com os mesmos filtros
@@ -960,7 +1009,15 @@ def ranking_doacoes_eleitorais(limite: int = 20) -> dict:
         except ValueError:
             valor = 0.0
 
-        agg_c = candidatos.setdefault((candidato, cargo, municipio, uf), {"qtd": 0, "valor": 0.0})
+        # Agrupa por nome/cargo/município normalizados (sem acento) — o
+        # mesmo candidato pode vir com/sem acento em anos diferentes do TSE
+        # (ex.: "JOSÉ RENATO CASAGRANDE" vs "JOSE RENATO CASAGRANDE"), o que
+        # duplicava a entrada no ranking. Mantém a primeira grafia "bonita"
+        # vista (com acento) pra exibir.
+        chave_cand = (_sem_acento(candidato), _sem_acento(cargo), _sem_acento(municipio), uf)
+        agg_c = candidatos.setdefault(
+            chave_cand, {"qtd": 0, "valor": 0.0, "candidato": candidato,
+                         "cargo": cargo, "municipio": municipio, "uf": uf})
         agg_c["qtd"] += 1
         agg_c["valor"] += valor
 
@@ -972,9 +1029,9 @@ def ranking_doacoes_eleitorais(limite: int = 20) -> dict:
             agg_e["socios"].add(r["nome_socio_vinculado"])
 
     lista_candidatos = [
-        {"candidato": c, "cargo": cargo, "municipio": mun, "uf": uf,
+        {"candidato": v["candidato"], "cargo": v["cargo"], "municipio": v["municipio"], "uf": v["uf"],
          "qtd_doacoes": v["qtd"], "valor_total": round(v["valor"], 2)}
-        for (c, cargo, mun, uf), v in candidatos.items()
+        for v in candidatos.values()
     ]
     lista_empresas = [
         {"cnpj": cnpj, "razao_social": razoes.get(cnpj), "qtd_doacoes": v["qtd"],

@@ -45,6 +45,7 @@ app = FastAPI(
 app.mount("/mcp", mcp_app)
 
 DASHBOARD_HTML = config.BASE_DIR / "dashboard" / "index.html"
+MUNICIPIOS_GEOJSON = config.BASE_DIR / "reference" / "municipios_grande_vitoria.geojson"
 
 
 # --------------------------------------------------------------------------
@@ -125,6 +126,7 @@ def indice_api():
             "GET /estatisticas": "Panorama geral",
             "GET /segmentos": "Segmentos (divisões CNAE) com contagem",
             "GET /vinculos/ranking-doacoes": "Ranking de doações eleitorais (candidatos e empresas)",
+            "GET /municipios/risco": "Total e % de pendência por município (choropleth do mapa)",
             "GET /empresas": "Busca com filtros",
             "GET /empresas/perto": "Busca num raio (km) de um ponto (lat/lon)",
             "GET /empresas/{cnpj}": "Visão 360º",
@@ -149,6 +151,16 @@ def get_segmentos():
 @app.get("/vinculos/ranking-doacoes", summary="Ranking de doações eleitorais (TSE) — candidatos e empresas")
 def get_ranking_doacoes(limite: int = Query(20, ge=1, le=200)):
     return dataset_queries.ranking_doacoes_eleitorais(limite=limite)
+
+
+@app.get("/municipios/geojson", summary="Fronteiras dos 7 municípios da Grande Vitória (GeoJSON)", include_in_schema=False)
+def get_municipios_geojson():
+    return FileResponse(MUNICIPIOS_GEOJSON, media_type="application/geo+json")
+
+
+@app.get("/municipios/risco", summary="Total e % de pendência jurídico-fiscal por município (respeita os filtros) — pro choropleth do mapa")
+def get_municipios_risco(filtros: dict = Depends(filtros_comuns)):
+    return dataset_queries.risco_por_municipio(**filtros)
 
 
 @app.get("/empresas", summary="Busca empresas com filtros de prospecção")
