@@ -124,9 +124,11 @@ def indice_api():
         "endpoints": {
             "GET /estatisticas": "Panorama geral",
             "GET /segmentos": "Segmentos (divisões CNAE) com contagem",
+            "GET /vinculos/ranking-doacoes": "Ranking de doações eleitorais (candidatos e empresas)",
             "GET /empresas": "Busca com filtros",
             "GET /empresas/perto": "Busca num raio (km) de um ponto (lat/lon)",
             "GET /empresas/{cnpj}": "Visão 360º",
+            "GET /export/colunas": "Colunas disponíveis pra exportação",
             "GET /export/empresas.xlsx": "Lista filtrada em Excel",
             "GET /export/empresas.pdf": "Lista filtrada em PDF",
             "POST /mcp/": "Servidor MCP (Streamable HTTP) — ver MCP.md",
@@ -142,6 +144,11 @@ def get_estatisticas():
 @app.get("/segmentos", summary="Segmentos (divisões CNAE) com contagem")
 def get_segmentos():
     return dataset_queries.segmentos()
+
+
+@app.get("/vinculos/ranking-doacoes", summary="Ranking de doações eleitorais (TSE) — candidatos e empresas")
+def get_ranking_doacoes(limite: int = Query(20, ge=1, le=200)):
+    return dataset_queries.ranking_doacoes_eleitorais(limite=limite)
 
 
 @app.get("/empresas", summary="Busca empresas com filtros de prospecção")

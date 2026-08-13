@@ -49,6 +49,24 @@ def cnae_desc(codigo):
     return _CNAE.get(str(codigo or "").strip())
 
 
+# Valor da doação eleitoral não é coluna estruturada em vinculos_politicos
+# (fonte=TSE_DOACAO) — só vem embutido no texto livre de `detalhe`, tipo
+# "Doou R$ 8.500,00 pra campanha de MARIA NUNES LEAL (Vereador) em ...".
+_RE_VALOR_DOACAO = re.compile(r"Doou R\$ ([\d.,]+) pra campanha")
+
+
+def valor_doacao(detalhe) -> float | None:
+    if not detalhe:
+        return None
+    m = _RE_VALOR_DOACAO.search(detalhe)
+    if not m:
+        return None
+    try:
+        return float(m.group(1).replace(".", "").replace(",", "."))
+    except ValueError:
+        return None
+
+
 def situacao_desc(codigo):
     return _SITUACAO.get(str(codigo or "").strip())
 
@@ -804,6 +822,8 @@ def obter_empresa(cnpj: str) -> dict:
                 "SELECT nome_socio_vinculado, fonte, cargo_ou_funcao, orgao_ou_partido, "
                 "ano, situacao, detalhe FROM vinculos_politicos "
                 "WHERE cnpj_empresa = ? LIMIT 100", (cnpj,))]
+            for v in vinculos_politicos:
+                v["valor_doacao"] = valor_doacao(v.get("detalhe"))
         contratos_governamentais = []
         if _tabela_existe(conn, "contratos_governamentais"):
             contratos_governamentais = [dict(r) for r in conn.execute(
@@ -848,6 +868,7 @@ def obter_empresa(cnpj: str) -> dict:
         b["valor"] for b in beneficios_fiscais if b.get("tipo") == "RENUNCIA" and b.get("valor"))
     valor_pncp = sum(
         (p.get("valor_global") or p.get("valor_inicial") or 0) for p in contratos_pncp)
+    valor_doacoes = sum(v["valor_doacao"] for v in vinculos_politicos if v.get("valor_doacao"))
     emp = dict(empresa)
     emp["cnae_principal_desc"] = cnae_desc(emp.get("cnae_principal"))
     emp["situacao_cadastral_desc"] = situacao_desc(emp.get("situacao_cadastral"))
@@ -884,8 +905,86 @@ def obter_empresa(cnpj: str) -> dict:
             "valor_total_contratos_governamentais": valor_contratos_gov,
             "valor_total_renuncia_fiscal": valor_renuncia,
             "valor_total_contratos_pncp": valor_pncp,
+            "valor_total_doacoes": valor_doacoes,
             # Só conta como pendência quando a empresa é RÉ no processo — ser
             # autora (ex.: cobrando uma dívida) não é um passivo/risco.
             "tem_pendencia_juridica_ou_fiscal": bool(processos_re or sancoes or ambiental or dividas),
         },
+    }
+
+
+# Doou R$ 8.500,00 pra campanha de MARIA NUNES LEAL (Vereador) em SÃO MATEUS/ES
+_RE_DOACAO_COMPLETA = re.compile(
+    r"Doou R\$ ([\d.,]+) pra campanha de (.+?) \((.+?)\) em (.+?)/([A-Z]{2})"
+)
+
+
+def ranking_doacoes_eleitorais(limite: int = 20) -> dict:
+    """Ranking de doações eleitorais (TSE, via vinculos_politicos) — quais
+    CANDIDATOS mais receberam e quais EMPRESAS (via sócio doador) mais
+    doaram, por nº de doações e por valor total.
+
+    O valor/candidato/cargo/município não são colunas estruturadas na
+    fonte — só existe o texto livre em `detalhe` ("Doou R$ X pra campanha
+    de Y (cargo) em cidade/UF"), parseado aqui pela mesma regex.
+
+    Atenção: o vínculo é por SÓCIO, não por empresa — se a mesma pessoa é
+    sócia de várias empresas, a doação aparece em todas elas (risco de
+    duplicação ao ler "empresas que mais doaram" como doações distintas).
+    """
+    with _conn() as conn:
+        if not _tabela_existe(conn, "vinculos_politicos"):
+            return {"candidatos_por_quantidade": [], "candidatos_por_valor": [],
+                     "empresas_por_quantidade": [], "empresas_por_valor": []}
+        rows = conn.execute(
+            "SELECT cnpj_empresa, nome_socio_vinculado, detalhe "
+            "FROM vinculos_politicos WHERE fonte = 'TSE_DOACAO'"
+        ).fetchall()
+        razoes = {}
+        cnpjs = list({r["cnpj_empresa"] for r in rows})
+        for i in range(0, len(cnpjs), 900):  # SQLite limita ~999 params por IN
+            lote = cnpjs[i:i + 900]
+            qs = ",".join("?" * len(lote))
+            for r in conn.execute(
+                    f"SELECT cnpj, razao_social FROM empresas WHERE cnpj IN ({qs})", lote):
+                razoes[r["cnpj"]] = r["razao_social"]
+
+    candidatos, empresas = {}, {}
+    for r in rows:
+        m = _RE_DOACAO_COMPLETA.search(r["detalhe"] or "")
+        if not m:
+            continue
+        valor_txt, candidato, cargo, municipio, uf = m.groups()
+        try:
+            valor = float(valor_txt.replace(".", "").replace(",", "."))
+        except ValueError:
+            valor = 0.0
+
+        agg_c = candidatos.setdefault((candidato, cargo, municipio, uf), {"qtd": 0, "valor": 0.0})
+        agg_c["qtd"] += 1
+        agg_c["valor"] += valor
+
+        cnpj = r["cnpj_empresa"]
+        agg_e = empresas.setdefault(cnpj, {"qtd": 0, "valor": 0.0, "socios": set()})
+        agg_e["qtd"] += 1
+        agg_e["valor"] += valor
+        if r["nome_socio_vinculado"]:
+            agg_e["socios"].add(r["nome_socio_vinculado"])
+
+    lista_candidatos = [
+        {"candidato": c, "cargo": cargo, "municipio": mun, "uf": uf,
+         "qtd_doacoes": v["qtd"], "valor_total": round(v["valor"], 2)}
+        for (c, cargo, mun, uf), v in candidatos.items()
+    ]
+    lista_empresas = [
+        {"cnpj": cnpj, "razao_social": razoes.get(cnpj), "qtd_doacoes": v["qtd"],
+         "valor_total": round(v["valor"], 2), "socios": sorted(v["socios"])}
+        for cnpj, v in empresas.items()
+    ]
+
+    return {
+        "candidatos_por_quantidade": sorted(lista_candidatos, key=lambda x: -x["qtd_doacoes"])[:limite],
+        "candidatos_por_valor": sorted(lista_candidatos, key=lambda x: -x["valor_total"])[:limite],
+        "empresas_por_quantidade": sorted(lista_empresas, key=lambda x: -x["qtd_doacoes"])[:limite],
+        "empresas_por_valor": sorted(lista_empresas, key=lambda x: -x["valor_total"])[:limite],
     }

@@ -224,6 +224,7 @@
   <button class="btn" onclick="atualizar()" title="Recarregar dados">↻<span class="lbl"> Atualizar</span></button>
   <button class="btn" onclick="abrirExportar('xlsx')" title="Exportar Excel">⬇<span class="lbl"> Excel</span></button>
   <button class="btn" onclick="abrirExportar('pdf')" title="Exportar PDF">⬇<span class="lbl"> PDF</span></button>
+  <button class="btn" onclick="abrirRankingDoacoes()" title="Ranking de doações eleitorais">🗳️<span class="lbl"> Doações</span></button>
   <a class="btn" href="https://github.com/brunokobi/projeto_grande_vitoria_empresas" target="_blank" rel="noopener" title="Ver no GitHub" style="text-decoration:none">🐙<span class="lbl"> GitHub</span></a>
   <button class="helpbtn" onclick="abrirSobre()" title="Sobre as fontes de dados">?</button>
 </header>
@@ -826,11 +827,13 @@ function renderVinculos(arr){
     const rotulo = _FONTE_VINCULO[x.fonte]||x.fonte;
     return `<details class="divida">
       <summary><span class="tag warn">${rotulo}</span> <b>${esc(x.nome_socio_vinculado||"")}</b>
+        ${x.valor_doacao?`<b>${fmtBRL(x.valor_doacao)}</b>`:""}
         ${x.ano?`<span style="color:var(--muted)">${esc(x.ano)}</span>`:""}</summary>
       <div class="divida-det">
         ${kv("Sócio", esc(x.nome_socio_vinculado))}
         ${kv("Cargo/função", esc(x.cargo_ou_funcao))}
         ${kv("Órgão/partido", esc(x.orgao_ou_partido))}
+        ${kv("Valor doado", x.valor_doacao?fmtBRL(x.valor_doacao):"")}
         ${kv("Ano", esc(x.ano))}
         ${kv("Situação", esc(x.situacao))}
         ${kv("Detalhe", esc(x.detalhe))}
@@ -989,6 +992,7 @@ async function abrir(cnpj, viaPopstate){
         statTile("&#128220;", rz.qtd_contratos_pncp, "Contratos via PNCP"),
         statTile("&#128220;", fmtBRL(rz.valor_total_contratos_pncp), "Total em contratos PNCP", true, rz.valor_total_contratos_pncp),
         statTile("&#127963;&#65039;", rz.qtd_vinculos_politicos, "Vínculos políticos"),
+        statTile("&#128176;", fmtBRL(rz.valor_total_doacoes), "Total em doações eleitorais", true, rz.valor_total_doacoes),
         statTile("&#8482;&#65039;", rz.qtd_marcas_inpi, "Marcas registradas"),
       )}
       ${renderProcessos(d.processos_judiciais)}
@@ -1018,6 +1022,54 @@ function fechar(viaPopstate){
       history.pushState({}, "", url);
     }
   }
+}
+let _rankingDoacoesCache = null;
+async function abrirRankingDoacoes(){
+  $("overlay").classList.add("open");
+  if(!_rankingDoacoesCache){
+    $("modal").innerHTML = `<div class="body loading">carregando ranking...</div>`;
+    _rankingDoacoesCache = await (await fetch("/vinculos/ranking-doacoes?limite=20")).json();
+  }
+  renderRankingDoacoes("quantidade");
+}
+function renderRankingDoacoes(ordem){
+  const d = _rankingDoacoesCache;
+  const cand = ordem==="valor" ? d.candidatos_por_valor : d.candidatos_por_quantidade;
+  const emp = ordem==="valor" ? d.empresas_por_valor : d.empresas_por_quantidade;
+  const linhaCand = (c,i)=>`<tr>
+    <td>${i+1}</td><td><b>${esc(c.candidato)}</b></td><td>${esc(c.cargo)}</td>
+    <td>${esc(c.municipio)}/${esc(c.uf)}</td>
+    <td>${c.qtd_doacoes.toLocaleString('pt-BR')}</td><td>${fmtBRL(c.valor_total)}</td>
+  </tr>`;
+  const linhaEmp = (e,i)=>`<tr>
+    <td>${i+1}</td>
+    <td><b>${esc(e.razao_social||"—")}</b><br><span class="mono" style="color:var(--muted);font-size:11px">${formatarCnpj(e.cnpj)}</span></td>
+    <td>${e.qtd_doacoes.toLocaleString('pt-BR')}</td><td>${fmtBRL(e.valor_total)}</td>
+    <td style="font-size:11px;color:var(--muted)">${(e.socios||[]).map(esc).join(", ")}</td>
+  </tr>`;
+  $("modal").innerHTML = `
+    <div class="top">
+      <span class="close" onclick="fechar()">&times;</span>
+      <h2>🗳️ Ranking de doações eleitorais (TSE)</h2>
+      <div class="sub">Top 20 — ${ordem==="valor"?"por valor total":"por nº de doações"}</div>
+      <div class="badges" style="margin-top:10px">
+        <span class="badge pill${ordem!=="valor"?" status-ok":""}" style="cursor:pointer" onclick="renderRankingDoacoes('quantidade')">Por quantidade</span>
+        <span class="badge pill${ordem==="valor"?" status-ok":""}" style="cursor:pointer" onclick="renderRankingDoacoes('valor')">Por valor</span>
+      </div>
+    </div>
+    <div class="body">
+      <div class="sec">🏅 Candidatos que mais receberam</div>
+      <div style="overflow-x:auto"><table>
+        <thead><tr><th>#</th><th>Candidato</th><th>Cargo</th><th>Município</th><th>Doações</th><th>Valor total</th></tr></thead>
+        <tbody>${cand.map(linhaCand).join("")}</tbody>
+      </table></div>
+      <div class="sec" style="margin-top:22px">🏢 Empresas que mais aparecem doando</div>
+      <p style="color:var(--muted);font-size:12px;margin:-4px 0 10px">O vínculo é por sócio — se a mesma pessoa é sócia de várias empresas, a doação aparece em todas elas (não são doações distintas).</p>
+      <div style="overflow-x:auto"><table>
+        <thead><tr><th>#</th><th>Empresa</th><th>Doações</th><th>Valor total</th><th>Sócio(s) doador(es)</th></tr></thead>
+        <tbody>${emp.map(linhaEmp).join("")}</tbody>
+      </table></div>
+    </div>`;
 }
 function abrirSobre(){
   $("overlay").classList.add("open");
