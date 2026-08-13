@@ -100,21 +100,22 @@ Em desenvolvimento ativo. Estado atual:
 | **CEPIM** (impedidas de verba federal) · **Acordos de Leniência** (CGU) | ✅ pronto |
 | **Lista Suja do trabalho escravo** (MTE) | ✅ pronto |
 | **Mapa interativo** (MapLibre) + **satélite** na visão 360º | ✅ pronto |
-| Geocodificação (coordenadas de todas as empresas) | 🚧 rodando 24/7 na VPS — **98,5% concluído** (snapshot 05/08/2026) |
-| Processos judiciais (**DJEN/CNJ**, por nome da parte) | 🚧 rodando numa máquina local (ver nota) — **1,08 milhão de processos já publicados** |
+| Geocodificação (coordenadas de todas as empresas) | ✅ **100% concluído** (344.130/344.130 — snapshot 13/08/2026) |
+| Processos judiciais (**DJEN/CNJ**, por nome da parte) | 🚧 rodando numa máquina local (ver nota) — **59,9% das empresas já consultadas** (206 mil/344 mil), **1,87 milhão de processos já publicados** |
 | Contato & redes sociais (WhatsApp, site, Instagram…) | 🧪 implementado |
 | Dashboard · API · MCP · export Excel/PDF | ✅ funcionais |
 | **Classificação de leads** (via API/MCP) | ✅ funciona — 🚧 removida temporariamente da UI do dashboard |
 
-> 🔄 **Atualização automática:** o pipeline de geocodificação e processos
-> judiciais roda continuamente numa VPS, e o dataset publicado (Release) é
-> atualizado **a cada 2 horas** — o dashboard/API baixam a versão nova sozinhos,
-> sem precisar de reinstalação. O cadastro base (Receita Federal) segue seu
-> próprio ritmo mensal, que é quando a RFB publica dados novos.
+> 🔄 **Atualização automática:** o dataset publicado (Release) é atualizado
+> **a cada 2 horas** — o dashboard/API baixam a versão nova sozinhos, sem
+> precisar de reinstalação. O cadastro base (Receita Federal) e as demais
+> fontes rodam mensalmente numa VPS; **processos judiciais (DJEN)** roda à
+> parte, continuamente, numa máquina local (rate limit externo — não dá
+> pra paralelizar numa VPS sem violar o limite da API pública do CNJ).
 >
-> ⏳ **Geocodificação** depende do OpenStreetMap (~1 req/s), por isso leva dias —
-> o restante do dataset já está completo. No mapa, empresas ainda sem coordenada
-> são localizadas **na hora pelo endereço**.
+> ✅ **Geocodificação** já terminou (100%, dependia do OpenStreetMap a ~1
+> req/s). No mapa, qualquer empresa sem coordenada (ex.: cadastro novo do
+> mês) ainda é localizada **na hora pelo endereço**, como fallback.
 >
 > ⚖️ **Processos judiciais:** a API pública do DataJud **não expõe as partes**
 > (CPF/CNPJ), então é impossível achar processos por empresa por ela. Em vez disso
