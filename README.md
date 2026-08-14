@@ -101,7 +101,7 @@ Em desenvolvimento ativo. Estado atual:
 | **Lista Suja do trabalho escravo** (MTE) | ✅ pronto |
 | **Mapa interativo** (MapLibre) + **satélite** na visão 360º | ✅ pronto |
 | Geocodificação (coordenadas de todas as empresas) | ✅ **100% concluído** (344.130/344.130 — snapshot 13/08/2026) |
-| Processos judiciais (**DJEN/CNJ**, por nome da parte) | 🚧 rodando numa máquina local (ver nota) — **59,9% das empresas já consultadas** (206 mil/344 mil), **1,87 milhão de processos já publicados** |
+| Processos judiciais (**DJEN/CNJ**, por nome da parte) | 🚧 rodando numa máquina local (ver nota) — **62,3% das empresas já consultadas** (214 mil/344 mil), **1,91 milhão de processos já publicados** |
 | Contato & redes sociais (WhatsApp, site, Instagram…) | 🧪 implementado |
 | Dashboard · API · MCP · export Excel/PDF | ✅ funcionais |
 | **Classificação de leads** (via API/MCP) | ✅ funciona — 🚧 removida temporariamente da UI do dashboard |
