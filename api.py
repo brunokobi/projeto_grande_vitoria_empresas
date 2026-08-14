@@ -155,7 +155,11 @@ def get_ranking_doacoes(limite: int = Query(20, ge=1, le=200)):
 
 @app.get("/municipios/geojson", summary="Fronteiras dos 7 municípios da Grande Vitória (GeoJSON)", include_in_schema=False)
 def get_municipios_geojson():
-    return FileResponse(MUNICIPIOS_GEOJSON, media_type="application/geo+json")
+    # Sem isso o navegador pode cachear a versão antiga do arquivo (sem
+    # Cache-Control não há garantia de revalidação) — mesmo problema que
+    # o dashboard() já evita.
+    return FileResponse(MUNICIPIOS_GEOJSON, media_type="application/geo+json",
+                         headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/municipios/risco", summary="Total e % de pendência jurídico-fiscal por município (respeita os filtros) — pro choropleth do mapa")
