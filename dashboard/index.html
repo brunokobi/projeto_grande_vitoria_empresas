@@ -1223,10 +1223,12 @@ function initMapa(){
         "fill-opacity":0.6}});
     MAPA.addLayer({id:"municipios-line", type:"line", source:"municipios", layout:{visibility:"none"},
       paint:{"line-color":"#0b1a0f", "line-width":1.5}});
-    MAPA.addLayer({id:"municipios-label", type:"symbol", source:"municipios", layout:{visibility:"none",
-        "text-field":["get","label_texto"], "text-font":["Open Sans Regular"],
-        "text-size":13, "text-justify":"center", "text-line-height":1.3},
-      paint:{"text-color":"#ffffff", "text-halo-color":"#04060a", "text-halo-width":1.4}});
+    // Sem camada de texto (symbol/label) de propósito: dependia da fonte
+    // "Open Sans Regular" do glyphs server de demo do MapLibre, que não
+    // serve mais essa fonte (404) — isso quebrava o processamento da fonte
+    // "municipios" inteira no worker (fill+line+symbol são processados
+    // juntos), derrubando o preenchimento colorido também, não só o texto.
+    // O hover já mostra nome+percentual em popup, então não perde informação.
     MAPA.on("click","municipios-fill",(e)=>{
       const m=e.features[0].properties.municipio; if(m) filtrarCidade(m); });
     MAPA.on("mouseenter","municipios-fill",(e)=>{ MAPA.getCanvas().style.cursor="pointer";
@@ -1257,7 +1259,6 @@ async function atualizarChoropleth(){
       total: r.total || 0,
       com_pendencia: r.com_pendencia || 0,
       pct_pendencia: pct,
-      label_texto: `${f.properties.name}\n${pct.toLocaleString('pt-BR')}%`,
     }};
   });
   MAPA.getSource("municipios")?.setData({type:"FeatureCollection", features: feats});
@@ -1265,7 +1266,7 @@ async function atualizarChoropleth(){
 function setMapaModo(modo){
   if(!MAPA_READY) return;
   MAPA.setLayoutProperty("ponto","visibility", modo==="pontos"?"visible":"none");
-  ["municipios-fill","municipios-line","municipios-label"].forEach(id=>
+  ["municipios-fill","municipios-line"].forEach(id=>
     MAPA.setLayoutProperty(id,"visibility", modo==="risco"?"visible":"none"));
   $("mt_pontos").classList.toggle("active", modo==="pontos");
   $("mt_calor").classList.toggle("active", modo==="risco");
