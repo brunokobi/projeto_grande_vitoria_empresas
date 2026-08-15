@@ -12,6 +12,8 @@ Grande Vitória direto, com estas ferramentas:
 | `obter_empresa` | Visão 360º de um CNPJ (sócios+rede, dívidas, sanções, infrações, vínculos políticos, contratos públicos, benefícios/renúncias fiscais) |
 | `classificar_empresas` | Pontua/ranqueia leads por objetivo comercial (score 0–100) |
 | `ranking_doacoes_eleitorais` | Ranking de doações eleitorais (TSE) — candidatos que mais receberam e empresas que mais aparecem doando, por quantidade ou valor |
+| `classes_processos` | Classes de processo judicial disponíveis (com contagem), pra refinar `com_processos` por `processo_classe` |
+| `orgaos_sancionadores` | Órgãos sancionadores disponíveis (com contagem), pra refinar `com_sancoes` por `sancao_orgao` |
 
 Exemplos de perguntas: *"quantas empresas ativas há em Vila Velha?"*, *"restaurantes
 em Vitória com e-mail e sem dívida ativa"*, *"classifique como lead de contabilidade
