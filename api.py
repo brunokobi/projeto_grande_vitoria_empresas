@@ -66,6 +66,8 @@ def filtros_comuns(
     com_whatsapp: bool = Query(None),
     com_rede_social: bool = Query(None),
     com_processos: bool = Query(None, description="Só empresas com processos judiciais"),
+    processo_polo: str = Query(None, description="Restringe o polo do processo: Réu (padrão quando com_processos e nenhum polo é informado), Autor, Terceiro, ou TODOS pra qualquer polo"),
+    processo_classe: str = Query(None, description="Restringe à classe exata do processo (ver GET /processos/classes)"),
     com_sancoes: bool = Query(None, description="Só empresas com sanções"),
     com_ambiental: bool = Query(None, description="Só empresas com infração ambiental"),
     com_divida: bool = Query(None, description="Só empresas com dívida ativa"),
@@ -89,6 +91,7 @@ def filtros_comuns(
         regime_tributario=regime_tributario, texto=texto, socio=socio, tem_pendencia=tem_pendencia,
         com_telefone=com_telefone, com_email=com_email, com_whatsapp=com_whatsapp,
         com_rede_social=com_rede_social, com_processos=com_processos,
+        processo_polo=processo_polo, processo_classe=processo_classe,
         com_sancoes=com_sancoes, com_ambiental=com_ambiental, com_divida=com_divida,
         com_trabalho_escravo=com_trabalho_escravo, com_cepim=com_cepim, com_leniencia=com_leniencia,
         com_contratos_governamentais=com_contratos_governamentais,
@@ -125,6 +128,7 @@ def indice_api():
         "endpoints": {
             "GET /estatisticas": "Panorama geral",
             "GET /segmentos": "Segmentos (divisões CNAE) com contagem",
+            "GET /processos/classes": "Classes de processo judicial mais frequentes",
             "GET /vinculos/ranking-doacoes": "Ranking de doações eleitorais (candidatos e empresas)",
             "GET /municipios/risco": "Total e % de pendência por município (choropleth do mapa)",
             "GET /empresas": "Busca com filtros",
@@ -146,6 +150,11 @@ def get_estatisticas():
 @app.get("/segmentos", summary="Segmentos (divisões CNAE) com contagem")
 def get_segmentos():
     return dataset_queries.segmentos()
+
+
+@app.get("/processos/classes", summary="Classes de processo judicial mais frequentes (pro filtro do dashboard)")
+def get_classes_processos(limite: int = Query(100, ge=1, le=418)):
+    return dataset_queries.classes_processos(limite=limite)
 
 
 @app.get("/vinculos/ranking-doacoes", summary="Ranking de doações eleitorais (TSE) — candidatos e empresas")

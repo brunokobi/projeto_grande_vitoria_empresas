@@ -169,7 +169,7 @@ def _filtros_sql(*, tem_contato=False, tem_fts=False, tem_contratos=False,
                  com_contratos_governamentais=None,
                  com_renuncia_fiscal=None, com_imune_isento=None, com_habilitado_beneficio=None,
                  com_vinculo_politico=None, com_contrato_pncp=None, com_marca_registrada=None,
-                 com_incentivo_estadual=None,
+                 com_incentivo_estadual=None, processo_polo=None, processo_classe=None,
                  socio=None, cnpj=None):
     """Monta a cláusula WHERE (sobre o alias `e` = empresas) e os parâmetros."""
     where, params = [], []
@@ -228,8 +228,22 @@ def _filtros_sql(*, tem_contato=False, tem_fts=False, tem_contratos=False,
         where.append("NOT " + _PENDENCIA_EXPR)
     # Filtros por tipo específico de pendência jurídico-fiscal.
     if com_processos:
-        # Só conta como pendência quando a empresa é ré — ver _PENDENCIA_EXPR.
-        where.append("EXISTS (SELECT 1 FROM processos_judiciais p WHERE p.cnpj_empresa = e.cnpj AND p.polo = 'Réu')")
+        # Padrão (processo_polo não informado) continua só Réu -- é o que
+        # conta como pendência/risco (ver _PENDENCIA_EXPR). "TODOS" no
+        # submenu do dashboard = qualquer polo (Réu/Autor/Terceiro).
+        cond_proc = "EXISTS (SELECT 1 FROM processos_judiciais p WHERE p.cnpj_empresa = e.cnpj"
+        params_proc = []
+        if processo_polo and processo_polo != "TODOS":
+            cond_proc += " AND p.polo = ?"
+            params_proc.append(processo_polo)
+        elif not processo_polo:
+            cond_proc += " AND p.polo = 'Réu'"
+        if processo_classe:
+            cond_proc += " AND p.classe = ?"
+            params_proc.append(processo_classe)
+        cond_proc += ")"
+        where.append(cond_proc)
+        params.extend(params_proc)
     if com_sancoes:
         where.append("EXISTS (SELECT 1 FROM sancoes_administrativas s WHERE s.cnpj_empresa = e.cnpj)")
     if com_ambiental:
@@ -395,6 +409,22 @@ def estatisticas() -> dict:
     }
 
 
+def classes_processos(limite: int = 100) -> list:
+    """Classes de processo judicial mais frequentes (com contagem de
+    registros), pra popular o filtro de classe no submenu de "Em processo
+    judicial" do dashboard — 418 classes distintas na base toda, mostra só
+    as mais frequentes (limite) pra não virar uma lista gigante."""
+    with _conn() as conn:
+        if not _tabela_existe(conn, "processos_judiciais"):
+            return []
+        rows = conn.execute(
+            "SELECT classe, COUNT(*) n FROM processos_judiciais "
+            "WHERE classe IS NOT NULL AND classe != '' "
+            "GROUP BY classe ORDER BY n DESC LIMIT ?", (limite,)
+        ).fetchall()
+    return [{"classe": r["classe"], "total": r["n"]} for r in rows]
+
+
 def segmentos() -> list:
     """Lista de segmentos (divisão CNAE) com a contagem de empresas em cada,
     para popular o filtro de segmento do dashboard."""
@@ -417,7 +447,7 @@ def buscar_empresas(municipio=None, cnae=None, cnae_prefix=None, porte=None,
                     com_renuncia_fiscal=None, com_imune_isento=None,
                     com_habilitado_beneficio=None, com_vinculo_politico=None,
                     com_contrato_pncp=None, com_marca_registrada=None,
-                    com_incentivo_estadual=None,
+                    com_incentivo_estadual=None, processo_polo=None, processo_classe=None,
                     socio=None, cnpj=None, ordenar_por="razao_social",
                     limite=50, offset=0) -> dict:
     """Busca empresas com filtros combináveis. Retorna {'total','itens',...}."""
@@ -450,6 +480,7 @@ def buscar_empresas(municipio=None, cnae=None, cnae_prefix=None, porte=None,
             com_vinculo_politico=com_vinculo_politico,
             com_contrato_pncp=com_contrato_pncp, com_marca_registrada=com_marca_registrada,
             com_incentivo_estadual=com_incentivo_estadual,
+            processo_polo=processo_polo, processo_classe=processo_classe,
             socio=socio, cnpj=cnpj)
         total = conn.execute(f"SELECT COUNT(*) FROM empresas e{where_sql}", params).fetchone()[0]
         rows = conn.execute(
