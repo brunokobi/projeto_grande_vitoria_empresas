@@ -274,18 +274,18 @@
       <label class="f">Situação cadastral</label>
       <label class="chk" id="row_proc"><input type="checkbox" id="f_proc" onchange="toggleSubmenuProc()"> Em processo judicial</label>
       <div id="proc_submenu" style="display:none;margin:-4px 0 8px 22px">
-        <div class="msdica">nada marcado = Réu (padrão); Ctrl/Cmd+clique seleciona mais de um</div>
+        <div class="msdica">nada marcado = Réu (padrão); marcar mais de um exige processo de CADA um (E, não OU)</div>
         <select id="f_proc_polo" multiple size="3" style="margin-bottom:4px">
           <option value="Réu">Réu</option>
           <option value="Autor">Autor</option>
           <option value="Terceiro">Terceiro</option>
         </select>
-        <div class="msdica">nada marcado = qualquer classe</div>
+        <div class="msdica">nada marcado = qualquer classe; marcar mais de uma exige processo de CADA classe</div>
         <select id="f_proc_classe" multiple size="6"></select>
       </div>
       <label class="chk" id="row_sanc"><input type="checkbox" id="f_sanc" onchange="toggleSubmenuSanc()"> Com sanções administrativas</label>
       <div id="sanc_submenu" style="display:none;margin:-4px 0 8px 22px">
-        <div class="msdica">nada marcado = qualquer tipo; Ctrl/Cmd+clique seleciona mais de um</div>
+        <div class="msdica">nada marcado = qualquer tipo; marcar mais de um exige sanção de CADA tipo (E, não OU)</div>
         <select id="f_sanc_tipo" multiple size="5">
           <option value="CEIS">CEIS</option>
           <option value="CNEP">CNEP</option>
@@ -302,7 +302,7 @@
       <label class="chk" id="row_contratos"><input type="checkbox" id="f_contratos"> Contratos com órgãos públicos</label>
       <label class="chk" id="row_ben"><input type="checkbox" id="f_ben" onchange="toggleSubmenuBen()"> Com benefício fiscal</label>
       <div id="ben_submenu" style="display:none;margin:-4px 0 8px 22px">
-        <div class="msdica">nada marcado = qualquer tipo; Ctrl/Cmd+clique seleciona mais de um</div>
+        <div class="msdica">nada marcado = qualquer tipo; marcar mais de um exige benefício de CADA tipo (E, não OU)</div>
         <select id="f_ben_tipo" multiple size="4">
           <option value="RENUNCIA">Renúncia fiscal federal</option>
           <option value="IMUNE_ISENTO">Imune/isenta de IRPJ</option>
@@ -312,7 +312,7 @@
       </div>
       <label class="chk" id="row_vinculo"><input type="checkbox" id="f_vinculo" onchange="toggleSubmenuVinculo()"> Vínculo político (sócio)</label>
       <div id="vinculo_submenu" style="display:none;margin:-4px 0 8px 22px">
-        <div class="msdica">nada marcado = qualquer fonte; Ctrl/Cmd+clique seleciona os dois</div>
+        <div class="msdica">nada marcado = qualquer fonte; marcar os dois exige QUE O SÓCIO TENHA os dois (doou e foi candidato) — não é OU</div>
         <select id="f_vinc_fonte" multiple size="2">
           <option value="TSE_DOACAO">Doação eleitoral (TSE)</option>
           <option value="TSE_CANDIDATURA">Candidatura (TSE)</option>
@@ -320,7 +320,7 @@
       </div>
       <label class="chk" id="row_pncp"><input type="checkbox" id="f_pncp" onchange="toggleSubmenuPncp()"> Contrato via PNCP</label>
       <div id="pncp_submenu" style="display:none;margin:-4px 0 8px 22px">
-        <div class="msdica">nada marcado = qualquer categoria; Ctrl/Cmd+clique seleciona mais de uma</div>
+        <div class="msdica">nada marcado = qualquer categoria; marcar mais de uma exige contrato de CADA categoria (E, não OU)</div>
         <select id="f_pncp_cat" multiple size="6">
           <option value="Compras">Compras</option>
           <option value="Serviços">Serviços</option>
