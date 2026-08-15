@@ -73,6 +73,7 @@
   .chk input{width:auto}
   .chk .spacer{flex:1}
   .chk .cnt{color:var(--muted);font-size:11px;font-family:'Courier New',monospace}
+  .msdica{font-size:11px;color:var(--muted);margin:2px 0 3px}
   .citychip{background:var(--bg2);border:1px solid var(--line);color:var(--text);
     padding:6px 13px;border-radius:8px;font-size:12px;cursor:pointer;transition:.15s}
   .citychip:hover,.citychip.active{background:var(--green-deep);border-color:var(--green-dim);color:var(--green)}
@@ -273,18 +274,19 @@
       <label class="f">Situação cadastral</label>
       <label class="chk" id="row_proc"><input type="checkbox" id="f_proc" onchange="toggleSubmenuProc()"> Em processo judicial</label>
       <div id="proc_submenu" style="display:none;margin:-4px 0 8px 22px">
-        <select id="f_proc_polo" style="margin-bottom:4px">
-          <option value="">Réu (padrão — conta como pendência)</option>
+        <div class="msdica">nada marcado = Réu (padrão); Ctrl/Cmd+clique seleciona mais de um</div>
+        <select id="f_proc_polo" multiple size="3" style="margin-bottom:4px">
+          <option value="Réu">Réu</option>
           <option value="Autor">Autor</option>
           <option value="Terceiro">Terceiro</option>
-          <option value="TODOS">Qualquer polo</option>
         </select>
-        <select id="f_proc_classe"><option value="">Qualquer classe</option></select>
+        <div class="msdica">nada marcado = qualquer classe</div>
+        <select id="f_proc_classe" multiple size="6"></select>
       </div>
       <label class="chk" id="row_sanc"><input type="checkbox" id="f_sanc" onchange="toggleSubmenuSanc()"> Com sanções administrativas</label>
       <div id="sanc_submenu" style="display:none;margin:-4px 0 8px 22px">
-        <select id="f_sanc_tipo" style="margin-bottom:4px">
-          <option value="">Qualquer tipo</option>
+        <div class="msdica">nada marcado = qualquer tipo; Ctrl/Cmd+clique seleciona mais de um</div>
+        <select id="f_sanc_tipo" multiple size="5">
           <option value="CEIS">CEIS</option>
           <option value="CNEP">CNEP</option>
           <option value="CEPIM">CEPIM</option>
@@ -300,8 +302,8 @@
       <label class="chk" id="row_contratos"><input type="checkbox" id="f_contratos"> Contratos com órgãos públicos</label>
       <label class="chk" id="row_ben"><input type="checkbox" id="f_ben" onchange="toggleSubmenuBen()"> Com benefício fiscal</label>
       <div id="ben_submenu" style="display:none;margin:-4px 0 8px 22px">
-        <select id="f_ben_tipo">
-          <option value="">Qualquer tipo</option>
+        <div class="msdica">nada marcado = qualquer tipo; Ctrl/Cmd+clique seleciona mais de um</div>
+        <select id="f_ben_tipo" multiple size="4">
           <option value="RENUNCIA">Renúncia fiscal federal</option>
           <option value="IMUNE_ISENTO">Imune/isenta de IRPJ</option>
           <option value="HABILITADO">Habilitada a benefício fiscal</option>
@@ -310,16 +312,16 @@
       </div>
       <label class="chk" id="row_vinculo"><input type="checkbox" id="f_vinculo" onchange="toggleSubmenuVinculo()"> Vínculo político (sócio)</label>
       <div id="vinculo_submenu" style="display:none;margin:-4px 0 8px 22px">
-        <select id="f_vinc_fonte">
-          <option value="">Qualquer fonte</option>
+        <div class="msdica">nada marcado = qualquer fonte; Ctrl/Cmd+clique seleciona os dois</div>
+        <select id="f_vinc_fonte" multiple size="2">
           <option value="TSE_DOACAO">Doação eleitoral (TSE)</option>
           <option value="TSE_CANDIDATURA">Candidatura (TSE)</option>
         </select>
       </div>
       <label class="chk" id="row_pncp"><input type="checkbox" id="f_pncp" onchange="toggleSubmenuPncp()"> Contrato via PNCP</label>
       <div id="pncp_submenu" style="display:none;margin:-4px 0 8px 22px">
-        <select id="f_pncp_cat">
-          <option value="">Qualquer categoria</option>
+        <div class="msdica">nada marcado = qualquer categoria; Ctrl/Cmd+clique seleciona mais de uma</div>
+        <select id="f_pncp_cat" multiple size="6">
           <option value="Compras">Compras</option>
           <option value="Serviços">Serviços</option>
           <option value="Serviços de Engenharia">Serviços de Engenharia</option>
@@ -413,6 +415,11 @@ const esc = s => (s==null?"":String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'
 function query(){
   const p = new URLSearchParams();
   const add=(k,v)=>{ if(v!==""&&v!=null&&v!==false) p.set(k,v); };
+  // Submenus de refinamento são <select multiple> — cada opção marcada vira
+  // um parâmetro repetido (mesmo padrão do checkbox-group de município).
+  const addMulti=(k,selId)=>{
+    Array.from($(selId).selectedOptions).forEach(o=>{ if(o.value) p.append(k,o.value); });
+  };
   add("texto",$("f_texto").value.trim());
   add("cnpj",$("f_cnpj").value.trim());
   add("socio",$("f_socio").value.trim());
@@ -429,12 +436,12 @@ function query(){
   if($("f_rede").checked) p.set("com_rede_social","true");
   if($("f_proc").checked){
     p.set("com_processos","true");
-    add("processo_polo",$("f_proc_polo").value);
-    add("processo_classe",$("f_proc_classe").value);
+    addMulti("processo_polo","f_proc_polo");
+    addMulti("processo_classe","f_proc_classe");
   }
   if($("f_sanc").checked){
     p.set("com_sancoes","true");
-    add("sancao_tipo",$("f_sanc_tipo").value);
+    addMulti("sancao_tipo","f_sanc_tipo");
   }
   if($("f_amb").checked) p.set("com_ambiental","true");
   if($("f_div").checked) p.set("com_divida","true");
@@ -444,15 +451,15 @@ function query(){
   if($("f_contratos").checked) p.set("com_contratos_governamentais","true");
   if($("f_ben").checked){
     p.set("com_beneficio_fiscal","true");
-    add("beneficio_tipo",$("f_ben_tipo").value);
+    addMulti("beneficio_tipo","f_ben_tipo");
   }
   if($("f_vinculo").checked){
     p.set("com_vinculo_politico","true");
-    add("vinculo_fonte",$("f_vinc_fonte").value);
+    addMulti("vinculo_fonte","f_vinc_fonte");
   }
   if($("f_pncp").checked){
     p.set("com_contrato_pncp","true");
-    add("pncp_categoria",$("f_pncp_cat").value);
+    addMulti("pncp_categoria","f_pncp_cat");
   }
   if($("f_marca").checked) p.set("com_marca_registrada","true");
   add("ordenar_por",$("f_ordem").value);
@@ -1000,32 +1007,29 @@ async function abrir(cnpj, viaPopstate){
   // lista correspondente pelo mesmo critério (mesmo padrão usado em
   // query()). Não afeta o resumo/pendência, só a lista.
   const qp = new URLSearchParams();
+  const qpMulti=(k,selId)=>{
+    Array.from($(selId).selectedOptions).forEach(o=>{ if(o.value) qp.append(k,o.value); });
+  };
   let qsProc = false, qsSanc = false, qsBen = false, qsVinc = false, qsPncp = false;
   if($("f_proc")?.checked){
-    const polo = $("f_proc_polo").value || "Réu";
-    if(polo !== "TODOS") qp.set("processo_polo", polo);
-    const classe = $("f_proc_classe").value;
-    if(classe) qp.set("processo_classe", classe);
+    qpMulti("processo_polo","f_proc_polo");
+    qpMulti("processo_classe","f_proc_classe");
     qsProc = true;
   }
   if($("f_sanc")?.checked){
-    const tipo = $("f_sanc_tipo").value;
-    if(tipo) qp.set("sancao_tipo", tipo);
+    qpMulti("sancao_tipo","f_sanc_tipo");
     qsSanc = true;
   }
   if($("f_ben")?.checked){
-    const tipo = $("f_ben_tipo").value;
-    if(tipo) qp.set("beneficio_tipo", tipo);
+    qpMulti("beneficio_tipo","f_ben_tipo");
     qsBen = true;
   }
   if($("f_vinculo")?.checked){
-    const fonte = $("f_vinc_fonte").value;
-    if(fonte) qp.set("vinculo_fonte", fonte);
+    qpMulti("vinculo_fonte","f_vinc_fonte");
     qsVinc = true;
   }
   if($("f_pncp")?.checked){
-    const cat = $("f_pncp_cat").value;
-    if(cat) qp.set("pncp_categoria", cat);
+    qpMulti("pncp_categoria","f_pncp_cat");
     qsPncp = true;
   }
   const qs = qp.toString() ? "?"+qp.toString() : "";
@@ -1297,7 +1301,11 @@ function gerarExport(fmt){
 }
 function limpar(){
   ["f_texto","f_cnpj","f_socio","f_capmin","f_capmax"].forEach(id=>$(id).value="");
-  ["f_segmento","f_porte","f_regime","f_pendencia","f_proc_polo","f_proc_classe","f_sanc_tipo","f_ben_tipo","f_vinc_fonte","f_pncp_cat"].forEach(id=>$(id).value="");
+  ["f_segmento","f_porte","f_regime","f_pendencia"].forEach(id=>$(id).value="");
+  // Selects multi (submenus de refinamento) não limpam com .value="" — precisa
+  // desmarcar cada <option> individualmente.
+  ["f_proc_polo","f_proc_classe","f_sanc_tipo","f_ben_tipo","f_vinc_fonte","f_pncp_cat"].forEach(id=>
+    Array.from($(id).options).forEach(o=>o.selected=false));
   ["f_tel","f_email","f_wpp","f_rede","f_proc","f_sanc","f_amb","f_div","f_escravo","f_cepim","f_lenienc","f_contratos","f_ben","f_vinculo","f_pncp","f_marca"].forEach(id=>$(id).checked=false);
   toggleSubmenuProc(); toggleSubmenuSanc(); toggleSubmenuBen(); toggleSubmenuVinculo(); toggleSubmenuPncp();
   document.querySelectorAll("#f_municipio_group input").forEach(cb=>cb.checked=false);
