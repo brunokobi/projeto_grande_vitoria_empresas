@@ -121,17 +121,20 @@ def buscar_empresas(
       "limpas" (bom filtro de prospecção); None = ignora.
     - com_processos: True exige processo judicial. Por padrão só conta
       quando a empresa é RÉ (é o que representa risco/pendência) — passe
-      processo_polo="Autor"/"Terceiro"/"TODOS" (ou uma LISTA, ex.:
-      ["Réu","Autor"], pra combinar mais de um polo) pra mudar isso.
+      processo_polo="Autor"/"Terceiro"/"TODOS" pra mudar isso. Passar uma
+      LISTA (ex.: ["Réu","Autor"]) é AND, não OR: exige processo de CADA
+      polo da lista (empresa que é ré em algum processo E autora em outro),
+      não só de algum deles.
     - processo_classe: restringe à classe exata do processo (ex.: "AçãO
       TRABALHISTA - RITO ORDINáRIO", "PROCEDIMENTO COMUM CíVEL" — ver
-      ferramenta classes_processos pra lista completa). Aceita uma lista
-      pra combinar mais de uma classe.
+      ferramenta classes_processos pra lista completa). Uma lista aqui
+      também é AND: exige processo de CADA classe listada.
     - com_sancoes: True exige sanção administrativa (CEIS/CNEP/CEPIM/
       trabalho escravo/TCEES). sancao_tipo restringe o(s) tipo(s)
-      específico(s) (string única ou lista, "TODOS" pra qualquer);
-      sancao_orgao restringe ao órgão sancionador exato (ver ferramenta
-      orgaos_sancionadores pra lista completa).
+      específico(s) (string única ou lista — lista é AND, exige sanção de
+      CADA tipo listado, "TODOS" pra qualquer); sancao_orgao restringe ao
+      órgão sancionador exato (ver ferramenta orgaos_sancionadores pra
+      lista completa).
     - com_telefone / com_email: True exige o contato preenchido.
     - com_whatsapp: True exige link de WhatsApp (requer a etapa `contato`).
     - com_rede_social: True exige Instagram/Facebook/LinkedIn (etapa `contato`).
@@ -146,21 +149,23 @@ def buscar_empresas(
       benefício fiscal específico (ex.: RET - Incorporação Imobiliária).
     - com_vinculo_politico: True exige vínculo político do sócio (PEP,
       candidatura no TSE, ou doação eleitoral pessoal). vinculo_fonte
-      restringe a fonte (TSE_DOACAO/TSE_CANDIDATURA — passe os DOIS numa
-      lista pra pegar sócio com qualquer um dos dois; "TODOS" pra qualquer).
+      restringe a fonte (TSE_DOACAO/TSE_CANDIDATURA, "TODOS" pra qualquer)
+      — passar os DOIS numa lista é AND: só empresas cujo sócio TENHA os
+      dois (é candidato E doou), não qualquer um dos dois.
     - com_contrato_pncp: True exige contrato via PNCP (Portal Nacional de
       Contratações Públicas — municipal/estadual/federal, cobertura bem
       mais ampla que com_contratos_governamentais, que é só federal).
       pncp_categoria restringe à(s) categoria(s) exata(s) (ex.: "Compras",
-      "Serviços", "Obras" — string única ou lista, "TODOS" pra qualquer).
+      "Serviços", "Obras") — uma lista é AND, exige contrato de CADA
+      categoria listada.
     - com_marca_registrada: True exige marca registrada no INPI.
     - com_incentivo_estadual: True exige incentivo fiscal de ICMS estadual
       (Programa COMPETE-ES).
     - com_beneficio_fiscal: True exige qualquer benefício fiscal (renúncia,
       imune/isento, habilitado ou incentivo ICMS — engloba os 4 filtros
       acima num só). beneficio_tipo restringe o(s) tipo(s) específico(s)
-      (RENUNCIA/IMUNE_ISENTO/HABILITADO/COMPETE_ES — string única ou lista,
-      "TODOS" pra qualquer).
+      (RENUNCIA/IMUNE_ISENTO/HABILITADO/COMPETE_ES) — uma lista é AND,
+      exige benefício de CADA tipo listado.
     - ordenar_por: razao_social | capital_social | municipio | porte | cnpj.
     - limite (máx. 500) e offset para paginação.
 

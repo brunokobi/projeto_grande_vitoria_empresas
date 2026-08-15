@@ -244,40 +244,86 @@ def _filtros_sql(*, tem_contato=False, tem_fts=False, tem_contratos=False,
         # Padrão (processo_polo não informado) continua só Réu -- é o que
         # conta como pendência/risco (ver _PENDENCIA_EXPR). processo_polo e
         # processo_classe aceitam valor único OU lista (multi-select do
-        # dashboard, um polo/classe por checkbox marcado) — "TODOS" (sentinel
-        # de compat com quem já chamava a API assim) = qualquer polo.
-        cond_proc = "EXISTS (SELECT 1 FROM processos_judiciais p WHERE p.cnpj_empresa = e.cnpj"
-        params_proc = []
+        # dashboard) — "TODOS" (sentinel de compat) = qualquer polo.
+        #
+        # IMPORTANTE: marcar 2+ valores num submenu é "E", não "OU" -- ex.:
+        # marcar "Doação" + "Candidatura" em vínculo político deve exigir que
+        # a empresa tenha os DOIS tipos de registro, não só qualquer um deles
+        # (um IN() sozinho daria "OU" e bastaria ter só um dos dois pra
+        # bater). Por isso, quando uma dimensão tem 2+ valores marcados, ela
+        # "explode" numa EXISTS separada por valor (todas ANDadas por estarem
+        # na lista `where`, que é unida com AND no final da função).
         polos = _lista_valores(processo_polo)
-        if polos:
-            ph = ",".join("?" for _ in polos)
-            cond_proc += f" AND p.polo IN ({ph})"
-            params_proc.extend(polos)
-        elif not processo_polo:  # nada marcado -> continua no padrão (só Réu)
-            cond_proc += " AND p.polo = 'Réu'"
-        # senão: só "TODOS" informado -> qualquer polo, sem condição extra
         classes = _lista_valores(processo_classe)
-        if classes:
-            ph = ",".join("?" for _ in classes)
-            cond_proc += f" AND p.classe IN ({ph})"
-            params_proc.extend(classes)
-        cond_proc += ")"
-        where.append(cond_proc)
-        params.extend(params_proc)
+
+        def _cond_processo(polo_fixo, classe_fixo):
+            """EXISTS de UMA linha que satisfaz polo_fixo (ou o default Réu,
+            se None e nada foi marcado) e classe_fixo (se informado)."""
+            sql = "EXISTS (SELECT 1 FROM processos_judiciais pr WHERE pr.cnpj_empresa = e.cnpj"
+            p = []
+            if polo_fixo is not None:
+                sql += " AND pr.polo = ?"
+                p.append(polo_fixo)
+            elif not processo_polo:
+                sql += " AND pr.polo = 'Réu'"
+            if classe_fixo is not None:
+                sql += " AND pr.classe = ?"
+                p.append(classe_fixo)
+            sql += ")"
+            return sql, p
+
+        if len(classes) > 1 and len(polos) > 1:
+            # múltiplos nos dois -- decoupla (senão o cruzamento polo×classe
+            # vira restritivo demais: precisaria da MESMA linha casando cada
+            # combinação). Exige processo de CADA polo marcado e, à parte,
+            # processo de CADA classe marcada.
+            for pl in polos:
+                sql, p = _cond_processo(pl, None)
+                where.append(sql); params.extend(p)
+            for c in classes:
+                sql, p = _cond_processo(None, c)
+                where.append(sql); params.extend(p)
+        elif len(classes) > 1:
+            # só classe é múltipla -- pra CADA classe marcada, uma linha
+            # daquela classe no polo selecionado (ou Réu, por padrão).
+            polo_fixo = polos[0] if polos else None
+            for c in classes:
+                sql, p = _cond_processo(polo_fixo, c)
+                where.append(sql); params.extend(p)
+        elif len(polos) > 1:
+            classe_fixa = classes[0] if classes else None
+            for pl in polos:
+                sql, p = _cond_processo(pl, classe_fixa)
+                where.append(sql); params.extend(p)
+        else:
+            # nenhuma múltipla -- comportamento original (0 ou 1 valor cada).
+            sql, p = _cond_processo(polos[0] if polos else None, classes[0] if classes else None)
+            where.append(sql); params.extend(p)
     if com_sancoes:
-        cond_sanc = "EXISTS (SELECT 1 FROM sancoes_administrativas s WHERE s.cnpj_empresa = e.cnpj"
-        params_sanc = []
+        # sancao_tipo aceita lista (múltiplos = "E", mesma lógica acima);
+        # sancao_orgao continua valor único (não é multi-select no dashboard).
         tipos_sanc = _lista_valores(sancao_tipo)
-        if tipos_sanc:
-            ph = ",".join("?" for _ in tipos_sanc)
-            cond_sanc += f" AND s.tipo IN ({ph})"
-            params_sanc.extend(tipos_sanc)
-        if sancao_orgao:
-            cond_sanc += " AND s.orgao_sancionador = ?"
-            params_sanc.append(sancao_orgao)
-        cond_sanc += ")"
-        where.append(cond_sanc)
-        params.extend(params_sanc)
+        if len(tipos_sanc) > 1:
+            for t in tipos_sanc:
+                sql = "EXISTS (SELECT 1 FROM sancoes_administrativas s WHERE s.cnpj_empresa = e.cnpj AND s.tipo = ?"
+                p = [t]
+                if sancao_orgao:
+                    sql += " AND s.orgao_sancionador = ?"
+                    p.append(sancao_orgao)
+                sql += ")"
+                where.append(sql); params.extend(p)
+        else:
+            cond_sanc = "EXISTS (SELECT 1 FROM sancoes_administrativas s WHERE s.cnpj_empresa = e.cnpj"
+            params_sanc = []
+            if tipos_sanc:
+                cond_sanc += " AND s.tipo = ?"
+                params_sanc.append(tipos_sanc[0])
+            if sancao_orgao:
+                cond_sanc += " AND s.orgao_sancionador = ?"
+                params_sanc.append(sancao_orgao)
+            cond_sanc += ")"
+            where.append(cond_sanc)
+            params.extend(params_sanc)
     if com_ambiental:
         where.append("EXISTS (SELECT 1 FROM infracoes_ambientais i WHERE i.cnpj_empresa = e.cnpj)")
     if com_divida:
@@ -321,44 +367,60 @@ def _filtros_sql(*, tem_contato=False, tem_fts=False, tem_contratos=False,
         if not tem_beneficios:
             where.append("0")  # tabela ainda não existe nesta cópia do dataset → sem resultados
         else:
-            cond_ben = "EXISTS (SELECT 1 FROM beneficios_fiscais b WHERE b.cnpj_empresa = e.cnpj"
-            params_ben = []
             tipos_ben = _lista_valores(beneficio_tipo)
-            if tipos_ben:
-                ph = ",".join("?" for _ in tipos_ben)
-                cond_ben += f" AND b.tipo IN ({ph})"
-                params_ben.extend(tipos_ben)
-            cond_ben += ")"
-            where.append(cond_ben)
-            params.extend(params_ben)
+            if len(tipos_ben) > 1:
+                # 2+ marcados = "E": precisa ter registro de CADA tipo, não só de algum.
+                for t in tipos_ben:
+                    where.append("EXISTS (SELECT 1 FROM beneficios_fiscais b WHERE b.cnpj_empresa = e.cnpj AND b.tipo = ?)")
+                    params.append(t)
+            else:
+                cond_ben = "EXISTS (SELECT 1 FROM beneficios_fiscais b WHERE b.cnpj_empresa = e.cnpj"
+                p = []
+                if tipos_ben:
+                    cond_ben += " AND b.tipo = ?"
+                    p.append(tipos_ben[0])
+                cond_ben += ")"
+                where.append(cond_ben)
+                params.extend(p)
     if com_vinculo_politico:
         if not tem_vinculos:
             where.append("0")  # tabela ainda não existe nesta cópia do dataset → sem resultados
         else:
-            cond_vinc = "EXISTS (SELECT 1 FROM vinculos_politicos v WHERE v.cnpj_empresa = e.cnpj"
-            params_vinc = []
             fontes = _lista_valores(vinculo_fonte)
-            if fontes:
-                ph = ",".join("?" for _ in fontes)
-                cond_vinc += f" AND v.fonte IN ({ph})"
-                params_vinc.extend(fontes)
-            cond_vinc += ")"
-            where.append(cond_vinc)
-            params.extend(params_vinc)
+            if len(fontes) > 1:
+                # 2+ marcadas = "E": precisa ter vínculo de CADA fonte (ex.:
+                # doação E candidatura), não só de uma delas.
+                for f in fontes:
+                    where.append("EXISTS (SELECT 1 FROM vinculos_politicos v WHERE v.cnpj_empresa = e.cnpj AND v.fonte = ?)")
+                    params.append(f)
+            else:
+                cond_vinc = "EXISTS (SELECT 1 FROM vinculos_politicos v WHERE v.cnpj_empresa = e.cnpj"
+                p = []
+                if fontes:
+                    cond_vinc += " AND v.fonte = ?"
+                    p.append(fontes[0])
+                cond_vinc += ")"
+                where.append(cond_vinc)
+                params.extend(p)
     if com_contrato_pncp:
         if not tem_pncp:
             where.append("0")  # tabela ainda não existe nesta cópia do dataset → sem resultados
         else:
-            cond_pncp = "EXISTS (SELECT 1 FROM contratos_pncp cp WHERE cp.cnpj_empresa = e.cnpj"
-            params_pncp = []
             categorias = _lista_valores(pncp_categoria)
-            if categorias:
-                ph = ",".join("?" for _ in categorias)
-                cond_pncp += f" AND cp.categoria IN ({ph})"
-                params_pncp.extend(categorias)
-            cond_pncp += ")"
-            where.append(cond_pncp)
-            params.extend(params_pncp)
+            if len(categorias) > 1:
+                # 2+ marcadas = "E": precisa ter contrato de CADA categoria.
+                for c in categorias:
+                    where.append("EXISTS (SELECT 1 FROM contratos_pncp cp WHERE cp.cnpj_empresa = e.cnpj AND cp.categoria = ?)")
+                    params.append(c)
+            else:
+                cond_pncp = "EXISTS (SELECT 1 FROM contratos_pncp cp WHERE cp.cnpj_empresa = e.cnpj"
+                p = []
+                if categorias:
+                    cond_pncp += " AND cp.categoria = ?"
+                    p.append(categorias[0])
+                cond_pncp += ")"
+                where.append(cond_pncp)
+                params.extend(p)
     if com_marca_registrada:
         if not tem_marcas:
             where.append("0")  # tabela ainda não existe nesta cópia do dataset → sem resultados
