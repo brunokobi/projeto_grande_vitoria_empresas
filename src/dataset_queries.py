@@ -170,6 +170,7 @@ def _filtros_sql(*, tem_contato=False, tem_fts=False, tem_contratos=False,
                  com_renuncia_fiscal=None, com_imune_isento=None, com_habilitado_beneficio=None,
                  com_vinculo_politico=None, com_contrato_pncp=None, com_marca_registrada=None,
                  com_incentivo_estadual=None, processo_polo=None, processo_classe=None,
+                 sancao_tipo=None, sancao_orgao=None,
                  socio=None, cnpj=None):
     """Monta a cláusula WHERE (sobre o alias `e` = empresas) e os parâmetros."""
     where, params = [], []
@@ -245,7 +246,17 @@ def _filtros_sql(*, tem_contato=False, tem_fts=False, tem_contratos=False,
         where.append(cond_proc)
         params.extend(params_proc)
     if com_sancoes:
-        where.append("EXISTS (SELECT 1 FROM sancoes_administrativas s WHERE s.cnpj_empresa = e.cnpj)")
+        cond_sanc = "EXISTS (SELECT 1 FROM sancoes_administrativas s WHERE s.cnpj_empresa = e.cnpj"
+        params_sanc = []
+        if sancao_tipo and sancao_tipo != "TODOS":
+            cond_sanc += " AND s.tipo = ?"
+            params_sanc.append(sancao_tipo)
+        if sancao_orgao:
+            cond_sanc += " AND s.orgao_sancionador = ?"
+            params_sanc.append(sancao_orgao)
+        cond_sanc += ")"
+        where.append(cond_sanc)
+        params.extend(params_sanc)
     if com_ambiental:
         where.append("EXISTS (SELECT 1 FROM infracoes_ambientais i WHERE i.cnpj_empresa = e.cnpj)")
     if com_divida:
@@ -425,6 +436,21 @@ def classes_processos(limite: int = 100) -> list:
     return [{"classe": r["classe"], "total": r["n"]} for r in rows]
 
 
+def orgaos_sancionadores(limite: int = 100) -> list:
+    """Órgãos sancionadores mais frequentes (com contagem), pra popular o
+    filtro de órgão no submenu de "Com sanções administrativas" —
+    169 órgãos distintos na base toda."""
+    with _conn() as conn:
+        if not _tabela_existe(conn, "sancoes_administrativas"):
+            return []
+        rows = conn.execute(
+            "SELECT orgao_sancionador, COUNT(*) n FROM sancoes_administrativas "
+            "WHERE orgao_sancionador IS NOT NULL AND orgao_sancionador != '' "
+            "GROUP BY orgao_sancionador ORDER BY n DESC LIMIT ?", (limite,)
+        ).fetchall()
+    return [{"orgao": r["orgao_sancionador"], "total": r["n"]} for r in rows]
+
+
 def segmentos() -> list:
     """Lista de segmentos (divisão CNAE) com a contagem de empresas em cada,
     para popular o filtro de segmento do dashboard."""
@@ -448,6 +474,7 @@ def buscar_empresas(municipio=None, cnae=None, cnae_prefix=None, porte=None,
                     com_habilitado_beneficio=None, com_vinculo_politico=None,
                     com_contrato_pncp=None, com_marca_registrada=None,
                     com_incentivo_estadual=None, processo_polo=None, processo_classe=None,
+                    sancao_tipo=None, sancao_orgao=None,
                     socio=None, cnpj=None, ordenar_por="razao_social",
                     limite=50, offset=0) -> dict:
     """Busca empresas com filtros combináveis. Retorna {'total','itens',...}."""
@@ -481,6 +508,7 @@ def buscar_empresas(municipio=None, cnae=None, cnae_prefix=None, porte=None,
             com_contrato_pncp=com_contrato_pncp, com_marca_registrada=com_marca_registrada,
             com_incentivo_estadual=com_incentivo_estadual,
             processo_polo=processo_polo, processo_classe=processo_classe,
+            sancao_tipo=sancao_tipo, sancao_orgao=sancao_orgao,
             socio=socio, cnpj=cnpj)
         total = conn.execute(f"SELECT COUNT(*) FROM empresas e{where_sql}", params).fetchone()[0]
         rows = conn.execute(
@@ -843,14 +871,17 @@ def exportar_empresas(max_linhas=20000, colunas=None, **filtros) -> list:
     return saida
 
 
-def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = None) -> dict:
+def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = None,
+                   sancao_tipo: str = None, sancao_orgao: str = None) -> dict:
     """Visão 360º de uma empresa pelo CNPJ (14 dígitos, só números).
 
-    processo_polo/processo_classe filtram só a LISTA de processos exibida
-    (mesmo critério do submenu de busca "Em processo judicial") — o resumo
-    (qtd_processos, tem_pendencia_juridica_ou_fiscal etc.) sempre reflete o
-    total real da empresa, sem esse filtro, pra não mascarar uma pendência
-    de verdade só porque o modal foi aberto filtrando por Autor."""
+    processo_polo/processo_classe e sancao_tipo/sancao_orgao filtram só as
+    LISTAS de processos/sanções exibidas (mesmo critério dos submenus de
+    busca "Em processo judicial"/"Com sanções administrativas") — o resumo
+    (qtd_processos, qtd_sancoes, tem_pendencia_juridica_ou_fiscal etc.)
+    sempre reflete o total real da empresa, sem esses filtros, pra não
+    mascarar uma pendência de verdade só porque o modal foi aberto com um
+    filtro mais específico."""
     cnpj = "".join(c for c in str(cnpj) if c.isdigit())
     with _conn() as conn:
         empresa = conn.execute("SELECT * FROM empresas WHERE cnpj = ?", (cnpj,)).fetchone()
@@ -903,11 +934,26 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
         else:
             processos_resumo = processos
         processos_re = [p for p in processos_resumo if p.get("polo") == "Réu"]
-        sancoes = [dict(r) for r in conn.execute(
-            "SELECT tipo, motivo, orgao_sancionador, data_inicio, data_fim, valor_multa, "
-            "fundamentacao, numero_processo, ano_processo, numero_deliberacao, ano_deliberacao, "
-            "nome_socio_vinculado "
-            "FROM sancoes_administrativas WHERE cnpj_empresa = ? LIMIT 100", (cnpj,))]
+        sql_sanc = ("SELECT tipo, motivo, orgao_sancionador, data_inicio, data_fim, valor_multa, "
+                    "fundamentacao, numero_processo, ano_processo, numero_deliberacao, ano_deliberacao, "
+                    "nome_socio_vinculado "
+                    "FROM sancoes_administrativas WHERE cnpj_empresa = ?")
+        params_sanc = [cnpj]
+        if sancao_tipo and sancao_tipo != "TODOS":
+            sql_sanc += " AND tipo = ?"
+            params_sanc.append(sancao_tipo)
+        if sancao_orgao:
+            sql_sanc += " AND orgao_sancionador = ?"
+            params_sanc.append(sancao_orgao)
+        sql_sanc += " ORDER BY data_inicio DESC LIMIT 100"
+        sancoes = [dict(r) for r in conn.execute(sql_sanc, params_sanc)]
+        if sancao_tipo or sancao_orgao:
+            # Resumo sempre com o total real, sem o filtro de exibição acima.
+            qtd_sancoes_real = conn.execute(
+                "SELECT COUNT(*) FROM sancoes_administrativas WHERE cnpj_empresa = ?", (cnpj,)
+            ).fetchone()[0]
+        else:
+            qtd_sancoes_real = len(sancoes)
         ambiental = [dict(r) for r in conn.execute(
             "SELECT tipo_infracao, status, data_auto, valor_multa, gravidade, tipo_multa, "
             "numero_auto, municipio_infracao, uf_infracao, enquadramento "
@@ -991,7 +1037,7 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
             "qtd_socios": len(socios),
             "qtd_processos": len(processos_resumo),
             "qtd_processos_re": len(processos_re),
-            "qtd_sancoes": len(sancoes),
+            "qtd_sancoes": qtd_sancoes_real,
             "qtd_infracoes_ambientais": len(ambiental),
             "qtd_dividas_ativas": len(dividas),
             "qtd_vinculos_politicos": len(vinculos_politicos),
@@ -1008,7 +1054,7 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
             "valor_total_doacoes": valor_doacoes,
             # Só conta como pendência quando a empresa é RÉ no processo — ser
             # autora (ex.: cobrando uma dívida) não é um passivo/risco.
-            "tem_pendencia_juridica_ou_fiscal": bool(processos_re or sancoes or ambiental or dividas),
+            "tem_pendencia_juridica_ou_fiscal": bool(processos_re or qtd_sancoes_real or ambiental or dividas),
         },
     }
 

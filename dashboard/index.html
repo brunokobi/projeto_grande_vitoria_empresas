@@ -281,7 +281,18 @@
         </select>
         <select id="f_proc_classe"><option value="">Qualquer classe</option></select>
       </div>
-      <label class="chk" id="row_sanc"><input type="checkbox" id="f_sanc"> Com sanções administrativas</label>
+      <label class="chk" id="row_sanc"><input type="checkbox" id="f_sanc" onchange="toggleSubmenuSanc()"> Com sanções administrativas</label>
+      <div id="sanc_submenu" style="display:none;margin:-4px 0 8px 22px">
+        <select id="f_sanc_tipo" style="margin-bottom:4px">
+          <option value="">Qualquer tipo</option>
+          <option value="CEIS">CEIS</option>
+          <option value="CNEP">CNEP</option>
+          <option value="CEPIM">CEPIM</option>
+          <option value="TRABALHO_ESCRAVO">Trabalho escravo (MTE)</option>
+          <option value="TCEES - Contas Irregulares">TCEES — Contas irregulares</option>
+        </select>
+        <select id="f_sanc_orgao"><option value="">Qualquer órgão</option></select>
+      </div>
       <label class="chk" id="row_amb"><input type="checkbox" id="f_amb"> Com infração ambiental</label>
       <label class="chk" id="row_div"><input type="checkbox" id="f_div"> Com dívida ativa</label>
       <label class="chk" id="row_escravo"><input type="checkbox" id="f_escravo"> Cadastro de Empregadores (MTE)</label>
@@ -393,7 +404,11 @@ function query(){
     add("processo_polo",$("f_proc_polo").value);
     add("processo_classe",$("f_proc_classe").value);
   }
-  if($("f_sanc").checked) p.set("com_sancoes","true");
+  if($("f_sanc").checked){
+    p.set("com_sancoes","true");
+    add("sancao_tipo",$("f_sanc_tipo").value);
+    add("sancao_orgao",$("f_sanc_orgao").value);
+  }
   if($("f_amb").checked) p.set("com_ambiental","true");
   if($("f_div").checked) p.set("com_divida","true");
   if($("f_escravo").checked) p.set("com_trabalho_escravo","true");
@@ -487,6 +502,11 @@ async function initClassesProcessos(){
   const sel = $("f_proc_classe");
   classes.forEach(c=> sel.innerHTML += `<option value="${esc(c.classe)}">${esc(c.classe)} (${c.total.toLocaleString('pt-BR')})</option>`);
 }
+async function initOrgaosSancionadores(){
+  const orgaos = await (await fetch("/sancoes/orgaos?limite=100")).json();
+  const sel = $("f_sanc_orgao");
+  orgaos.forEach(o=> sel.innerHTML += `<option value="${esc(o.orgao)}">${esc(o.orgao)} (${o.total.toLocaleString('pt-BR')})</option>`);
+}
 
 async function buscar(reset){
   if(reset){ pagina = 0; carregarMapa(); }
@@ -541,6 +561,9 @@ function onLinhaChk(cb){
 }
 function toggleSubmenuProc(){
   $("proc_submenu").style.display = $("f_proc").checked ? "" : "none";
+}
+function toggleSubmenuSanc(){
+  $("sanc_submenu").style.display = $("f_sanc").checked ? "" : "none";
 }
 function copiarCnpj(cnpj, el){
   navigator.clipboard?.writeText(cnpj);
@@ -774,8 +797,12 @@ function renderProcessos(arr, filtrado){
   }).join("");
   return `<div class="sec">📂 Processos judiciais (${arr.length}) <span style="font-size:11px;color:var(--muted);font-weight:normal;text-transform:none;letter-spacing:0">${nota}</span></div>${cards}`;
 }
-function renderSancoes(arr){
-  if(!arr||!arr.length) return "";
+function renderSancoes(arr, filtrado){
+  if(!arr||!arr.length){
+    return filtrado
+      ? `<div class="sec">🚫 Sanções</div><p style="color:var(--muted);font-size:13px">Nenhuma sanção bate com o filtro de tipo/órgão da busca atual.</p>`
+      : "";
+  }
   const cards = arr.map(x=>{
     const kv=(k,v)=>v?`<div><span class="k">${k}</span><span class="val">${v}</span></div>`:"";
     const periodo=[fmtData(x.data_inicio),fmtData(x.data_fim)].filter(Boolean).join(" — ");
@@ -797,7 +824,8 @@ function renderSancoes(arr){
       </div>
     </details>`;
   }).join("");
-  return `<div class="sec">🚫 Sanções (${arr.length})</div>${cards}`;
+  const nota = filtrado ? ` <span style="font-size:11px;color:var(--muted);font-weight:normal;text-transform:none;letter-spacing:0">— filtrado pelo tipo/órgão da busca atual</span>` : "";
+  return `<div class="sec">🚫 Sanções (${arr.length})${nota}</div>${cards}`;
 }
 function renderContratos(arr){
   if(!arr||!arr.length) return "";
@@ -920,19 +948,27 @@ async function abrir(cnpj, viaPopstate){
     url.searchParams.set("empresa", cnpj);
     history.pushState({empresa:cnpj}, "", url);
   }
-  // Se a busca atual tem "Em processo judicial" marcado, o modal filtra a
-  // lista de processos pelo mesmo polo/classe -- mesmo padrão (Réu por
-  // padrão) usado em query(). Não afeta o resumo/pendência, só a lista.
-  let qsProc = "";
+  // Se a busca atual tem "Em processo judicial"/"Com sanções" marcado, o
+  // modal filtra a lista correspondente pelo mesmo polo/classe/tipo/órgão
+  // (mesmo padrão usado em query()). Não afeta o resumo/pendência, só a lista.
+  const qp = new URLSearchParams();
+  let qsProc = false, qsSanc = false;
   if($("f_proc")?.checked){
-    const qp = new URLSearchParams();
     const polo = $("f_proc_polo").value || "Réu";
     if(polo !== "TODOS") qp.set("processo_polo", polo);
     const classe = $("f_proc_classe").value;
     if(classe) qp.set("processo_classe", classe);
-    qsProc = qp.toString() ? "?"+qp.toString() : "";
+    qsProc = true;
   }
-  const d = await fetchJSONCached("/empresas/"+cnpj+qsProc);
+  if($("f_sanc")?.checked){
+    const tipo = $("f_sanc_tipo").value;
+    if(tipo) qp.set("sancao_tipo", tipo);
+    const orgao = $("f_sanc_orgao").value;
+    if(orgao) qp.set("sancao_orgao", orgao);
+    qsSanc = true;
+  }
+  const qs = qp.toString() ? "?"+qp.toString() : "";
+  const d = await fetchJSONCached("/empresas/"+cnpj+qs);
   const e = d.empresa, c = d.contato||{}, j = d.jucees, rz = d.resumo;
   const kv = (icon,k,v)=> `<div><div class="k">${icon} ${k}</div><div class="v">${esc(v)||"-"}</div></div>`;
   const kvRaw = (icon,k,v)=> `<div><div class="k">${icon} ${k}</div><div class="v">${v||"-"}</div></div>`;
@@ -1035,9 +1071,9 @@ async function abrir(cnpj, viaPopstate){
         statTile("&#128176;", fmtBRL(rz.valor_total_doacoes), "Total em doações eleitorais", true, rz.valor_total_doacoes),
         statTile("&#8482;&#65039;", rz.qtd_marcas_inpi, "Marcas registradas"),
       )}
-      ${renderProcessos(d.processos_judiciais, !!qsProc)}
+      ${renderProcessos(d.processos_judiciais, qsProc)}
       ${renderDividas(d.dividas_ativas, e.capital_social)}
-      ${renderSancoes(d.sancoes_administrativas)}
+      ${renderSancoes(d.sancoes_administrativas, qsSanc)}
       ${renderInfracoes(d.infracoes_ambientais)}
       ${renderContratos(d.contratos_governamentais)}
       ${renderBeneficios(d.beneficios_fiscais)}
@@ -1200,9 +1236,9 @@ function gerarExport(fmt){
 }
 function limpar(){
   ["f_texto","f_cnpj","f_socio","f_capmin","f_capmax"].forEach(id=>$(id).value="");
-  ["f_segmento","f_porte","f_regime","f_pendencia","f_proc_polo","f_proc_classe"].forEach(id=>$(id).value="");
+  ["f_segmento","f_porte","f_regime","f_pendencia","f_proc_polo","f_proc_classe","f_sanc_tipo","f_sanc_orgao"].forEach(id=>$(id).value="");
   ["f_tel","f_email","f_wpp","f_rede","f_proc","f_sanc","f_amb","f_div","f_escravo","f_cepim","f_lenienc","f_contratos","f_renuncia","f_imune","f_habilitado","f_vinculo","f_pncp","f_marca","f_incentivo_es"].forEach(id=>$(id).checked=false);
-  toggleSubmenuProc();
+  toggleSubmenuProc(); toggleSubmenuSanc();
   document.querySelectorAll("#f_municipio_group input").forEach(cb=>cb.checked=false);
   document.querySelectorAll(".citychip").forEach(c=>c.classList.remove("active"));
   $("f_ordem").value="razao_social"; buscar(true);
@@ -1336,7 +1372,7 @@ window.addEventListener("popstate", ()=>{
   if(cnpj) abrir(cnpj, true); else fechar(true);
 });
 (async ()=>{
-  await initEstat(); await initSegmentos(); initClassesProcessos(); initMapa(); buscar(true);
+  await initEstat(); await initSegmentos(); initClassesProcessos(); initOrgaosSancionadores(); initMapa(); buscar(true);
   const cnpjInicial = new URLSearchParams(location.search).get("empresa");
   if(cnpjInicial) abrir(cnpjInicial, true);
 })();

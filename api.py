@@ -69,6 +69,8 @@ def filtros_comuns(
     processo_polo: str = Query(None, description="Restringe o polo do processo: Réu (padrão quando com_processos e nenhum polo é informado), Autor, Terceiro, ou TODOS pra qualquer polo"),
     processo_classe: str = Query(None, description="Restringe à classe exata do processo (ver GET /processos/classes)"),
     com_sancoes: bool = Query(None, description="Só empresas com sanções"),
+    sancao_tipo: str = Query(None, description="Restringe o tipo da sanção: CEIS/CNEP/CEPIM/TRABALHO_ESCRAVO/TCEES - Contas Irregulares, ou TODOS pra qualquer tipo"),
+    sancao_orgao: str = Query(None, description="Restringe ao órgão sancionador exato (ver GET /sancoes/orgaos)"),
     com_ambiental: bool = Query(None, description="Só empresas com infração ambiental"),
     com_divida: bool = Query(None, description="Só empresas com dívida ativa"),
     com_trabalho_escravo: bool = Query(None, description="Só empresas na Lista Suja do trabalho escravo (MTE)"),
@@ -92,6 +94,7 @@ def filtros_comuns(
         com_telefone=com_telefone, com_email=com_email, com_whatsapp=com_whatsapp,
         com_rede_social=com_rede_social, com_processos=com_processos,
         processo_polo=processo_polo, processo_classe=processo_classe,
+        sancao_tipo=sancao_tipo, sancao_orgao=sancao_orgao,
         com_sancoes=com_sancoes, com_ambiental=com_ambiental, com_divida=com_divida,
         com_trabalho_escravo=com_trabalho_escravo, com_cepim=com_cepim, com_leniencia=com_leniencia,
         com_contratos_governamentais=com_contratos_governamentais,
@@ -129,6 +132,7 @@ def indice_api():
             "GET /estatisticas": "Panorama geral",
             "GET /segmentos": "Segmentos (divisões CNAE) com contagem",
             "GET /processos/classes": "Classes de processo judicial mais frequentes",
+            "GET /sancoes/orgaos": "Órgãos sancionadores mais frequentes",
             "GET /vinculos/ranking-doacoes": "Ranking de doações eleitorais (candidatos e empresas)",
             "GET /municipios/risco": "Total e % de pendência por município (choropleth do mapa)",
             "GET /empresas": "Busca com filtros",
@@ -155,6 +159,11 @@ def get_segmentos():
 @app.get("/processos/classes", summary="Classes de processo judicial mais frequentes (pro filtro do dashboard)")
 def get_classes_processos(limite: int = Query(100, ge=1, le=418)):
     return dataset_queries.classes_processos(limite=limite)
+
+
+@app.get("/sancoes/orgaos", summary="Órgãos sancionadores mais frequentes (pro filtro do dashboard)")
+def get_orgaos_sancionadores(limite: int = Query(100, ge=1, le=169)):
+    return dataset_queries.orgaos_sancionadores(limite=limite)
 
 
 @app.get("/vinculos/ranking-doacoes", summary="Ranking de doações eleitorais (TSE) — candidatos e empresas")
@@ -221,8 +230,12 @@ def get_empresa(
     cnpj: str,
     processo_polo: str = Query(None, description="Filtra a lista de processos exibida por polo (Réu/Autor/Terceiro/TODOS) — não afeta o resumo/pendência, que sempre considera o total real"),
     processo_classe: str = Query(None, description="Filtra a lista de processos exibida pela classe exata"),
+    sancao_tipo: str = Query(None, description="Filtra a lista de sanções exibida por tipo (CEIS/CNEP/CEPIM/TRABALHO_ESCRAVO/TCEES - Contas Irregulares/TODOS) — não afeta o resumo/pendência"),
+    sancao_orgao: str = Query(None, description="Filtra a lista de sanções exibida pelo órgão sancionador exato"),
 ):
-    resultado = dataset_queries.obter_empresa(cnpj, processo_polo=processo_polo, processo_classe=processo_classe)
+    resultado = dataset_queries.obter_empresa(
+        cnpj, processo_polo=processo_polo, processo_classe=processo_classe,
+        sancao_tipo=sancao_tipo, sancao_orgao=sancao_orgao)
     if resultado is None:
         raise HTTPException(status_code=404, detail=f"CNPJ {cnpj} não encontrado.")
     return resultado

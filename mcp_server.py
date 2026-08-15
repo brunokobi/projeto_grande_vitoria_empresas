@@ -44,6 +44,14 @@ def classes_processos(limite: int = 100) -> list:
 
 
 @mcp.tool()
+def orgaos_sancionadores(limite: int = 100) -> list:
+    """Órgãos sancionadores mais frequentes na base (com contagem de
+    registros) — use pra saber quais valores passar em
+    buscar_empresas(sancao_orgao=...)."""
+    return dataset_queries.orgaos_sancionadores(limite=limite)
+
+
+@mcp.tool()
 def ranking_doacoes_eleitorais(limite: int = 20) -> dict:
     """Ranking de doações eleitorais (TSE) — responde direto perguntas como
     "quais candidatos mais receberam doação" ou "quais empresas mais
@@ -75,6 +83,8 @@ def buscar_empresas(
     processo_polo: str = None,
     processo_classe: str = None,
     com_sancoes: bool = None,
+    sancao_tipo: str = None,
+    sancao_orgao: str = None,
     com_ambiental: bool = None,
     com_divida: bool = None,
     com_trabalho_escravo: bool = None,
@@ -111,6 +121,10 @@ def buscar_empresas(
     - processo_classe: restringe à classe exata do processo (ex.: "AçãO
       TRABALHISTA - RITO ORDINáRIO", "PROCEDIMENTO COMUM CíVEL" — ver
       ferramenta classes_processos pra lista completa).
+    - com_sancoes: True exige sanção administrativa (CEIS/CNEP/CEPIM/
+      trabalho escravo/TCEES). sancao_tipo restringe o tipo específico
+      ("TODOS" pra qualquer); sancao_orgao restringe ao órgão sancionador
+      exato (ver ferramenta orgaos_sancionadores pra lista completa).
     - com_telefone / com_email: True exige o contato preenchido.
     - com_whatsapp: True exige link de WhatsApp (requer a etapa `contato`).
     - com_rede_social: True exige Instagram/Facebook/LinkedIn (etapa `contato`).
@@ -143,7 +157,8 @@ def buscar_empresas(
         com_email=com_email, com_whatsapp=com_whatsapp,
         com_rede_social=com_rede_social, com_processos=com_processos,
         processo_polo=processo_polo, processo_classe=processo_classe,
-        com_sancoes=com_sancoes, com_ambiental=com_ambiental, com_divida=com_divida,
+        com_sancoes=com_sancoes, sancao_tipo=sancao_tipo, sancao_orgao=sancao_orgao,
+        com_ambiental=com_ambiental, com_divida=com_divida,
         com_trabalho_escravo=com_trabalho_escravo, com_cepim=com_cepim,
         com_leniencia=com_leniencia,
         com_contratos_governamentais=com_contratos_governamentais,
@@ -199,7 +214,8 @@ def buscar_empresas_perto(
 
 
 @mcp.tool()
-def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = None) -> dict:
+def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = None,
+                   sancao_tipo: str = None, sancao_orgao: str = None) -> dict:
     """Visão 360º de uma empresa pelo CNPJ (14 dígitos): dados cadastrais,
     sócios, complemento JUCEES, geolocalização, todas as pendências
     (processos, sanções, infrações ambientais, dívida ativa), vínculos
@@ -210,12 +226,15 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
     benefício) e marcas registradas no INPI, com um resumo agregado.
 
     processo_polo (Réu/Autor/Terceiro/TODOS) e processo_classe filtram só a
-    LISTA de processos devolvida — o resumo (qtd_processos,
+    LISTA de processos devolvida; sancao_tipo/sancao_orgao filtram só a
+    LISTA de sanções devolvida — o resumo (qtd_processos, qtd_sancoes,
     tem_pendencia_juridica_ou_fiscal) sempre reflete o total real da
-    empresa, sem esse filtro.
+    empresa, sem esses filtros.
 
     Retorna null se o CNPJ não estiver na base."""
-    resultado = dataset_queries.obter_empresa(cnpj, processo_polo=processo_polo, processo_classe=processo_classe)
+    resultado = dataset_queries.obter_empresa(
+        cnpj, processo_polo=processo_polo, processo_classe=processo_classe,
+        sancao_tipo=sancao_tipo, sancao_orgao=sancao_orgao)
     if resultado is None:
         return {"erro": f"CNPJ {cnpj} não encontrado na base."}
     return resultado
