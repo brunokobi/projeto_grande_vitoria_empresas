@@ -296,8 +296,6 @@
       </div>
       <label class="chk" id="row_amb"><input type="checkbox" id="f_amb"> Com infração ambiental</label>
       <label class="chk" id="row_div"><input type="checkbox" id="f_div"> Com dívida ativa</label>
-      <label class="chk" id="row_escravo"><input type="checkbox" id="f_escravo"> Cadastro de Empregadores (MTE)</label>
-      <label class="chk" id="row_cepim"><input type="checkbox" id="f_cepim"> CEPIM (impedidas de verba federal)</label>
       <label class="chk" id="row_lenienc"><input type="checkbox" id="f_lenienc"> Acordo de leniência</label>
       <label class="chk" id="row_contratos"><input type="checkbox" id="f_contratos"> Contratos com órgãos públicos</label>
       <label class="chk" id="row_ben"><input type="checkbox" id="f_ben" onchange="toggleSubmenuBen()"> Com benefício fiscal</label>
@@ -445,8 +443,6 @@ function query(){
   }
   if($("f_amb").checked) p.set("com_ambiental","true");
   if($("f_div").checked) p.set("com_divida","true");
-  if($("f_escravo").checked) p.set("com_trabalho_escravo","true");
-  if($("f_cepim").checked) p.set("com_cepim","true");
   if($("f_lenienc").checked) p.set("com_leniencia","true");
   if($("f_contratos").checked) p.set("com_contratos_governamentais","true");
   if($("f_ben").checked){
@@ -496,8 +492,6 @@ async function initEstat(){
   setCnt("row_amb", pf.infracoes_ambientais);
   setCnt("row_div", pf.dividas_ativas);
   setCnt("row_contratos", pf.contratos_governamentais);
-  setCnt("row_escravo", pf.trabalho_escravo);
-  setCnt("row_cepim", pf.cepim);
   setCnt("row_lenienc", pf.leniencia);
   setCnt("row_ben", pf.beneficio_fiscal);
   setCnt("row_vinculo", pf.vinculos_politicos);
@@ -1306,7 +1300,7 @@ function limpar(){
   // desmarcar cada <option> individualmente.
   ["f_proc_polo","f_proc_classe","f_sanc_tipo","f_ben_tipo","f_vinc_fonte","f_pncp_cat"].forEach(id=>
     Array.from($(id).options).forEach(o=>o.selected=false));
-  ["f_tel","f_email","f_wpp","f_rede","f_proc","f_sanc","f_amb","f_div","f_escravo","f_cepim","f_lenienc","f_contratos","f_ben","f_vinculo","f_pncp","f_marca"].forEach(id=>$(id).checked=false);
+  ["f_tel","f_email","f_wpp","f_rede","f_proc","f_sanc","f_amb","f_div","f_lenienc","f_contratos","f_ben","f_vinculo","f_pncp","f_marca"].forEach(id=>$(id).checked=false);
   toggleSubmenuProc(); toggleSubmenuSanc(); toggleSubmenuBen(); toggleSubmenuVinculo(); toggleSubmenuPncp();
   document.querySelectorAll("#f_municipio_group input").forEach(cb=>cb.checked=false);
   document.querySelectorAll(".citychip").forEach(c=>c.classList.remove("active"));
