@@ -171,6 +171,8 @@ def _filtros_sql(*, tem_contato=False, tem_fts=False, tem_contratos=False,
                  com_vinculo_politico=None, com_contrato_pncp=None, com_marca_registrada=None,
                  com_incentivo_estadual=None, processo_polo=None, processo_classe=None,
                  sancao_tipo=None, sancao_orgao=None,
+                 com_beneficio_fiscal=None, beneficio_tipo=None,
+                 vinculo_fonte=None, pncp_categoria=None,
                  socio=None, cnpj=None):
     """Monta a cláusula WHERE (sobre o alias `e` = empresas) e os parâmetros."""
     where, params = [], []
@@ -292,16 +294,46 @@ def _filtros_sql(*, tem_contato=False, tem_fts=False, tem_contratos=False,
             if com_incentivo_estadual:
                 where.append("EXISTS (SELECT 1 FROM beneficios_fiscais b WHERE b.cnpj_empresa = e.cnpj "
                              "AND b.tipo = 'COMPETE_ES')")
+    # com_beneficio_fiscal + beneficio_tipo consolida os 4 filtros acima num só
+    # checkbox com submenu de tipo (mesmo padrão de com_processos/com_sancoes)
+    # — os 4 booleanos antigos continuam funcionando (compat com quem já usa
+    # a API), só não são mais expostos como checkboxes separados no dashboard.
+    if com_beneficio_fiscal:
+        if not tem_beneficios:
+            where.append("0")  # tabela ainda não existe nesta cópia do dataset → sem resultados
+        else:
+            cond_ben = "EXISTS (SELECT 1 FROM beneficios_fiscais b WHERE b.cnpj_empresa = e.cnpj"
+            params_ben = []
+            if beneficio_tipo and beneficio_tipo != "TODOS":
+                cond_ben += " AND b.tipo = ?"
+                params_ben.append(beneficio_tipo)
+            cond_ben += ")"
+            where.append(cond_ben)
+            params.extend(params_ben)
     if com_vinculo_politico:
         if not tem_vinculos:
             where.append("0")  # tabela ainda não existe nesta cópia do dataset → sem resultados
         else:
-            where.append("EXISTS (SELECT 1 FROM vinculos_politicos v WHERE v.cnpj_empresa = e.cnpj)")
+            cond_vinc = "EXISTS (SELECT 1 FROM vinculos_politicos v WHERE v.cnpj_empresa = e.cnpj"
+            params_vinc = []
+            if vinculo_fonte and vinculo_fonte != "TODOS":
+                cond_vinc += " AND v.fonte = ?"
+                params_vinc.append(vinculo_fonte)
+            cond_vinc += ")"
+            where.append(cond_vinc)
+            params.extend(params_vinc)
     if com_contrato_pncp:
         if not tem_pncp:
             where.append("0")  # tabela ainda não existe nesta cópia do dataset → sem resultados
         else:
-            where.append("EXISTS (SELECT 1 FROM contratos_pncp cp WHERE cp.cnpj_empresa = e.cnpj)")
+            cond_pncp = "EXISTS (SELECT 1 FROM contratos_pncp cp WHERE cp.cnpj_empresa = e.cnpj"
+            params_pncp = []
+            if pncp_categoria and pncp_categoria != "TODOS":
+                cond_pncp += " AND cp.categoria = ?"
+                params_pncp.append(pncp_categoria)
+            cond_pncp += ")"
+            where.append(cond_pncp)
+            params.extend(params_pncp)
     if com_marca_registrada:
         if not tem_marcas:
             where.append("0")  # tabela ainda não existe nesta cópia do dataset → sem resultados
@@ -397,6 +429,11 @@ def estatisticas() -> dict:
             empresas_por_flag["marcas_inpi"] = conn.execute(
                 "SELECT COUNT(DISTINCT cnpj_empresa) FROM marcas_inpi").fetchone()[0]
         if _tabela_existe(conn, "beneficios_fiscais"):
+            # Total consolidado (qualquer tipo) — usado pro checkbox único
+            # "Com benefício fiscal" do dashboard (substituiu os 4 checkboxes
+            # separados por subtipo, que ainda ficam disponíveis abaixo).
+            empresas_por_flag["beneficio_fiscal"] = conn.execute(
+                "SELECT COUNT(DISTINCT cnpj_empresa) FROM beneficios_fiscais").fetchone()[0]
             # Subtipos de benefício fiscal (mesma tabela, coluna `tipo`).
             for chave, tipo in (
                 ("renuncia_fiscal", "RENUNCIA"),
@@ -475,6 +512,8 @@ def buscar_empresas(municipio=None, cnae=None, cnae_prefix=None, porte=None,
                     com_contrato_pncp=None, com_marca_registrada=None,
                     com_incentivo_estadual=None, processo_polo=None, processo_classe=None,
                     sancao_tipo=None, sancao_orgao=None,
+                    com_beneficio_fiscal=None, beneficio_tipo=None,
+                    vinculo_fonte=None, pncp_categoria=None,
                     socio=None, cnpj=None, ordenar_por="razao_social",
                     limite=50, offset=0) -> dict:
     """Busca empresas com filtros combináveis. Retorna {'total','itens',...}."""
@@ -509,6 +548,8 @@ def buscar_empresas(municipio=None, cnae=None, cnae_prefix=None, porte=None,
             com_incentivo_estadual=com_incentivo_estadual,
             processo_polo=processo_polo, processo_classe=processo_classe,
             sancao_tipo=sancao_tipo, sancao_orgao=sancao_orgao,
+            com_beneficio_fiscal=com_beneficio_fiscal, beneficio_tipo=beneficio_tipo,
+            vinculo_fonte=vinculo_fonte, pncp_categoria=pncp_categoria,
             socio=socio, cnpj=cnpj)
         total = conn.execute(f"SELECT COUNT(*) FROM empresas e{where_sql}", params).fetchone()[0]
         rows = conn.execute(
@@ -872,16 +913,18 @@ def exportar_empresas(max_linhas=20000, colunas=None, **filtros) -> list:
 
 
 def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = None,
-                   sancao_tipo: str = None, sancao_orgao: str = None) -> dict:
+                   sancao_tipo: str = None, sancao_orgao: str = None,
+                   beneficio_tipo: str = None, vinculo_fonte: str = None,
+                   pncp_categoria: str = None) -> dict:
     """Visão 360º de uma empresa pelo CNPJ (14 dígitos, só números).
 
-    processo_polo/processo_classe e sancao_tipo/sancao_orgao filtram só as
-    LISTAS de processos/sanções exibidas (mesmo critério dos submenus de
-    busca "Em processo judicial"/"Com sanções administrativas") — o resumo
-    (qtd_processos, qtd_sancoes, tem_pendencia_juridica_ou_fiscal etc.)
-    sempre reflete o total real da empresa, sem esses filtros, pra não
-    mascarar uma pendência de verdade só porque o modal foi aberto com um
-    filtro mais específico."""
+    processo_polo/processo_classe, sancao_tipo/sancao_orgao, beneficio_tipo,
+    vinculo_fonte e pncp_categoria filtram só as LISTAS exibidas (mesmo
+    critério dos submenus de busca correspondentes) — o resumo (contagens e
+    valores totais em R$, tem_pendencia_juridica_ou_fiscal etc.) sempre
+    reflete o total real da empresa, sem esses filtros, pra não mascarar uma
+    pendência/valor de verdade só porque o modal foi aberto com um filtro
+    mais específico."""
     cnpj = "".join(c for c in str(cnpj) if c.isdigit())
     with _conn() as conn:
         empresa = conn.execute("SELECT * FROM empresas WHERE cnpj = ?", (cnpj,)).fetchone()
@@ -963,13 +1006,28 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
             "ajuizada, tipo_devedor, unidade_responsavel FROM dividas_ativas "
             "WHERE cnpj_empresa = ? ORDER BY valor DESC LIMIT 100", (cnpj,))]
         vinculos_politicos = []
+        vinculos_resumo = []
         if _tabela_existe(conn, "vinculos_politicos"):
-            vinculos_politicos = [dict(r) for r in conn.execute(
-                "SELECT nome_socio_vinculado, fonte, cargo_ou_funcao, orgao_ou_partido, "
-                "ano, situacao, detalhe FROM vinculos_politicos "
-                "WHERE cnpj_empresa = ? LIMIT 100", (cnpj,))]
+            sql_vinc = ("SELECT nome_socio_vinculado, fonte, cargo_ou_funcao, orgao_ou_partido, "
+                        "ano, situacao, detalhe FROM vinculos_politicos WHERE cnpj_empresa = ?")
+            params_vinc = [cnpj]
+            if vinculo_fonte and vinculo_fonte != "TODOS":
+                sql_vinc += " AND fonte = ?"
+                params_vinc.append(vinculo_fonte)
+            sql_vinc += " LIMIT 100"
+            vinculos_politicos = [dict(r) for r in conn.execute(sql_vinc, params_vinc)]
             for v in vinculos_politicos:
                 v["valor_doacao"] = valor_doacao(v.get("detalhe"))
+            if vinculo_fonte:
+                # Resumo sempre com o total real, sem o filtro de exibição acima
+                # (senão o valor de doações somado abaixo ficaria mascarado
+                # quando o filtro exclui justamente as linhas TSE_DOACAO).
+                vinculos_resumo = [dict(r) for r in conn.execute(
+                    "SELECT detalhe FROM vinculos_politicos WHERE cnpj_empresa = ? LIMIT 100", (cnpj,))]
+                for v in vinculos_resumo:
+                    v["valor_doacao"] = valor_doacao(v.get("detalhe"))
+            else:
+                vinculos_resumo = vinculos_politicos
         contratos_governamentais = []
         if _tabela_existe(conn, "contratos_governamentais"):
             contratos_governamentais = [dict(r) for r in conn.execute(
@@ -978,18 +1036,46 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
                 "valor_inicial, valor_final, mes_referencia FROM contratos_governamentais "
                 "WHERE cnpj_empresa = ? ORDER BY data_assinatura DESC LIMIT 100", (cnpj,))]
         beneficios_fiscais = []
+        beneficios_resumo = []
         if _tabela_existe(conn, "beneficios_fiscais"):
-            beneficios_fiscais = [dict(r) for r in conn.execute(
-                "SELECT tipo, ano, valor, tipo_entidade, beneficio_fiscal, base_legal, "
-                "inicio_habilitacao, fim_habilitacao FROM beneficios_fiscais "
-                "WHERE cnpj_empresa = ? ORDER BY ano DESC LIMIT 100", (cnpj,))]
+            sql_ben = ("SELECT tipo, ano, valor, tipo_entidade, beneficio_fiscal, base_legal, "
+                       "inicio_habilitacao, fim_habilitacao FROM beneficios_fiscais WHERE cnpj_empresa = ?")
+            params_ben = [cnpj]
+            if beneficio_tipo and beneficio_tipo != "TODOS":
+                sql_ben += " AND tipo = ?"
+                params_ben.append(beneficio_tipo)
+            sql_ben += " ORDER BY ano DESC LIMIT 100"
+            beneficios_fiscais = [dict(r) for r in conn.execute(sql_ben, params_ben)]
+            if beneficio_tipo:
+                # Resumo sempre com o total real (senão o valor de renúncia
+                # fiscal somado abaixo ficaria mascarado quando o filtro
+                # exclui justamente as linhas tipo=RENUNCIA).
+                beneficios_resumo = [dict(r) for r in conn.execute(
+                    "SELECT tipo, valor FROM beneficios_fiscais WHERE cnpj_empresa = ? "
+                    "ORDER BY ano DESC LIMIT 100", (cnpj,))]
+            else:
+                beneficios_resumo = beneficios_fiscais
         contratos_pncp = []
+        contratos_pncp_resumo = []
         if _tabela_existe(conn, "contratos_pncp"):
-            contratos_pncp = [dict(r) for r in conn.execute(
-                "SELECT numero_controle_pncp, orgao_nome, unidade_nome, municipio, uf, categoria, "
-                "objeto, data_assinatura, data_inicio_vigencia, data_fim_vigencia, "
-                "valor_inicial, valor_global FROM contratos_pncp "
-                "WHERE cnpj_empresa = ? ORDER BY data_assinatura DESC LIMIT 100", (cnpj,))]
+            sql_pncp = ("SELECT numero_controle_pncp, orgao_nome, unidade_nome, municipio, uf, categoria, "
+                        "objeto, data_assinatura, data_inicio_vigencia, data_fim_vigencia, "
+                        "valor_inicial, valor_global FROM contratos_pncp WHERE cnpj_empresa = ?")
+            params_pncp = [cnpj]
+            if pncp_categoria and pncp_categoria != "TODOS":
+                sql_pncp += " AND categoria = ?"
+                params_pncp.append(pncp_categoria)
+            sql_pncp += " ORDER BY data_assinatura DESC LIMIT 100"
+            contratos_pncp = [dict(r) for r in conn.execute(sql_pncp, params_pncp)]
+            if pncp_categoria:
+                # Resumo sempre com o total real (senão o valor total em
+                # contratos PNCP somado abaixo ficaria mascarado quando o
+                # filtro exclui contratos de outras categorias).
+                contratos_pncp_resumo = [dict(r) for r in conn.execute(
+                    "SELECT valor_global, valor_inicial FROM contratos_pncp WHERE cnpj_empresa = ? "
+                    "ORDER BY data_assinatura DESC LIMIT 100", (cnpj,))]
+            else:
+                contratos_pncp_resumo = contratos_pncp
         marcas_inpi = []
         if _tabela_existe(conn, "marcas_inpi"):
             marcas_inpi = [dict(r) for r in conn.execute(
@@ -1011,10 +1097,10 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
     valor_contratos_gov = sum(
         (c.get("valor_final") or c.get("valor_inicial") or 0) for c in contratos_governamentais)
     valor_renuncia = sum(
-        b["valor"] for b in beneficios_fiscais if b.get("tipo") == "RENUNCIA" and b.get("valor"))
+        b["valor"] for b in beneficios_resumo if b.get("tipo") == "RENUNCIA" and b.get("valor"))
     valor_pncp = sum(
-        (p.get("valor_global") or p.get("valor_inicial") or 0) for p in contratos_pncp)
-    valor_doacoes = sum(v["valor_doacao"] for v in vinculos_politicos if v.get("valor_doacao"))
+        (p.get("valor_global") or p.get("valor_inicial") or 0) for p in contratos_pncp_resumo)
+    valor_doacoes = sum(v["valor_doacao"] for v in vinculos_resumo if v.get("valor_doacao"))
     emp = dict(empresa)
     emp["cnae_principal_desc"] = cnae_desc(emp.get("cnae_principal"))
     emp["situacao_cadastral_desc"] = situacao_desc(emp.get("situacao_cadastral"))
@@ -1040,10 +1126,10 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
             "qtd_sancoes": qtd_sancoes_real,
             "qtd_infracoes_ambientais": len(ambiental),
             "qtd_dividas_ativas": len(dividas),
-            "qtd_vinculos_politicos": len(vinculos_politicos),
+            "qtd_vinculos_politicos": len(vinculos_resumo),
             "qtd_contratos_governamentais": len(contratos_governamentais),
-            "qtd_beneficios_fiscais": len(beneficios_fiscais),
-            "qtd_contratos_pncp": len(contratos_pncp),
+            "qtd_beneficios_fiscais": len(beneficios_resumo),
+            "qtd_contratos_pncp": len(contratos_pncp_resumo),
             "qtd_marcas_inpi": len(marcas_inpi),
             "valor_total_divida_ativa": valor_divida,
             "valor_total_sancoes": valor_sancoes,

@@ -291,7 +291,6 @@
           <option value="TRABALHO_ESCRAVO">Trabalho escravo (MTE)</option>
           <option value="TCEES - Contas Irregulares">TCEES — Contas irregulares</option>
         </select>
-        <select id="f_sanc_orgao"><option value="">Qualquer órgão</option></select>
       </div>
       <label class="chk" id="row_amb"><input type="checkbox" id="f_amb"> Com infração ambiental</label>
       <label class="chk" id="row_div"><input type="checkbox" id="f_div"> Com dívida ativa</label>
@@ -299,13 +298,42 @@
       <label class="chk" id="row_cepim"><input type="checkbox" id="f_cepim"> CEPIM (impedidas de verba federal)</label>
       <label class="chk" id="row_lenienc"><input type="checkbox" id="f_lenienc"> Acordo de leniência</label>
       <label class="chk" id="row_contratos"><input type="checkbox" id="f_contratos"> Contratos com órgãos públicos</label>
-      <label class="chk" id="row_renuncia"><input type="checkbox" id="f_renuncia"> Renúncia fiscal federal</label>
-      <label class="chk" id="row_imune"><input type="checkbox" id="f_imune"> Imune/isenta de IRPJ</label>
-      <label class="chk" id="row_habilitado"><input type="checkbox" id="f_habilitado"> Habilitada a benefício fiscal</label>
-      <label class="chk" id="row_vinculo"><input type="checkbox" id="f_vinculo"> Vínculo político (sócio)</label>
-      <label class="chk" id="row_pncp"><input type="checkbox" id="f_pncp"> Contrato via PNCP</label>
+      <label class="chk" id="row_ben"><input type="checkbox" id="f_ben" onchange="toggleSubmenuBen()"> Com benefício fiscal</label>
+      <div id="ben_submenu" style="display:none;margin:-4px 0 8px 22px">
+        <select id="f_ben_tipo">
+          <option value="">Qualquer tipo</option>
+          <option value="RENUNCIA">Renúncia fiscal federal</option>
+          <option value="IMUNE_ISENTO">Imune/isenta de IRPJ</option>
+          <option value="HABILITADO">Habilitada a benefício fiscal</option>
+          <option value="COMPETE_ES">Incentivo fiscal ICMS (COMPETE-ES)</option>
+        </select>
+      </div>
+      <label class="chk" id="row_vinculo"><input type="checkbox" id="f_vinculo" onchange="toggleSubmenuVinculo()"> Vínculo político (sócio)</label>
+      <div id="vinculo_submenu" style="display:none;margin:-4px 0 8px 22px">
+        <select id="f_vinc_fonte">
+          <option value="">Qualquer fonte</option>
+          <option value="TSE_DOACAO">Doação eleitoral (TSE)</option>
+          <option value="TSE_CANDIDATURA">Candidatura (TSE)</option>
+        </select>
+      </div>
+      <label class="chk" id="row_pncp"><input type="checkbox" id="f_pncp" onchange="toggleSubmenuPncp()"> Contrato via PNCP</label>
+      <div id="pncp_submenu" style="display:none;margin:-4px 0 8px 22px">
+        <select id="f_pncp_cat">
+          <option value="">Qualquer categoria</option>
+          <option value="Compras">Compras</option>
+          <option value="Serviços">Serviços</option>
+          <option value="Serviços de Engenharia">Serviços de Engenharia</option>
+          <option value="Serviços de Saúde">Serviços de Saúde</option>
+          <option value="Informática (TIC)">Informática (TIC)</option>
+          <option value="Obras">Obras</option>
+          <option value="Locação Imóveis">Locação Imóveis</option>
+          <option value="Alienação de bens móveis/imóveis">Alienação de bens móveis/imóveis</option>
+          <option value="Mão de Obra">Mão de Obra</option>
+          <option value="Cessão">Cessão</option>
+          <option value="Internacional">Internacional</option>
+        </select>
+      </div>
       <label class="chk" id="row_marca"><input type="checkbox" id="f_marca"> Marca registrada (INPI)</label>
-      <label class="chk" id="row_incentivo_es"><input type="checkbox" id="f_incentivo_es"> Incentivo fiscal ICMS (COMPETE-ES)</label>
       <div class="row2">
         <div><label class="f">Capital mín. (R$)</label><input id="f_capmin" type="number" min="0"></div>
         <div><label class="f">Capital máx. (R$)</label><input id="f_capmax" type="number" min="0"></div>
@@ -407,7 +435,6 @@ function query(){
   if($("f_sanc").checked){
     p.set("com_sancoes","true");
     add("sancao_tipo",$("f_sanc_tipo").value);
-    add("sancao_orgao",$("f_sanc_orgao").value);
   }
   if($("f_amb").checked) p.set("com_ambiental","true");
   if($("f_div").checked) p.set("com_divida","true");
@@ -415,13 +442,19 @@ function query(){
   if($("f_cepim").checked) p.set("com_cepim","true");
   if($("f_lenienc").checked) p.set("com_leniencia","true");
   if($("f_contratos").checked) p.set("com_contratos_governamentais","true");
-  if($("f_renuncia").checked) p.set("com_renuncia_fiscal","true");
-  if($("f_imune").checked) p.set("com_imune_isento","true");
-  if($("f_habilitado").checked) p.set("com_habilitado_beneficio","true");
-  if($("f_vinculo").checked) p.set("com_vinculo_politico","true");
-  if($("f_pncp").checked) p.set("com_contrato_pncp","true");
+  if($("f_ben").checked){
+    p.set("com_beneficio_fiscal","true");
+    add("beneficio_tipo",$("f_ben_tipo").value);
+  }
+  if($("f_vinculo").checked){
+    p.set("com_vinculo_politico","true");
+    add("vinculo_fonte",$("f_vinc_fonte").value);
+  }
+  if($("f_pncp").checked){
+    p.set("com_contrato_pncp","true");
+    add("pncp_categoria",$("f_pncp_cat").value);
+  }
   if($("f_marca").checked) p.set("com_marca_registrada","true");
-  if($("f_incentivo_es").checked) p.set("com_incentivo_estadual","true");
   add("ordenar_por",$("f_ordem").value);
   return p;
 }
@@ -459,13 +492,10 @@ async function initEstat(){
   setCnt("row_escravo", pf.trabalho_escravo);
   setCnt("row_cepim", pf.cepim);
   setCnt("row_lenienc", pf.leniencia);
-  setCnt("row_renuncia", pf.renuncia_fiscal);
-  setCnt("row_imune", pf.imune_isento);
-  setCnt("row_habilitado", pf.habilitado_beneficio);
+  setCnt("row_ben", pf.beneficio_fiscal);
   setCnt("row_vinculo", pf.vinculos_politicos);
   setCnt("row_pncp", pf.contratos_pncp);
   setCnt("row_marca", pf.marcas_inpi);
-  setCnt("row_incentivo_es", pf.incentivo_estadual);
   const chips = $("citychips");
   chips.innerHTML = Object.keys(s.por_municipio).map(m=>
     `<span class="citychip" id="chip_${esc(m)}" onclick="filtrarCidade('${esc(m)}')">${esc(m)}</span>`).join("");
@@ -502,12 +532,6 @@ async function initClassesProcessos(){
   const sel = $("f_proc_classe");
   classes.forEach(c=> sel.innerHTML += `<option value="${esc(c.classe)}">${esc(c.classe)} (${c.total.toLocaleString('pt-BR')})</option>`);
 }
-async function initOrgaosSancionadores(){
-  const orgaos = await (await fetch("/sancoes/orgaos?limite=100")).json();
-  const sel = $("f_sanc_orgao");
-  orgaos.forEach(o=> sel.innerHTML += `<option value="${esc(o.orgao)}">${esc(o.orgao)} (${o.total.toLocaleString('pt-BR')})</option>`);
-}
-
 async function buscar(reset){
   if(reset){ pagina = 0; carregarMapa(); }
   const p = query();
@@ -564,6 +588,15 @@ function toggleSubmenuProc(){
 }
 function toggleSubmenuSanc(){
   $("sanc_submenu").style.display = $("f_sanc").checked ? "" : "none";
+}
+function toggleSubmenuBen(){
+  $("ben_submenu").style.display = $("f_ben").checked ? "" : "none";
+}
+function toggleSubmenuVinculo(){
+  $("vinculo_submenu").style.display = $("f_vinculo").checked ? "" : "none";
+}
+function toggleSubmenuPncp(){
+  $("pncp_submenu").style.display = $("f_pncp").checked ? "" : "none";
 }
 function copiarCnpj(cnpj, el){
   navigator.clipboard?.writeText(cnpj);
@@ -852,8 +885,12 @@ function renderContratos(arr){
   return `<div class="sec">📄 Contratos com órgãos públicos (${arr.length})</div>${cards}`;
 }
 const _TIPO_BENEFICIO = {RENUNCIA:"💰 Renúncia fiscal", IMUNE_ISENTO:"⛪ Imune/isento", HABILITADO:"🏗️ Habilitado a benefício", COMPETE_ES:"💵 Incentivo ICMS (Compete-ES)"};
-function renderBeneficios(arr){
-  if(!arr||!arr.length) return "";
+function renderBeneficios(arr, filtrado){
+  if(!arr||!arr.length){
+    return filtrado
+      ? `<div class="sec">💰 Benefícios e renúncias fiscais</div><p style="color:var(--muted);font-size:13px">Nenhum benefício bate com o filtro de tipo da busca atual.</p>`
+      : "";
+  }
   const cards = arr.map(x=>{
     const kv=(k,v)=>v?`<div><span class="k">${k}</span><span class="val">${v}</span></div>`:"";
     const rotulo = _TIPO_BENEFICIO[x.tipo]||x.tipo;
@@ -873,11 +910,16 @@ function renderBeneficios(arr){
       </div>
     </details>`;
   }).join("");
-  return `<div class="sec">💰 Benefícios e renúncias fiscais (${arr.length})</div>${cards}`;
+  const nota = filtrado ? ` <span style="font-size:11px;color:var(--muted);font-weight:normal;text-transform:none;letter-spacing:0">— filtrado pelo tipo da busca atual</span>` : "";
+  return `<div class="sec">💰 Benefícios e renúncias fiscais (${arr.length})${nota}</div>${cards}`;
 }
 const _FONTE_VINCULO = {PEP:"🏅 PEP", TSE_CANDIDATURA:"🗳️ Candidatura", TSE_DOACAO:"💰 Doação eleitoral"};
-function renderVinculos(arr){
-  if(!arr||!arr.length) return "";
+function renderVinculos(arr, filtrado){
+  if(!arr||!arr.length){
+    return filtrado
+      ? `<div class="sec">🏛️ Vínculos políticos</div><p style="color:var(--muted);font-size:13px">Nenhum vínculo bate com o filtro de fonte da busca atual.</p>`
+      : "";
+  }
   const cards = arr.map(x=>{
     const kv=(k,v)=>v?`<div><span class="k">${k}</span><span class="val">${v}</span></div>`:"";
     const rotulo = _FONTE_VINCULO[x.fonte]||x.fonte;
@@ -896,10 +938,15 @@ function renderVinculos(arr){
       </div>
     </details>`;
   }).join("");
-  return `<div class="sec">🏛️ Vínculos políticos (${arr.length})</div>${cards}`;
+  const nota = filtrado ? ` <span style="font-size:11px;color:var(--muted);font-weight:normal;text-transform:none;letter-spacing:0">— filtrado pela fonte da busca atual</span>` : "";
+  return `<div class="sec">🏛️ Vínculos políticos (${arr.length})${nota}</div>${cards}`;
 }
-function renderContratosPncp(arr){
-  if(!arr||!arr.length) return "";
+function renderContratosPncp(arr, filtrado){
+  if(!arr||!arr.length){
+    return filtrado
+      ? `<div class="sec">📄 Contratos via PNCP</div><p style="color:var(--muted);font-size:13px">Nenhum contrato bate com o filtro de categoria da busca atual.</p>`
+      : "";
+  }
   const cards = arr.map(x=>{
     const kv=(k,v)=>v?`<div><span class="k">${k}</span><span class="val">${v}</span></div>`:"";
     const valor = x.valor_global||x.valor_inicial;
@@ -920,7 +967,8 @@ function renderContratosPncp(arr){
       </div>
     </details>`;
   }).join("");
-  return `<div class="sec">📜 Contratos via PNCP (${arr.length})</div>${cards}`;
+  const nota = filtrado ? ` <span style="font-size:11px;color:var(--muted);font-weight:normal;text-transform:none;letter-spacing:0">— filtrado pela categoria da busca atual</span>` : "";
+  return `<div class="sec">📜 Contratos via PNCP (${arr.length})${nota}</div>${cards}`;
 }
 function renderMarcas(arr){
   if(!arr||!arr.length) return "";
@@ -948,11 +996,11 @@ async function abrir(cnpj, viaPopstate){
     url.searchParams.set("empresa", cnpj);
     history.pushState({empresa:cnpj}, "", url);
   }
-  // Se a busca atual tem "Em processo judicial"/"Com sanções" marcado, o
-  // modal filtra a lista correspondente pelo mesmo polo/classe/tipo/órgão
-  // (mesmo padrão usado em query()). Não afeta o resumo/pendência, só a lista.
+  // Se a busca atual tem algum desses filtros marcado, o modal filtra a
+  // lista correspondente pelo mesmo critério (mesmo padrão usado em
+  // query()). Não afeta o resumo/pendência, só a lista.
   const qp = new URLSearchParams();
-  let qsProc = false, qsSanc = false;
+  let qsProc = false, qsSanc = false, qsBen = false, qsVinc = false, qsPncp = false;
   if($("f_proc")?.checked){
     const polo = $("f_proc_polo").value || "Réu";
     if(polo !== "TODOS") qp.set("processo_polo", polo);
@@ -963,9 +1011,22 @@ async function abrir(cnpj, viaPopstate){
   if($("f_sanc")?.checked){
     const tipo = $("f_sanc_tipo").value;
     if(tipo) qp.set("sancao_tipo", tipo);
-    const orgao = $("f_sanc_orgao").value;
-    if(orgao) qp.set("sancao_orgao", orgao);
     qsSanc = true;
+  }
+  if($("f_ben")?.checked){
+    const tipo = $("f_ben_tipo").value;
+    if(tipo) qp.set("beneficio_tipo", tipo);
+    qsBen = true;
+  }
+  if($("f_vinculo")?.checked){
+    const fonte = $("f_vinc_fonte").value;
+    if(fonte) qp.set("vinculo_fonte", fonte);
+    qsVinc = true;
+  }
+  if($("f_pncp")?.checked){
+    const cat = $("f_pncp_cat").value;
+    if(cat) qp.set("pncp_categoria", cat);
+    qsPncp = true;
   }
   const qs = qp.toString() ? "?"+qp.toString() : "";
   const d = await fetchJSONCached("/empresas/"+cnpj+qs);
@@ -1076,9 +1137,9 @@ async function abrir(cnpj, viaPopstate){
       ${renderSancoes(d.sancoes_administrativas, qsSanc)}
       ${renderInfracoes(d.infracoes_ambientais)}
       ${renderContratos(d.contratos_governamentais)}
-      ${renderBeneficios(d.beneficios_fiscais)}
-      ${renderVinculos(d.vinculos_politicos)}
-      ${renderContratosPncp(d.contratos_pncp)}
+      ${renderBeneficios(d.beneficios_fiscais, qsBen)}
+      ${renderVinculos(d.vinculos_politicos, qsVinc)}
+      ${renderContratosPncp(d.contratos_pncp, qsPncp)}
       ${renderMarcas(d.marcas_inpi)}
 
       <div class="sec">&#128205; Localiza&ccedil;&atilde;o</div>
@@ -1236,9 +1297,9 @@ function gerarExport(fmt){
 }
 function limpar(){
   ["f_texto","f_cnpj","f_socio","f_capmin","f_capmax"].forEach(id=>$(id).value="");
-  ["f_segmento","f_porte","f_regime","f_pendencia","f_proc_polo","f_proc_classe","f_sanc_tipo","f_sanc_orgao"].forEach(id=>$(id).value="");
-  ["f_tel","f_email","f_wpp","f_rede","f_proc","f_sanc","f_amb","f_div","f_escravo","f_cepim","f_lenienc","f_contratos","f_renuncia","f_imune","f_habilitado","f_vinculo","f_pncp","f_marca","f_incentivo_es"].forEach(id=>$(id).checked=false);
-  toggleSubmenuProc(); toggleSubmenuSanc();
+  ["f_segmento","f_porte","f_regime","f_pendencia","f_proc_polo","f_proc_classe","f_sanc_tipo","f_ben_tipo","f_vinc_fonte","f_pncp_cat"].forEach(id=>$(id).value="");
+  ["f_tel","f_email","f_wpp","f_rede","f_proc","f_sanc","f_amb","f_div","f_escravo","f_cepim","f_lenienc","f_contratos","f_ben","f_vinculo","f_pncp","f_marca"].forEach(id=>$(id).checked=false);
+  toggleSubmenuProc(); toggleSubmenuSanc(); toggleSubmenuBen(); toggleSubmenuVinculo(); toggleSubmenuPncp();
   document.querySelectorAll("#f_municipio_group input").forEach(cb=>cb.checked=false);
   document.querySelectorAll(".citychip").forEach(c=>c.classList.remove("active"));
   $("f_ordem").value="razao_social"; buscar(true);
@@ -1372,7 +1433,7 @@ window.addEventListener("popstate", ()=>{
   if(cnpj) abrir(cnpj, true); else fechar(true);
 });
 (async ()=>{
-  await initEstat(); await initSegmentos(); initClassesProcessos(); initOrgaosSancionadores(); initMapa(); buscar(true);
+  await initEstat(); await initSegmentos(); initClassesProcessos(); initMapa(); buscar(true);
   const cnpjInicial = new URLSearchParams(location.search).get("empresa");
   if(cnpjInicial) abrir(cnpjInicial, true);
 })();
