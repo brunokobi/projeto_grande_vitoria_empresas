@@ -199,7 +199,7 @@ def buscar_empresas_perto(
 
 
 @mcp.tool()
-def obter_empresa(cnpj: str) -> dict:
+def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = None) -> dict:
     """Visão 360º de uma empresa pelo CNPJ (14 dígitos): dados cadastrais,
     sócios, complemento JUCEES, geolocalização, todas as pendências
     (processos, sanções, infrações ambientais, dívida ativa), vínculos
@@ -208,8 +208,14 @@ def obter_empresa(cnpj: str) -> dict:
     estaduais/federais via PNCP), benefícios/renúncias fiscais (renúncia
     fiscal por ano, imunidade/isenção de IRPJ, habilitação a regime de
     benefício) e marcas registradas no INPI, com um resumo agregado.
+
+    processo_polo (Réu/Autor/Terceiro/TODOS) e processo_classe filtram só a
+    LISTA de processos devolvida — o resumo (qtd_processos,
+    tem_pendencia_juridica_ou_fiscal) sempre reflete o total real da
+    empresa, sem esse filtro.
+
     Retorna null se o CNPJ não estiver na base."""
-    resultado = dataset_queries.obter_empresa(cnpj)
+    resultado = dataset_queries.obter_empresa(cnpj, processo_polo=processo_polo, processo_classe=processo_classe)
     if resultado is None:
         return {"erro": f"CNPJ {cnpj} não encontrado na base."}
     return resultado

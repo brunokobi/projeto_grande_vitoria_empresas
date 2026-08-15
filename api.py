@@ -217,8 +217,12 @@ def geocode(q: str = Query(..., min_length=4)):
 
 
 @app.get("/empresas/{cnpj}", summary="Visão 360º de uma empresa pelo CNPJ")
-def get_empresa(cnpj: str):
-    resultado = dataset_queries.obter_empresa(cnpj)
+def get_empresa(
+    cnpj: str,
+    processo_polo: str = Query(None, description="Filtra a lista de processos exibida por polo (Réu/Autor/Terceiro/TODOS) — não afeta o resumo/pendência, que sempre considera o total real"),
+    processo_classe: str = Query(None, description="Filtra a lista de processos exibida pela classe exata"),
+):
+    resultado = dataset_queries.obter_empresa(cnpj, processo_polo=processo_polo, processo_classe=processo_classe)
     if resultado is None:
         raise HTTPException(status_code=404, detail=f"CNPJ {cnpj} não encontrado.")
     return resultado
