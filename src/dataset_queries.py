@@ -843,8 +843,14 @@ def exportar_empresas(max_linhas=20000, colunas=None, **filtros) -> list:
     return saida
 
 
-def obter_empresa(cnpj: str) -> dict:
-    """Visão 360º de uma empresa pelo CNPJ (14 dígitos, só números)."""
+def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = None) -> dict:
+    """Visão 360º de uma empresa pelo CNPJ (14 dígitos, só números).
+
+    processo_polo/processo_classe filtram só a LISTA de processos exibida
+    (mesmo critério do submenu de busca "Em processo judicial") — o resumo
+    (qtd_processos, tem_pendencia_juridica_ou_fiscal etc.) sempre reflete o
+    total real da empresa, sem esse filtro, pra não mascarar uma pendência
+    de verdade só porque o modal foi aberto filtrando por Autor."""
     cnpj = "".join(c for c in str(cnpj) if c.isdigit())
     with _conn() as conn:
         empresa = conn.execute("SELECT * FROM empresas WHERE cnpj = ?", (cnpj,)).fetchone()
@@ -875,14 +881,28 @@ def obter_empresa(cnpj: str) -> dict:
             socios.append(s)
         jucees = conn.execute(
             "SELECT * FROM registros_jucees WHERE cnpj_empresa = ?", (cnpj,)).fetchone()
-        processos = [dict(r) for r in conn.execute(
-            "SELECT numero_processo, tribunal, classe, assunto, polo, status, "
-            "data_ultima_movimentacao, match_confianca, nome_socio_vinculado "
-            "FROM processos_judiciais WHERE cnpj_empresa = ? "
-            "ORDER BY data_ultima_movimentacao DESC LIMIT 100", (cnpj,))]
+        sql_proc = ("SELECT numero_processo, tribunal, classe, assunto, polo, status, "
+                    "data_ultima_movimentacao, match_confianca, nome_socio_vinculado "
+                    "FROM processos_judiciais WHERE cnpj_empresa = ?")
+        params_proc = [cnpj]
+        if processo_polo and processo_polo != "TODOS":
+            sql_proc += " AND polo = ?"
+            params_proc.append(processo_polo)
+        if processo_classe:
+            sql_proc += " AND classe = ?"
+            params_proc.append(processo_classe)
+        sql_proc += " ORDER BY data_ultima_movimentacao DESC LIMIT 100"
+        processos = [dict(r) for r in conn.execute(sql_proc, params_proc)]
         for p in processos:
             p["url_jusbrasil"] = url_jusbrasil(p.get("numero_processo"))
-        processos_re = [p for p in processos if p.get("polo") == "Réu"]
+        if processo_polo or processo_classe:
+            # Resumo sempre com o total real, sem o filtro de exibição acima.
+            processos_resumo = [dict(r) for r in conn.execute(
+                "SELECT polo FROM processos_judiciais WHERE cnpj_empresa = ? "
+                "ORDER BY data_ultima_movimentacao DESC LIMIT 100", (cnpj,))]
+        else:
+            processos_resumo = processos
+        processos_re = [p for p in processos_resumo if p.get("polo") == "Réu"]
         sancoes = [dict(r) for r in conn.execute(
             "SELECT tipo, motivo, orgao_sancionador, data_inicio, data_fim, valor_multa, "
             "fundamentacao, numero_processo, ano_processo, numero_deliberacao, ano_deliberacao, "
@@ -969,7 +989,7 @@ def obter_empresa(cnpj: str) -> dict:
         "marcas_inpi": marcas_inpi,
         "resumo": {
             "qtd_socios": len(socios),
-            "qtd_processos": len(processos),
+            "qtd_processos": len(processos_resumo),
             "qtd_processos_re": len(processos_re),
             "qtd_sancoes": len(sancoes),
             "qtd_infracoes_ambientais": len(ambiental),

@@ -739,8 +739,15 @@ function renderInfracoes(arr){
   return `<div class="sec">🌱 Infrações ambientais (${arr.length})</div>${cards}`;
 }
 const _POLO_LABEL = {"Réu":"Réu/Ré", "Autor":"Autor(a)", "Terceiro":"Terceiro"};
-function renderProcessos(arr){
-  if(!arr||!arr.length) return "";
+function renderProcessos(arr, filtrado){
+  if(!arr||!arr.length){
+    return filtrado
+      ? `<div class="sec">📂 Processos judiciais</div><p style="color:var(--muted);font-size:13px">Nenhum processo bate com o filtro de polo/classe da busca atual.</p>`
+      : "";
+  }
+  const nota = filtrado
+    ? `— filtrado pelo polo/classe da busca atual`
+    : `— só conta como pendência quando a empresa é ré`;
   const cards = arr.map(x=>{
     const kv=(k,v)=>v?`<div><span class="k">${k}</span><span class="val">${v}</span></div>`:"";
     const fuzzy = (x.match_confianca||"").toLowerCase()==="fuzzy";
@@ -765,7 +772,7 @@ function renderProcessos(arr){
       </div>
     </details>`;
   }).join("");
-  return `<div class="sec">📂 Processos judiciais (${arr.length}) <span style="font-size:11px;color:var(--muted);font-weight:normal;text-transform:none;letter-spacing:0">— só conta como pendência quando a empresa é ré</span></div>${cards}`;
+  return `<div class="sec">📂 Processos judiciais (${arr.length}) <span style="font-size:11px;color:var(--muted);font-weight:normal;text-transform:none;letter-spacing:0">${nota}</span></div>${cards}`;
 }
 function renderSancoes(arr){
   if(!arr||!arr.length) return "";
@@ -913,7 +920,19 @@ async function abrir(cnpj, viaPopstate){
     url.searchParams.set("empresa", cnpj);
     history.pushState({empresa:cnpj}, "", url);
   }
-  const d = await fetchJSONCached("/empresas/"+cnpj);
+  // Se a busca atual tem "Em processo judicial" marcado, o modal filtra a
+  // lista de processos pelo mesmo polo/classe -- mesmo padrão (Réu por
+  // padrão) usado em query(). Não afeta o resumo/pendência, só a lista.
+  let qsProc = "";
+  if($("f_proc")?.checked){
+    const qp = new URLSearchParams();
+    const polo = $("f_proc_polo").value || "Réu";
+    if(polo !== "TODOS") qp.set("processo_polo", polo);
+    const classe = $("f_proc_classe").value;
+    if(classe) qp.set("processo_classe", classe);
+    qsProc = qp.toString() ? "?"+qp.toString() : "";
+  }
+  const d = await fetchJSONCached("/empresas/"+cnpj+qsProc);
   const e = d.empresa, c = d.contato||{}, j = d.jucees, rz = d.resumo;
   const kv = (icon,k,v)=> `<div><div class="k">${icon} ${k}</div><div class="v">${esc(v)||"-"}</div></div>`;
   const kvRaw = (icon,k,v)=> `<div><div class="k">${icon} ${k}</div><div class="v">${v||"-"}</div></div>`;
@@ -1016,7 +1035,7 @@ async function abrir(cnpj, viaPopstate){
         statTile("&#128176;", fmtBRL(rz.valor_total_doacoes), "Total em doações eleitorais", true, rz.valor_total_doacoes),
         statTile("&#8482;&#65039;", rz.qtd_marcas_inpi, "Marcas registradas"),
       )}
-      ${renderProcessos(d.processos_judiciais)}
+      ${renderProcessos(d.processos_judiciais, !!qsProc)}
       ${renderDividas(d.dividas_ativas, e.capital_social)}
       ${renderSancoes(d.sancoes_administrativas)}
       ${renderInfracoes(d.infracoes_ambientais)}
