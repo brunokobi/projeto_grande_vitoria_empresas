@@ -271,7 +271,16 @@
         <option value="true">Com pendência (qualquer)</option>
       </select>
       <label class="f">Situação cadastral</label>
-      <label class="chk" id="row_proc"><input type="checkbox" id="f_proc"> Em processo judicial</label>
+      <label class="chk" id="row_proc"><input type="checkbox" id="f_proc" onchange="toggleSubmenuProc()"> Em processo judicial</label>
+      <div id="proc_submenu" style="display:none;margin:-4px 0 8px 22px">
+        <select id="f_proc_polo" style="margin-bottom:4px">
+          <option value="">Réu (padrão — conta como pendência)</option>
+          <option value="Autor">Autor</option>
+          <option value="Terceiro">Terceiro</option>
+          <option value="TODOS">Qualquer polo</option>
+        </select>
+        <select id="f_proc_classe"><option value="">Qualquer classe</option></select>
+      </div>
       <label class="chk" id="row_sanc"><input type="checkbox" id="f_sanc"> Com sanções administrativas</label>
       <label class="chk" id="row_amb"><input type="checkbox" id="f_amb"> Com infração ambiental</label>
       <label class="chk" id="row_div"><input type="checkbox" id="f_div"> Com dívida ativa</label>
@@ -379,7 +388,11 @@ function query(){
   if($("f_email").checked) p.set("com_email","true");
   if($("f_wpp").checked) p.set("com_whatsapp","true");
   if($("f_rede").checked) p.set("com_rede_social","true");
-  if($("f_proc").checked) p.set("com_processos","true");
+  if($("f_proc").checked){
+    p.set("com_processos","true");
+    add("processo_polo",$("f_proc_polo").value);
+    add("processo_classe",$("f_proc_classe").value);
+  }
   if($("f_sanc").checked) p.set("com_sancoes","true");
   if($("f_amb").checked) p.set("com_ambiental","true");
   if($("f_div").checked) p.set("com_divida","true");
@@ -469,6 +482,11 @@ async function initSegmentos(){
   const sel = $("f_segmento");
   segs.forEach(s=> sel.innerHTML += `<option value="${s.prefixo}">${esc(s.nome)} (${s.total.toLocaleString('pt-BR')})</option>`);
 }
+async function initClassesProcessos(){
+  const classes = await (await fetch("/processos/classes?limite=100")).json();
+  const sel = $("f_proc_classe");
+  classes.forEach(c=> sel.innerHTML += `<option value="${esc(c.classe)}">${esc(c.classe)} (${c.total.toLocaleString('pt-BR')})</option>`);
+}
 
 async function buscar(reset){
   if(reset){ pagina = 0; carregarMapa(); }
@@ -520,6 +538,9 @@ function toggleSelecionarTodos(master){
 }
 function onLinhaChk(cb){
   if(!cb.checked) $("chk_all").checked = false;
+}
+function toggleSubmenuProc(){
+  $("proc_submenu").style.display = $("f_proc").checked ? "" : "none";
 }
 function copiarCnpj(cnpj, el){
   navigator.clipboard?.writeText(cnpj);
@@ -1160,8 +1181,9 @@ function gerarExport(fmt){
 }
 function limpar(){
   ["f_texto","f_cnpj","f_socio","f_capmin","f_capmax"].forEach(id=>$(id).value="");
-  ["f_segmento","f_porte","f_regime","f_pendencia"].forEach(id=>$(id).value="");
+  ["f_segmento","f_porte","f_regime","f_pendencia","f_proc_polo","f_proc_classe"].forEach(id=>$(id).value="");
   ["f_tel","f_email","f_wpp","f_rede","f_proc","f_sanc","f_amb","f_div","f_escravo","f_cepim","f_lenienc","f_contratos","f_renuncia","f_imune","f_habilitado","f_vinculo","f_pncp","f_marca","f_incentivo_es"].forEach(id=>$(id).checked=false);
+  toggleSubmenuProc();
   document.querySelectorAll("#f_municipio_group input").forEach(cb=>cb.checked=false);
   document.querySelectorAll(".citychip").forEach(c=>c.classList.remove("active"));
   $("f_ordem").value="razao_social"; buscar(true);
@@ -1295,7 +1317,7 @@ window.addEventListener("popstate", ()=>{
   if(cnpj) abrir(cnpj, true); else fechar(true);
 });
 (async ()=>{
-  await initEstat(); await initSegmentos(); initMapa(); buscar(true);
+  await initEstat(); await initSegmentos(); initClassesProcessos(); initMapa(); buscar(true);
   const cnpjInicial = new URLSearchParams(location.search).get("empresa");
   if(cnpjInicial) abrir(cnpjInicial, true);
 })();

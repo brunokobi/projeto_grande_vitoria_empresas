@@ -35,6 +35,15 @@ def estatisticas() -> dict:
 
 
 @mcp.tool()
+def classes_processos(limite: int = 100) -> list:
+    """Classes de processo judicial mais frequentes na base (com contagem
+    de registros) — use pra saber quais valores passar em
+    buscar_empresas(processo_classe=...). Ex.: "AçãO TRABALHISTA - RITO
+    ORDINáRIO", "PROCEDIMENTO COMUM CíVEL", "EXECUçãO FISCAL"."""
+    return dataset_queries.classes_processos(limite=limite)
+
+
+@mcp.tool()
 def ranking_doacoes_eleitorais(limite: int = 20) -> dict:
     """Ranking de doações eleitorais (TSE) — responde direto perguntas como
     "quais candidatos mais receberam doação" ou "quais empresas mais
@@ -63,6 +72,8 @@ def buscar_empresas(
     com_whatsapp: bool = None,
     com_rede_social: bool = None,
     com_processos: bool = None,
+    processo_polo: str = None,
+    processo_classe: str = None,
     com_sancoes: bool = None,
     com_ambiental: bool = None,
     com_divida: bool = None,
@@ -94,6 +105,12 @@ def buscar_empresas(
     - texto: busca por parte da razão social ou nome fantasia.
     - tem_pendencia: True = só com pendência jurídico-fiscal; False = só
       "limpas" (bom filtro de prospecção); None = ignora.
+    - com_processos: True exige processo judicial. Por padrão só conta
+      quando a empresa é RÉ (é o que representa risco/pendência) — passe
+      processo_polo="Autor"/"Terceiro"/"TODOS" pra mudar isso.
+    - processo_classe: restringe à classe exata do processo (ex.: "AçãO
+      TRABALHISTA - RITO ORDINáRIO", "PROCEDIMENTO COMUM CíVEL" — ver
+      ferramenta classes_processos pra lista completa).
     - com_telefone / com_email: True exige o contato preenchido.
     - com_whatsapp: True exige link de WhatsApp (requer a etapa `contato`).
     - com_rede_social: True exige Instagram/Facebook/LinkedIn (etapa `contato`).
@@ -125,6 +142,7 @@ def buscar_empresas(
         tem_pendencia=tem_pendencia, com_telefone=com_telefone,
         com_email=com_email, com_whatsapp=com_whatsapp,
         com_rede_social=com_rede_social, com_processos=com_processos,
+        processo_polo=processo_polo, processo_classe=processo_classe,
         com_sancoes=com_sancoes, com_ambiental=com_ambiental, com_divida=com_divida,
         com_trabalho_escravo=com_trabalho_escravo, com_cepim=com_cepim,
         com_leniencia=com_leniencia,
