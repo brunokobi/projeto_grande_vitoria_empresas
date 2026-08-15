@@ -95,9 +95,13 @@ def buscar_empresas(
     com_imune_isento: bool = None,
     com_habilitado_beneficio: bool = None,
     com_vinculo_politico: bool = None,
+    vinculo_fonte: str = None,
     com_contrato_pncp: bool = None,
+    pncp_categoria: str = None,
     com_marca_registrada: bool = None,
     com_incentivo_estadual: bool = None,
+    com_beneficio_fiscal: bool = None,
+    beneficio_tipo: str = None,
     capital_min: float = None,
     capital_max: float = None,
     ordenar_por: str = "razao_social",
@@ -138,13 +142,20 @@ def buscar_empresas(
     - com_habilitado_beneficio: True exige habilitação a regime de
       benefício fiscal específico (ex.: RET - Incorporação Imobiliária).
     - com_vinculo_politico: True exige vínculo político do sócio (PEP,
-      candidatura no TSE, ou doação eleitoral pessoal).
+      candidatura no TSE, ou doação eleitoral pessoal). vinculo_fonte
+      restringe a fonte (TSE_DOACAO/TSE_CANDIDATURA, "TODOS" pra qualquer).
     - com_contrato_pncp: True exige contrato via PNCP (Portal Nacional de
       Contratações Públicas — municipal/estadual/federal, cobertura bem
       mais ampla que com_contratos_governamentais, que é só federal).
+      pncp_categoria restringe à categoria exata (ex.: "Compras",
+      "Serviços", "Obras", "TODOS" pra qualquer).
     - com_marca_registrada: True exige marca registrada no INPI.
     - com_incentivo_estadual: True exige incentivo fiscal de ICMS estadual
       (Programa COMPETE-ES).
+    - com_beneficio_fiscal: True exige qualquer benefício fiscal (renúncia,
+      imune/isento, habilitado ou incentivo ICMS — engloba os 4 filtros
+      acima num só). beneficio_tipo restringe o tipo específico
+      (RENUNCIA/IMUNE_ISENTO/HABILITADO/COMPETE_ES, "TODOS" pra qualquer).
     - ordenar_por: razao_social | capital_social | municipio | porte | cnpj.
     - limite (máx. 500) e offset para paginação.
 
@@ -164,9 +175,11 @@ def buscar_empresas(
         com_contratos_governamentais=com_contratos_governamentais,
         com_renuncia_fiscal=com_renuncia_fiscal, com_imune_isento=com_imune_isento,
         com_habilitado_beneficio=com_habilitado_beneficio,
-        com_vinculo_politico=com_vinculo_politico,
-        com_contrato_pncp=com_contrato_pncp, com_marca_registrada=com_marca_registrada,
+        com_vinculo_politico=com_vinculo_politico, vinculo_fonte=vinculo_fonte,
+        com_contrato_pncp=com_contrato_pncp, pncp_categoria=pncp_categoria,
+        com_marca_registrada=com_marca_registrada,
         com_incentivo_estadual=com_incentivo_estadual,
+        com_beneficio_fiscal=com_beneficio_fiscal, beneficio_tipo=beneficio_tipo,
         capital_min=capital_min, capital_max=capital_max, ordenar_por=ordenar_por,
         limite=limite, offset=offset,
     )
@@ -215,7 +228,9 @@ def buscar_empresas_perto(
 
 @mcp.tool()
 def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = None,
-                   sancao_tipo: str = None, sancao_orgao: str = None) -> dict:
+                   sancao_tipo: str = None, sancao_orgao: str = None,
+                   beneficio_tipo: str = None, vinculo_fonte: str = None,
+                   pncp_categoria: str = None) -> dict:
     """Visão 360º de uma empresa pelo CNPJ (14 dígitos): dados cadastrais,
     sócios, complemento JUCEES, geolocalização, todas as pendências
     (processos, sanções, infrações ambientais, dívida ativa), vínculos
@@ -227,14 +242,19 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
 
     processo_polo (Réu/Autor/Terceiro/TODOS) e processo_classe filtram só a
     LISTA de processos devolvida; sancao_tipo/sancao_orgao filtram só a
-    LISTA de sanções devolvida — o resumo (qtd_processos, qtd_sancoes,
-    tem_pendencia_juridica_ou_fiscal) sempre reflete o total real da
+    LISTA de sanções; beneficio_tipo filtra a LISTA de benefícios fiscais
+    (RENUNCIA/IMUNE_ISENTO/HABILITADO/COMPETE_ES); vinculo_fonte filtra a
+    LISTA de vínculos políticos (TSE_DOACAO/TSE_CANDIDATURA); pncp_categoria
+    filtra a LISTA de contratos PNCP — o resumo (contagens, valores totais
+    em R$, tem_pendencia_juridica_ou_fiscal) sempre reflete o total real da
     empresa, sem esses filtros.
 
     Retorna null se o CNPJ não estiver na base."""
     resultado = dataset_queries.obter_empresa(
         cnpj, processo_polo=processo_polo, processo_classe=processo_classe,
-        sancao_tipo=sancao_tipo, sancao_orgao=sancao_orgao)
+        sancao_tipo=sancao_tipo, sancao_orgao=sancao_orgao,
+        beneficio_tipo=beneficio_tipo, vinculo_fonte=vinculo_fonte,
+        pncp_categoria=pncp_categoria)
     if resultado is None:
         return {"erro": f"CNPJ {cnpj} não encontrado na base."}
     return resultado

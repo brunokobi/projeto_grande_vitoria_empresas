@@ -81,9 +81,13 @@ def filtros_comuns(
     com_imune_isento: bool = Query(None, description="Só empresas imunes/isentas de IRPJ"),
     com_habilitado_beneficio: bool = Query(None, description="Só empresas habilitadas a regime de benefício fiscal"),
     com_vinculo_politico: bool = Query(None, description="Só empresas com vínculo político do sócio (PEP, candidatura ou doação eleitoral)"),
+    vinculo_fonte: str = Query(None, description="Restringe a fonte do vínculo: TSE_DOACAO (doação eleitoral), TSE_CANDIDATURA, ou TODOS"),
     com_contrato_pncp: bool = Query(None, description="Só empresas com contrato via PNCP (municipal/estadual/federal)"),
+    pncp_categoria: str = Query(None, description="Restringe à categoria exata do contrato PNCP (ex.: Compras, Serviços, Obras...), ou TODOS"),
     com_marca_registrada: bool = Query(None, description="Só empresas com marca registrada no INPI"),
     com_incentivo_estadual: bool = Query(None, description="Só empresas com incentivo fiscal de ICMS estadual (COMPETE-ES)"),
+    com_beneficio_fiscal: bool = Query(None, description="Só empresas com algum benefício fiscal (renúncia/imune-isento/habilitado/incentivo ICMS)"),
+    beneficio_tipo: str = Query(None, description="Restringe o tipo do benefício: RENUNCIA/IMUNE_ISENTO/HABILITADO/COMPETE_ES, ou TODOS"),
     capital_min: float = Query(None),
     capital_max: float = Query(None),
     ordenar_por: str = Query("razao_social"),
@@ -100,9 +104,11 @@ def filtros_comuns(
         com_contratos_governamentais=com_contratos_governamentais,
         com_renuncia_fiscal=com_renuncia_fiscal, com_imune_isento=com_imune_isento,
         com_habilitado_beneficio=com_habilitado_beneficio,
-        com_vinculo_politico=com_vinculo_politico,
-        com_contrato_pncp=com_contrato_pncp, com_marca_registrada=com_marca_registrada,
+        com_vinculo_politico=com_vinculo_politico, vinculo_fonte=vinculo_fonte,
+        com_contrato_pncp=com_contrato_pncp, pncp_categoria=pncp_categoria,
+        com_marca_registrada=com_marca_registrada,
         com_incentivo_estadual=com_incentivo_estadual,
+        com_beneficio_fiscal=com_beneficio_fiscal, beneficio_tipo=beneficio_tipo,
         capital_min=capital_min, capital_max=capital_max, ordenar_por=ordenar_por,
     )
 
@@ -232,10 +238,15 @@ def get_empresa(
     processo_classe: str = Query(None, description="Filtra a lista de processos exibida pela classe exata"),
     sancao_tipo: str = Query(None, description="Filtra a lista de sanções exibida por tipo (CEIS/CNEP/CEPIM/TRABALHO_ESCRAVO/TCEES - Contas Irregulares/TODOS) — não afeta o resumo/pendência"),
     sancao_orgao: str = Query(None, description="Filtra a lista de sanções exibida pelo órgão sancionador exato"),
+    beneficio_tipo: str = Query(None, description="Filtra a lista de benefícios fiscais exibida por tipo (RENUNCIA/IMUNE_ISENTO/HABILITADO/COMPETE_ES/TODOS) — não afeta o resumo"),
+    vinculo_fonte: str = Query(None, description="Filtra a lista de vínculos políticos exibida por fonte (TSE_DOACAO/TSE_CANDIDATURA/TODOS) — não afeta o resumo"),
+    pncp_categoria: str = Query(None, description="Filtra a lista de contratos PNCP exibida pela categoria exata — não afeta o resumo"),
 ):
     resultado = dataset_queries.obter_empresa(
         cnpj, processo_polo=processo_polo, processo_classe=processo_classe,
-        sancao_tipo=sancao_tipo, sancao_orgao=sancao_orgao)
+        sancao_tipo=sancao_tipo, sancao_orgao=sancao_orgao,
+        beneficio_tipo=beneficio_tipo, vinculo_fonte=vinculo_fonte,
+        pncp_categoria=pncp_categoria)
     if resultado is None:
         raise HTTPException(status_code=404, detail=f"CNPJ {cnpj} não encontrado.")
     return resultado
