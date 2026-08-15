@@ -91,6 +91,16 @@ def _sem_acento(texto: str) -> str:
     return "".join(c for c in nfkd if not unicodedata.combining(c)).upper().strip()
 
 
+def _lista_valores(v) -> list:
+    """Normaliza um filtro de submenu que pode vir como valor único (uso
+    programático via API/MCP) ou lista (multi-select do dashboard — mesmo
+    `<select multiple>`, um parâmetro repetido na querystring) numa lista
+    sem vazios nem o sentinel 'TODOS' ('qualquer valor', mantido por
+    compatibilidade com quem já chamava a API assim)."""
+    valores = v if isinstance(v, (list, tuple, set)) else ([v] if v else [])
+    return [x for x in valores if x and x != "TODOS"]
+
+
 def _distancia_km(lat1, lon1, lat2, lon2):
     """Distância em linha reta (Haversine) entre dois pontos, em km. SQLite
     não tem função geoespacial nativa — registrada como função SQL custom
@@ -232,27 +242,36 @@ def _filtros_sql(*, tem_contato=False, tem_fts=False, tem_contratos=False,
     # Filtros por tipo específico de pendência jurídico-fiscal.
     if com_processos:
         # Padrão (processo_polo não informado) continua só Réu -- é o que
-        # conta como pendência/risco (ver _PENDENCIA_EXPR). "TODOS" no
-        # submenu do dashboard = qualquer polo (Réu/Autor/Terceiro).
+        # conta como pendência/risco (ver _PENDENCIA_EXPR). processo_polo e
+        # processo_classe aceitam valor único OU lista (multi-select do
+        # dashboard, um polo/classe por checkbox marcado) — "TODOS" (sentinel
+        # de compat com quem já chamava a API assim) = qualquer polo.
         cond_proc = "EXISTS (SELECT 1 FROM processos_judiciais p WHERE p.cnpj_empresa = e.cnpj"
         params_proc = []
-        if processo_polo and processo_polo != "TODOS":
-            cond_proc += " AND p.polo = ?"
-            params_proc.append(processo_polo)
-        elif not processo_polo:
+        polos = _lista_valores(processo_polo)
+        if polos:
+            ph = ",".join("?" for _ in polos)
+            cond_proc += f" AND p.polo IN ({ph})"
+            params_proc.extend(polos)
+        elif not processo_polo:  # nada marcado -> continua no padrão (só Réu)
             cond_proc += " AND p.polo = 'Réu'"
-        if processo_classe:
-            cond_proc += " AND p.classe = ?"
-            params_proc.append(processo_classe)
+        # senão: só "TODOS" informado -> qualquer polo, sem condição extra
+        classes = _lista_valores(processo_classe)
+        if classes:
+            ph = ",".join("?" for _ in classes)
+            cond_proc += f" AND p.classe IN ({ph})"
+            params_proc.extend(classes)
         cond_proc += ")"
         where.append(cond_proc)
         params.extend(params_proc)
     if com_sancoes:
         cond_sanc = "EXISTS (SELECT 1 FROM sancoes_administrativas s WHERE s.cnpj_empresa = e.cnpj"
         params_sanc = []
-        if sancao_tipo and sancao_tipo != "TODOS":
-            cond_sanc += " AND s.tipo = ?"
-            params_sanc.append(sancao_tipo)
+        tipos_sanc = _lista_valores(sancao_tipo)
+        if tipos_sanc:
+            ph = ",".join("?" for _ in tipos_sanc)
+            cond_sanc += f" AND s.tipo IN ({ph})"
+            params_sanc.extend(tipos_sanc)
         if sancao_orgao:
             cond_sanc += " AND s.orgao_sancionador = ?"
             params_sanc.append(sancao_orgao)
@@ -304,9 +323,11 @@ def _filtros_sql(*, tem_contato=False, tem_fts=False, tem_contratos=False,
         else:
             cond_ben = "EXISTS (SELECT 1 FROM beneficios_fiscais b WHERE b.cnpj_empresa = e.cnpj"
             params_ben = []
-            if beneficio_tipo and beneficio_tipo != "TODOS":
-                cond_ben += " AND b.tipo = ?"
-                params_ben.append(beneficio_tipo)
+            tipos_ben = _lista_valores(beneficio_tipo)
+            if tipos_ben:
+                ph = ",".join("?" for _ in tipos_ben)
+                cond_ben += f" AND b.tipo IN ({ph})"
+                params_ben.extend(tipos_ben)
             cond_ben += ")"
             where.append(cond_ben)
             params.extend(params_ben)
@@ -316,9 +337,11 @@ def _filtros_sql(*, tem_contato=False, tem_fts=False, tem_contratos=False,
         else:
             cond_vinc = "EXISTS (SELECT 1 FROM vinculos_politicos v WHERE v.cnpj_empresa = e.cnpj"
             params_vinc = []
-            if vinculo_fonte and vinculo_fonte != "TODOS":
-                cond_vinc += " AND v.fonte = ?"
-                params_vinc.append(vinculo_fonte)
+            fontes = _lista_valores(vinculo_fonte)
+            if fontes:
+                ph = ",".join("?" for _ in fontes)
+                cond_vinc += f" AND v.fonte IN ({ph})"
+                params_vinc.extend(fontes)
             cond_vinc += ")"
             where.append(cond_vinc)
             params.extend(params_vinc)
@@ -328,9 +351,11 @@ def _filtros_sql(*, tem_contato=False, tem_fts=False, tem_contratos=False,
         else:
             cond_pncp = "EXISTS (SELECT 1 FROM contratos_pncp cp WHERE cp.cnpj_empresa = e.cnpj"
             params_pncp = []
-            if pncp_categoria and pncp_categoria != "TODOS":
-                cond_pncp += " AND cp.categoria = ?"
-                params_pncp.append(pncp_categoria)
+            categorias = _lista_valores(pncp_categoria)
+            if categorias:
+                ph = ",".join("?" for _ in categorias)
+                cond_pncp += f" AND cp.categoria IN ({ph})"
+                params_pncp.extend(categorias)
             cond_pncp += ")"
             where.append(cond_pncp)
             params.extend(params_pncp)
@@ -959,12 +984,16 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
                     "data_ultima_movimentacao, match_confianca, nome_socio_vinculado "
                     "FROM processos_judiciais WHERE cnpj_empresa = ?")
         params_proc = [cnpj]
-        if processo_polo and processo_polo != "TODOS":
-            sql_proc += " AND polo = ?"
-            params_proc.append(processo_polo)
-        if processo_classe:
-            sql_proc += " AND classe = ?"
-            params_proc.append(processo_classe)
+        polos = _lista_valores(processo_polo)
+        if polos:
+            ph = ",".join("?" for _ in polos)
+            sql_proc += f" AND polo IN ({ph})"
+            params_proc.extend(polos)
+        classes = _lista_valores(processo_classe)
+        if classes:
+            ph = ",".join("?" for _ in classes)
+            sql_proc += f" AND classe IN ({ph})"
+            params_proc.extend(classes)
         sql_proc += " ORDER BY data_ultima_movimentacao DESC LIMIT 100"
         processos = [dict(r) for r in conn.execute(sql_proc, params_proc)]
         for p in processos:
@@ -982,9 +1011,11 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
                     "nome_socio_vinculado "
                     "FROM sancoes_administrativas WHERE cnpj_empresa = ?")
         params_sanc = [cnpj]
-        if sancao_tipo and sancao_tipo != "TODOS":
-            sql_sanc += " AND tipo = ?"
-            params_sanc.append(sancao_tipo)
+        tipos_sanc = _lista_valores(sancao_tipo)
+        if tipos_sanc:
+            ph = ",".join("?" for _ in tipos_sanc)
+            sql_sanc += f" AND tipo IN ({ph})"
+            params_sanc.extend(tipos_sanc)
         if sancao_orgao:
             sql_sanc += " AND orgao_sancionador = ?"
             params_sanc.append(sancao_orgao)
@@ -1011,9 +1042,11 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
             sql_vinc = ("SELECT nome_socio_vinculado, fonte, cargo_ou_funcao, orgao_ou_partido, "
                         "ano, situacao, detalhe FROM vinculos_politicos WHERE cnpj_empresa = ?")
             params_vinc = [cnpj]
-            if vinculo_fonte and vinculo_fonte != "TODOS":
-                sql_vinc += " AND fonte = ?"
-                params_vinc.append(vinculo_fonte)
+            fontes = _lista_valores(vinculo_fonte)
+            if fontes:
+                ph = ",".join("?" for _ in fontes)
+                sql_vinc += f" AND fonte IN ({ph})"
+                params_vinc.extend(fontes)
             sql_vinc += " LIMIT 100"
             vinculos_politicos = [dict(r) for r in conn.execute(sql_vinc, params_vinc)]
             for v in vinculos_politicos:
@@ -1041,9 +1074,11 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
             sql_ben = ("SELECT tipo, ano, valor, tipo_entidade, beneficio_fiscal, base_legal, "
                        "inicio_habilitacao, fim_habilitacao FROM beneficios_fiscais WHERE cnpj_empresa = ?")
             params_ben = [cnpj]
-            if beneficio_tipo and beneficio_tipo != "TODOS":
-                sql_ben += " AND tipo = ?"
-                params_ben.append(beneficio_tipo)
+            tipos_ben = _lista_valores(beneficio_tipo)
+            if tipos_ben:
+                ph = ",".join("?" for _ in tipos_ben)
+                sql_ben += f" AND tipo IN ({ph})"
+                params_ben.extend(tipos_ben)
             sql_ben += " ORDER BY ano DESC LIMIT 100"
             beneficios_fiscais = [dict(r) for r in conn.execute(sql_ben, params_ben)]
             if beneficio_tipo:
@@ -1062,9 +1097,11 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
                         "objeto, data_assinatura, data_inicio_vigencia, data_fim_vigencia, "
                         "valor_inicial, valor_global FROM contratos_pncp WHERE cnpj_empresa = ?")
             params_pncp = [cnpj]
-            if pncp_categoria and pncp_categoria != "TODOS":
-                sql_pncp += " AND categoria = ?"
-                params_pncp.append(pncp_categoria)
+            categorias = _lista_valores(pncp_categoria)
+            if categorias:
+                ph = ",".join("?" for _ in categorias)
+                sql_pncp += f" AND categoria IN ({ph})"
+                params_pncp.extend(categorias)
             sql_pncp += " ORDER BY data_assinatura DESC LIMIT 100"
             contratos_pncp = [dict(r) for r in conn.execute(sql_pncp, params_pncp)]
             if pncp_categoria:

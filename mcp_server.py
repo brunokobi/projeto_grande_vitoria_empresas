@@ -80,10 +80,10 @@ def buscar_empresas(
     com_whatsapp: bool = None,
     com_rede_social: bool = None,
     com_processos: bool = None,
-    processo_polo: str = None,
-    processo_classe: str = None,
+    processo_polo: list = None,
+    processo_classe: list = None,
     com_sancoes: bool = None,
-    sancao_tipo: str = None,
+    sancao_tipo: list = None,
     sancao_orgao: str = None,
     com_ambiental: bool = None,
     com_divida: bool = None,
@@ -95,13 +95,13 @@ def buscar_empresas(
     com_imune_isento: bool = None,
     com_habilitado_beneficio: bool = None,
     com_vinculo_politico: bool = None,
-    vinculo_fonte: str = None,
+    vinculo_fonte: list = None,
     com_contrato_pncp: bool = None,
-    pncp_categoria: str = None,
+    pncp_categoria: list = None,
     com_marca_registrada: bool = None,
     com_incentivo_estadual: bool = None,
     com_beneficio_fiscal: bool = None,
-    beneficio_tipo: str = None,
+    beneficio_tipo: list = None,
     capital_min: float = None,
     capital_max: float = None,
     ordenar_por: str = "razao_social",
@@ -121,14 +121,17 @@ def buscar_empresas(
       "limpas" (bom filtro de prospecção); None = ignora.
     - com_processos: True exige processo judicial. Por padrão só conta
       quando a empresa é RÉ (é o que representa risco/pendência) — passe
-      processo_polo="Autor"/"Terceiro"/"TODOS" pra mudar isso.
+      processo_polo="Autor"/"Terceiro"/"TODOS" (ou uma LISTA, ex.:
+      ["Réu","Autor"], pra combinar mais de um polo) pra mudar isso.
     - processo_classe: restringe à classe exata do processo (ex.: "AçãO
       TRABALHISTA - RITO ORDINáRIO", "PROCEDIMENTO COMUM CíVEL" — ver
-      ferramenta classes_processos pra lista completa).
+      ferramenta classes_processos pra lista completa). Aceita uma lista
+      pra combinar mais de uma classe.
     - com_sancoes: True exige sanção administrativa (CEIS/CNEP/CEPIM/
-      trabalho escravo/TCEES). sancao_tipo restringe o tipo específico
-      ("TODOS" pra qualquer); sancao_orgao restringe ao órgão sancionador
-      exato (ver ferramenta orgaos_sancionadores pra lista completa).
+      trabalho escravo/TCEES). sancao_tipo restringe o(s) tipo(s)
+      específico(s) (string única ou lista, "TODOS" pra qualquer);
+      sancao_orgao restringe ao órgão sancionador exato (ver ferramenta
+      orgaos_sancionadores pra lista completa).
     - com_telefone / com_email: True exige o contato preenchido.
     - com_whatsapp: True exige link de WhatsApp (requer a etapa `contato`).
     - com_rede_social: True exige Instagram/Facebook/LinkedIn (etapa `contato`).
@@ -143,19 +146,21 @@ def buscar_empresas(
       benefício fiscal específico (ex.: RET - Incorporação Imobiliária).
     - com_vinculo_politico: True exige vínculo político do sócio (PEP,
       candidatura no TSE, ou doação eleitoral pessoal). vinculo_fonte
-      restringe a fonte (TSE_DOACAO/TSE_CANDIDATURA, "TODOS" pra qualquer).
+      restringe a fonte (TSE_DOACAO/TSE_CANDIDATURA — passe os DOIS numa
+      lista pra pegar sócio com qualquer um dos dois; "TODOS" pra qualquer).
     - com_contrato_pncp: True exige contrato via PNCP (Portal Nacional de
       Contratações Públicas — municipal/estadual/federal, cobertura bem
       mais ampla que com_contratos_governamentais, que é só federal).
-      pncp_categoria restringe à categoria exata (ex.: "Compras",
-      "Serviços", "Obras", "TODOS" pra qualquer).
+      pncp_categoria restringe à(s) categoria(s) exata(s) (ex.: "Compras",
+      "Serviços", "Obras" — string única ou lista, "TODOS" pra qualquer).
     - com_marca_registrada: True exige marca registrada no INPI.
     - com_incentivo_estadual: True exige incentivo fiscal de ICMS estadual
       (Programa COMPETE-ES).
     - com_beneficio_fiscal: True exige qualquer benefício fiscal (renúncia,
       imune/isento, habilitado ou incentivo ICMS — engloba os 4 filtros
-      acima num só). beneficio_tipo restringe o tipo específico
-      (RENUNCIA/IMUNE_ISENTO/HABILITADO/COMPETE_ES, "TODOS" pra qualquer).
+      acima num só). beneficio_tipo restringe o(s) tipo(s) específico(s)
+      (RENUNCIA/IMUNE_ISENTO/HABILITADO/COMPETE_ES — string única ou lista,
+      "TODOS" pra qualquer).
     - ordenar_por: razao_social | capital_social | municipio | porte | cnpj.
     - limite (máx. 500) e offset para paginação.
 
@@ -227,10 +232,10 @@ def buscar_empresas_perto(
 
 
 @mcp.tool()
-def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = None,
-                   sancao_tipo: str = None, sancao_orgao: str = None,
-                   beneficio_tipo: str = None, vinculo_fonte: str = None,
-                   pncp_categoria: str = None) -> dict:
+def obter_empresa(cnpj: str, processo_polo: list = None, processo_classe: list = None,
+                   sancao_tipo: list = None, sancao_orgao: str = None,
+                   beneficio_tipo: list = None, vinculo_fonte: list = None,
+                   pncp_categoria: list = None) -> dict:
     """Visão 360º de uma empresa pelo CNPJ (14 dígitos): dados cadastrais,
     sócios, complemento JUCEES, geolocalização, todas as pendências
     (processos, sanções, infrações ambientais, dívida ativa), vínculos
@@ -245,8 +250,11 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
     LISTA de sanções; beneficio_tipo filtra a LISTA de benefícios fiscais
     (RENUNCIA/IMUNE_ISENTO/HABILITADO/COMPETE_ES); vinculo_fonte filtra a
     LISTA de vínculos políticos (TSE_DOACAO/TSE_CANDIDATURA); pncp_categoria
-    filtra a LISTA de contratos PNCP — o resumo (contagens, valores totais
-    em R$, tem_pendencia_juridica_ou_fiscal) sempre reflete o total real da
+    filtra a LISTA de contratos PNCP — todos (exceto sancao_orgao) aceitam
+    string única OU lista, pra combinar mais de um valor (ex.: vinculo_fonte
+    =["TSE_DOACAO","TSE_CANDIDATURA"] mostra os dois tipos de vínculo na
+    lista). O resumo (contagens, valores totais em R$,
+    tem_pendencia_juridica_ou_fiscal) sempre reflete o total real da
     empresa, sem esses filtros.
 
     Retorna null se o CNPJ não estiver na base."""
