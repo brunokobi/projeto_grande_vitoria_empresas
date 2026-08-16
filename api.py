@@ -13,7 +13,7 @@ import contextlib
 import io
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, Request, Depends
-from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
+from fastapi.responses import FileResponse, StreamingResponse, JSONResponse, Response
 
 import config
 from src import dataset_queries, geocode as geocode_lib, notificar_telegram
@@ -46,6 +46,8 @@ app.mount("/mcp", mcp_app)
 
 DASHBOARD_HTML = config.BASE_DIR / "dashboard" / "index.html"
 MUNICIPIOS_GEOJSON = config.BASE_DIR / "reference" / "municipios_grande_vitoria.geojson"
+OG_IMAGE = config.BASE_DIR / "docs" / "dashboard.png"
+SITE_URL = "https://empresas.brunokobi.duckdns.org"
 
 
 # --------------------------------------------------------------------------
@@ -129,6 +131,46 @@ def dashboard(request: Request, background_tasks: BackgroundTasks):
         # dashboard.html mesmo depois de um deploy novo.
         return FileResponse(DASHBOARD_HTML, headers={"Cache-Control": "no-cache"})
     return JSONResponse({"erro": "dashboard/index.html não encontrado"}, status_code=404)
+
+
+@app.get("/robots.txt", include_in_schema=False)
+def robots_txt():
+    """Libera indexação geral pra buscadores e aponta o sitemap — sem isso
+    o Google segue o default (rastreia mesmo assim), mas ficar explícito
+    evita qualquer robots.txt "fantasma" de proxy/CDN no meio do caminho."""
+    conteudo = f"User-agent: *\nAllow: /\nSitemap: {SITE_URL}/sitemap.xml\n"
+    return Response(content=conteudo, media_type="text/plain")
+
+
+@app.get("/sitemap.xml", include_in_schema=False)
+def sitemap_xml():
+    """Sitemap mínimo — só a home (dashboard) e a doc pública da API, que
+    são as páginas com conteúdo pra indexar; /empresas/{cnpj} não entra
+    (são 344 mil páginas dinâmicas, sem valor de SEO individual)."""
+    urls = [
+        (f"{SITE_URL}/", "daily", "1.0"),
+        (f"{SITE_URL}/api", "weekly", "0.5"),
+        (f"{SITE_URL}/docs", "weekly", "0.4"),
+    ]
+    itens = "".join(
+        f"<url><loc>{loc}</loc><changefreq>{freq}</changefreq><priority>{pri}</priority></url>"
+        for loc, freq, pri in urls
+    )
+    conteudo = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' + itens + "</urlset>"
+    )
+    return Response(content=conteudo, media_type="application/xml")
+
+
+@app.get("/og-image.png", include_in_schema=False)
+def og_image():
+    """Imagem usada no preview de link (Open Graph/Twitter Card) — o
+    screenshot do dashboard já versionado em docs/ pro README."""
+    if OG_IMAGE.exists():
+        return FileResponse(OG_IMAGE, media_type="image/png",
+                             headers={"Cache-Control": "public, max-age=86400"})
+    return JSONResponse({"erro": "imagem não encontrada"}, status_code=404)
 
 
 @app.get("/api", summary="Índice da API")

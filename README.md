@@ -188,6 +188,10 @@ Lógica de consulta compartilhada (`src/dataset_queries.py`) entre dashboard, AP
 - `GET /geocode` — resolve um endereço em lat/lng (fallback do mapa quando a empresa ainda não tem coordenada; combine com `/empresas/perto` pra buscar por endereço)
 - `GET /classificar` — pontua e ranqueia leads por objetivo comercial
 - `GET /export/empresas.xlsx` · `GET /export/empresas.pdf`
+- `GET /robots.txt` · `GET /sitemap.xml` · `GET /og-image.png` — SEO/indexação (ver seção abaixo)
+
+### SEO / indexação em buscadores
+O dashboard tem meta description/keywords, `robots.txt`+`sitemap.xml`, Open Graph/Twitter Card (preview de link) e um bloco **JSON-LD schema.org/Dataset** — esse último é o que alimenta o [Google Dataset Search](https://datasetsearch.research.google.com/). Nada disso muda o layout: são só tags no `<head>` do `dashboard/index.html` e 3 rotas novas na API.
 
 ### Servidor MCP
 Ferramentas `estatisticas`, `buscar_empresas`, `buscar_empresas_perto` (busca por raio — aceita coordenada ou um **endereço em texto livre**, geocodificado automaticamente), `obter_empresa`, `classificar_empresas`, `ranking_doacoes_eleitorais` para o Claude e outros clientes MCP. Duas formas de conectar: **remoto**, direto em `https://empresas.brunokobi.duckdns.org/mcp/` (sem instalar nada); ou **local**, via `.mcp.json` (detectado automaticamente pelo Claude Code após o `setup.sh`).
