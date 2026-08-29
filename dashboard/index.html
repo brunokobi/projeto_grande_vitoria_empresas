@@ -122,6 +122,13 @@
   .maptoggle button{background:var(--bg2);color:var(--muted);border:none;padding:6px 12px;
     font-size:12px;cursor:pointer;font-weight:600}
   .maptoggle button.active{background:var(--green-deep);color:var(--green)}
+  /* Toolbar do mapa: título numa ponta, controles (toggle+bairros) na outra —
+     legenda vai numa linha própria embaixo, sem disputar espaço horizontal
+     com os botões (era tudo espremido numa linha só antes). */
+  .maptoolbar{justify-content:space-between}
+  .mapcontrols{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .bairros-chk{margin:0 !important;white-space:nowrap}
+  .maplegend{font-size:11px;color:var(--muted);margin:-4px 0 12px}
   th.sortable{cursor:pointer;user-select:none}
   th.sortable:hover{color:var(--green)}
   th.sortable .arrow{opacity:.35;margin-left:3px}
@@ -275,18 +282,22 @@
   <div class="stats" id="stats"></div>
 
   <div class="card" style="margin-bottom:16px">
-    <div class="toolbar">
+    <div class="toolbar maptoolbar">
       <span class="count">🗺️ Mapa da Grande Vitória — <b id="mapinfo">carregando…</b></span>
-      <div class="spacer" style="flex:1"></div>
-      <span class="maplegend" id="maplegend" style="font-size:11px;color:var(--muted)">🟢 sem pendência · 🔴 com pendência · clique num ponto p/ abrir a empresa</span>
-      <div class="maptoggle">
-        <button id="mt_pontos" class="active" onclick="setMapaModo('pontos')">Pontos</button>
-        <button id="mt_calor" onclick="setMapaModo('risco')" title="% de empresas com pendência por município — clique numa cidade pra filtrar">🔥 Risco</button>
+      <div class="mapcontrols">
+        <div class="maptoggle">
+          <button id="mt_pontos" class="active" onclick="setMapaModo('pontos')">Pontos</button>
+          <!-- "Risco" (choropleth por município) removido a pedido -- lógica mantida comentada no JS (setMapaModo/atualizarChoropleth) pra reativar fácil depois.
+          <button id="mt_calor" onclick="setMapaModo('risco')" title="% de empresas com pendência por município — clique numa cidade pra filtrar">🔥 Risco</button>
+          -->
+          <button id="mt_crime" onclick="setMapaModo('crime')" title="Ocorrências criminais por bairro (SESP-ES) — furto/roubo/estelionato, 2018–2026">🚨 Crime</button>
+        </div>
+        <label class="chk bairros-chk" title="Limites dos bairros (IJSN/GeoBases-ES) sobre o mapa">
+          <input type="checkbox" id="mt_bairros_chk" onchange="toggleBairros(this.checked)"> 🏘️ Bairros
+        </label>
       </div>
-      <label class="chk" style="margin:0 0 0 10px" title="Limites dos bairros (IJSN/GeoBases-ES) sobre o mapa">
-        <input type="checkbox" id="mt_bairros_chk" onchange="toggleBairros(this.checked)"> 🏘️ Bairros
-      </label>
     </div>
+    <div class="maplegend" id="maplegend">🟢 sem pendência · 🔴 com pendência · clique num ponto p/ abrir a empresa</div>
     <div id="citychips" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"></div>
     <div id="mapa" style="height:440px;border-radius:10px;overflow:hidden"></div>
   </div>
@@ -1390,40 +1401,49 @@ function initMapa(){
       popup.setLngLat(e.features[0].geometry.coordinates.slice()).setText(e.features[0].properties.nome).addTo(MAPA); });
     MAPA.on("mouseleave","ponto",()=>{ MAPA.getCanvas().style.cursor=""; popup.remove(); });
 
-    // "Risco" = choropleth por município (% de empresas com pendência),
-    // não heatmap por ponto — com 344 mil pontos um heatmap satura e vira
-    // só uma mancha sólida cobrindo a região inteira, sem diferenciar nada.
-    // Fronteiras de reference/municipios_grande_vitoria.geojson (7 formas,
-    // não milhares de pontos — não tem esse problema).
-    MAPA.addSource("municipios", {type:"geojson", data:{type:"FeatureCollection",features:[]}});
-    MAPA.addLayer({id:"municipios-fill", type:"fill", source:"municipios", layout:{visibility:"none"},
-      paint:{
-        "fill-color":["interpolate",["linear"],["coalesce",["get","pct_pendencia"],0],
-          0,"#0a3d28", 10,"#12b866", 20,"#ffcf4d", 30,"#ff5470", 40,"#c0392b"],
-        "fill-opacity":0.6}});
-    MAPA.addLayer({id:"municipios-line", type:"line", source:"municipios", layout:{visibility:"none"},
-      paint:{"line-color":"#0b1a0f", "line-width":1.5}});
-    // Sem camada de texto (symbol/label) de propósito: dependia da fonte
-    // "Open Sans Regular" do glyphs server de demo do MapLibre, que não
-    // serve mais essa fonte (404) — isso quebrava o processamento da fonte
-    // "municipios" inteira no worker (fill+line+symbol são processados
-    // juntos), derrubando o preenchimento colorido também, não só o texto.
-    // O hover já mostra nome+percentual em popup, então não perde informação.
-    MAPA.on("click","municipios-fill",(e)=>{
-      const m=e.features[0].properties.municipio; if(m) filtrarCidade(m); });
-    MAPA.on("mouseenter","municipios-fill",(e)=>{ MAPA.getCanvas().style.cursor="pointer";
-      const p=e.features[0].properties;
-      popup.setLngLat(e.lngLat).setText(`${p.name}: ${Number(p.pct_pendencia).toLocaleString('pt-BR')}% com pendência (${Number(p.total).toLocaleString('pt-BR')} empresas)`).addTo(MAPA); });
-    MAPA.on("mouseleave","municipios-fill",()=>{ MAPA.getCanvas().style.cursor=""; popup.remove(); });
+    // "Risco" (choropleth por município) removido da UI a pedido -- lógica
+    // mantida comentada pra reativar fácil depois, se precisar. Descomentar
+    // aqui + o botão #mt_calor no HTML + os trechos marcados em
+    // setMapaModo()/carregarMapa() + a função atualizarChoropleth() abaixo.
+    // // "Risco" = choropleth por município (% de empresas com pendência),
+    // // não heatmap por ponto — com 344 mil pontos um heatmap satura e vira
+    // // só uma mancha sólida cobrindo a região inteira, sem diferenciar nada.
+    // // Fronteiras de reference/municipios_grande_vitoria.geojson (7 formas,
+    // // não milhares de pontos — não tem esse problema).
+    // MAPA.addSource("municipios", {type:"geojson", data:{type:"FeatureCollection",features:[]}});
+    // MAPA.addLayer({id:"municipios-fill", type:"fill", source:"municipios", layout:{visibility:"none"},
+    //   paint:{
+    //     "fill-color":["interpolate",["linear"],["coalesce",["get","pct_pendencia"],0],
+    //       0,"#0a3d28", 10,"#12b866", 20,"#ffcf4d", 30,"#ff5470", 40,"#c0392b"],
+    //     "fill-opacity":0.6}});
+    // MAPA.addLayer({id:"municipios-line", type:"line", source:"municipios", layout:{visibility:"none"},
+    //   paint:{"line-color":"#0b1a0f", "line-width":1.5}});
+    // // Sem camada de texto (symbol/label) de propósito: dependia da fonte
+    // // "Open Sans Regular" do glyphs server de demo do MapLibre, que não
+    // // serve mais essa fonte (404) — isso quebrava o processamento da fonte
+    // // "municipios" inteira no worker (fill+line+symbol são processados
+    // // juntos), derrubando o preenchimento colorido também, não só o texto.
+    // // O hover já mostra nome+percentual em popup, então não perde informação.
+    // MAPA.on("click","municipios-fill",(e)=>{
+    //   const m=e.features[0].properties.municipio; if(m) filtrarCidade(m); });
+    // MAPA.on("mouseenter","municipios-fill",(e)=>{ MAPA.getCanvas().style.cursor="pointer";
+    //   const p=e.features[0].properties;
+    //   popup.setLngLat(e.lngLat).setText(`${p.name}: ${Number(p.pct_pendencia).toLocaleString('pt-BR')}% com pendência (${Number(p.total).toLocaleString('pt-BR')} empresas)`).addTo(MAPA); });
+    // MAPA.on("mouseleave","municipios-fill",()=>{ MAPA.getCanvas().style.cursor=""; popup.remove(); });
 
-    // Bairros (IJSN/GeoBases-ES) -- só linha + nome de referência (sem
-    // preencher, sem interação de clique), pra não competir visualmente com
-    // Pontos/Risco. Fonte só é carregada na 1ª vez que o toggle liga
-    // (checkbox desmarcado por padrão) — evita baixar +400KB pra quem nunca
-    // usa a camada. As duas layers entram ANTES de "ponto" (beforeId) pra
-    // ficarem sempre atrás dos pontos de empresa, nunca por cima -- não
-    // atrapalha clique/visualização das empresas mesmo com a camada ligada.
+    // Bairros (IJSN/GeoBases-ES) -- 3 layers sobre a mesma fonte: fill
+    // (choropleth do modo "Crime"), linha e nome de referência (toggle
+    // independente "Bairros"). Fonte só é carregada na 1ª vez que precisa
+    // (outline ligado OU modo Crime selecionado) — evita baixar +400KB pra
+    // quem nunca usa nenhuma das duas. As 3 layers entram ANTES de "ponto"
+    // (beforeId) pra ficarem sempre atrás dos pontos de empresa, nunca por
+    // cima -- não atrapalha clique/visualização das empresas em nenhum caso.
     MAPA.addSource("bairros", {type:"geojson", data:{type:"FeatureCollection",features:[]}});
+    MAPA.addLayer({id:"bairros-fill", type:"fill", source:"bairros", layout:{visibility:"none"},
+      paint:{
+        "fill-color":["interpolate",["linear"],["coalesce",["get","crimes_total"],0],
+          0,"#0a3d28", 200,"#12b866", 500,"#ffcf4d", 1000,"#ff9d4d", 2000,"#ff5470", 5000,"#c0392b"],
+        "fill-opacity":0.65}}, "ponto");
     MAPA.addLayer({id:"bairros-line", type:"line", source:"bairros", layout:{visibility:"none"},
       paint:{"line-color":"#39ff14", "line-width":1, "line-opacity":0.5, "line-dasharray":[2,1.5]}}, "ponto");
     // Nome do bairro no centro do polígono (MapLibre calcula o ponto de
@@ -1442,55 +1462,103 @@ function initMapa(){
       const p=e.features[0].properties;
       popup.setLngLat(e.lngLat).setText(`${p.nome} (${p.municipio})`).addTo(MAPA); });
     MAPA.on("mouseleave","bairros-line",()=>{ MAPA.getCanvas().style.cursor=""; popup.remove(); });
+    MAPA.on("mouseenter","bairros-fill",(e)=>{ MAPA.getCanvas().style.cursor="pointer";
+      const p=e.features[0].properties;
+      const tipos = p.crimes_por_tipo ? JSON.parse(p.crimes_por_tipo) : null;
+      const detalhe = tipos ? Object.entries(tipos).sort((a,b)=>b[1]-a[1]).slice(0,3)
+        .map(([t,n])=>`${t.trim()} (${n})`).join(", ") : "sem dado";
+      popup.setLngLat(e.lngLat).setText(`${p.nome}: ${Number(p.crimes_total||0).toLocaleString('pt-BR')} ocorrências — ${detalhe}`).addTo(MAPA); });
+    MAPA.on("mouseleave","bairros-fill",()=>{ MAPA.getCanvas().style.cursor=""; popup.remove(); });
 
     MAPA_READY=true;
     if(_pendentes){ MAPA.getSource("empresas").setData(_pendentes); _pendentes=null; }
-    fetch("/municipios/geojson").then(r=>r.json()).then(gj=>{
-      _municipiosGeoJSON = gj;
-      atualizarChoropleth();
-    }).catch(()=>{});
+    // "Risco" desativado -- não busca mais /municipios/geojson de cara.
+    // fetch("/municipios/geojson").then(r=>r.json()).then(gj=>{
+    //   _municipiosGeoJSON = gj;
+    //   atualizarChoropleth();
+    // }).catch(()=>{});
   });
 }
-let _bairrosCarregados = false;
+let _bairrosGeoJSON = null, _bairrosCarregando = null;
+// Compartilhado entre o toggle "Bairros" (outline) e o modo "Crime" --
+// os dois precisam da MESMA geometria, só carrega uma vez (promise
+// cacheada evita disparar 2 fetches se os dois ligarem quase juntos).
+function garantirBairrosGeojson(){
+  if(_bairrosGeoJSON) return Promise.resolve(_bairrosGeoJSON);
+  if(_bairrosCarregando) return _bairrosCarregando;
+  _bairrosCarregando = fetch("/bairros/geojson").then(r=>r.json()).then(gj=>{
+    _bairrosGeoJSON = gj;
+    MAPA.getSource("bairros")?.setData(gj);
+    return gj;
+  }).catch(()=>{ _bairrosCarregando = null; });
+  return _bairrosCarregando;
+}
 function toggleBairros(ligado){
   if(!MAPA_READY) return;
   ["bairros-line","bairros-label"].forEach(id=>
     MAPA.setLayoutProperty(id,"visibility", ligado?"visible":"none"));
-  if(ligado && !_bairrosCarregados){
-    _bairrosCarregados = true;
-    fetch("/bairros/geojson").then(r=>r.json()).then(gj=>{
-      MAPA.getSource("bairros")?.setData(gj);
-    }).catch(()=>{ _bairrosCarregados = false; });
-  }
+  if(ligado) garantirBairrosGeojson();
 }
-let _municipiosGeoJSON = null;
-async function atualizarChoropleth(){
-  if(!_municipiosGeoJSON || !MAPA_READY) return;
-  let risco;
-  try{ risco = await (await fetch("/municipios/risco?"+query().toString())).json(); }
-  catch(_){ return; }
-  const porIbge = Object.fromEntries(risco.map(r=>[r.ibge_id, r]));
-  const feats = _municipiosGeoJSON.features.map(f=>{
-    const r = porIbge[f.properties.id] || {};
-    const pct = r.pct_pendencia ?? 0;
+let _crimePorBairro = null;
+async function atualizarCrime(){
+  if(!MAPA_READY) return;
+  await garantirBairrosGeojson();
+  if(!_bairrosGeoJSON) return;
+  if(!_crimePorBairro){
+    try{
+      const d = await (await fetch("/criminalidade/bairros")).json();
+      _crimePorBairro = d.bairros || [];
+    }catch(_){ return; }
+  }
+  const porChave = Object.fromEntries(_crimePorBairro.map(b=>[b.municipio+"|"+b.bairro, b]));
+  const feats = _bairrosGeoJSON.features.map(f=>{
+    const c = porChave[f.properties.municipio+"|"+f.properties.nome];
     return {...f, properties:{...f.properties,
-      municipio: r.municipio || "",
-      total: r.total || 0,
-      com_pendencia: r.com_pendencia || 0,
-      pct_pendencia: pct,
+      crimes_total: c ? c.total : 0,
+      crimes_por_tipo: c ? c.por_tipo : null,
     }};
   });
-  MAPA.getSource("municipios")?.setData({type:"FeatureCollection", features: feats});
+  MAPA.getSource("bairros")?.setData({type:"FeatureCollection", features: feats});
 }
+// "Risco" desativado -- função mantida comentada pra reativar fácil depois.
+// let _municipiosGeoJSON = null;
+// async function atualizarChoropleth(){
+//   if(!_municipiosGeoJSON || !MAPA_READY) return;
+//   let risco;
+//   try{ risco = await (await fetch("/municipios/risco?"+query().toString())).json(); }
+//   catch(_){ return; }
+//   const porIbge = Object.fromEntries(risco.map(r=>[r.ibge_id, r]));
+//   const feats = _municipiosGeoJSON.features.map(f=>{
+//     const r = porIbge[f.properties.id] || {};
+//     const pct = r.pct_pendencia ?? 0;
+//     return {...f, properties:{...f.properties,
+//       municipio: r.municipio || "",
+//       total: r.total || 0,
+//       com_pendencia: r.com_pendencia || 0,
+//       pct_pendencia: pct,
+//     }};
+//   });
+//   MAPA.getSource("municipios")?.setData({type:"FeatureCollection", features: feats});
+// }
 function setMapaModo(modo){
   if(!MAPA_READY) return;
-  MAPA.setLayoutProperty("ponto","visibility", modo==="pontos"?"visible":"none");
-  ["municipios-fill","municipios-line"].forEach(id=>
-    MAPA.setLayoutProperty(id,"visibility", modo==="risco"?"visible":"none"));
+  // No modo "Crime" os pontos ficam visíveis JUNTO com o choropleth (a
+  // camada de bairros já entra ANTES de "ponto" no addLayer, então os
+  // pontos sempre desenham por cima, sem esconder nada) -- só no "Risco"
+  // que os pontos somem (o choropleth de município já é a visão agregada).
+  MAPA.setLayoutProperty("ponto","visibility", (modo==="pontos"||modo==="crime")?"visible":"none");
+  // "Risco" removido da UI a pedido -- lógica comentada, reativar junto com
+  // o botão #mt_calor (HTML) e atualizarChoropleth() (comentada acima).
+  // ["municipios-fill","municipios-line"].forEach(id=>
+  //   MAPA.setLayoutProperty(id,"visibility", modo==="risco"?"visible":"none"));
+  MAPA.setLayoutProperty("bairros-fill","visibility", modo==="crime"?"visible":"none");
   $("mt_pontos").classList.toggle("active", modo==="pontos");
-  $("mt_calor").classList.toggle("active", modo==="risco");
-  $("maplegend").textContent = modo==="risco"
-    ? "🔥 % de empresas com pendência por município — clique numa cidade pra filtrar"
+  // $("mt_calor").classList.toggle("active", modo==="risco");
+  $("mt_crime").classList.toggle("active", modo==="crime");
+  if(modo==="crime") atualizarCrime();
+  $("maplegend").textContent = modo==="crime"
+    ? "🚨 ocorrências criminais por bairro (SESP-ES, 2018–2026) — furto/roubo/estelionato, passe o mouse pra ver detalhe"
+    // : modo==="risco" ? "🔥 % de empresas com pendência por município — clique numa cidade pra filtrar" (desativado)
     : "🟢 sem pendência · 🔴 com pendência · clique num ponto p/ abrir a empresa";
 }
 async function carregarMapa(){
@@ -1507,7 +1575,7 @@ async function carregarMapa(){
   if(MAPA_READY) MAPA.getSource("empresas").setData(fc); else _pendentes = fc;
   const cap = (d.total>d.limite) ? ` (mostrando ${d.limite.toLocaleString('pt-BR')} de ${d.total.toLocaleString('pt-BR')})` : "";
   $("mapinfo").textContent = `${(d.total||0).toLocaleString('pt-BR')} empresas geolocalizadas${cap}`;
-  atualizarChoropleth();
+  // atualizarChoropleth(); // "Risco" desativado -- ver comentário em setMapaModo()
 }
 window.addEventListener("popstate", ()=>{
   const cnpj = new URLSearchParams(location.search).get("empresa");
