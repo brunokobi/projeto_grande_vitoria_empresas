@@ -46,6 +46,7 @@ app.mount("/mcp", mcp_app)
 
 DASHBOARD_HTML = config.BASE_DIR / "dashboard" / "index.html"
 MUNICIPIOS_GEOJSON = config.BASE_DIR / "reference" / "municipios_grande_vitoria.geojson"
+BAIRROS_GEOJSON = config.BASE_DIR / "reference" / "bairros_grande_vitoria.geojson"
 OG_IMAGE = config.BASE_DIR / "docs" / "dashboard.png"
 SITE_URL = "https://empresas.brunokobi.duckdns.org"
 
@@ -225,6 +226,21 @@ def get_municipios_geojson():
     # Cache-Control não há garantia de revalidação) — mesmo problema que
     # o dashboard() já evita.
     return FileResponse(MUNICIPIOS_GEOJSON, media_type="application/geo+json",
+                         headers={"Cache-Control": "no-cache"})
+
+
+@app.get("/bairros/geojson", summary="Fronteiras dos bairros da Grande Vitória (GeoJSON, fonte: IJSN/GeoBases-ES)", include_in_schema=False)
+def get_bairros_geojson():
+    # Fonte: camada "IJSN - BAIRROS - ES" do GeoBases-ES (WFS, IDE do Espírito
+    # Santo — ide.geobases.es.gov.br), Projeto Bairros da Coordenação de
+    # Geoprocessamento do IJSN, publicada em 31/01/2012 (trabalho de campo
+    # IJSN + prefeituras municipais). Filtrada aqui pros 7 municípios da
+    # Grande Vitória (498 de 1471 bairros do estado) e com geometria
+    # simplificada (mapshaper, dp 8%) pra não pesar no carregamento do mapa —
+    # original teria ~3,9MB, esse arquivo fica em ~400KB.
+    # Sem data de atualização mais recente na origem — bairro pode ter mudado
+    # desde 2012 (criação/redivisão), é referência visual, não fonte de verdade.
+    return FileResponse(BAIRROS_GEOJSON, media_type="application/geo+json",
                          headers={"Cache-Control": "no-cache"})
 
 

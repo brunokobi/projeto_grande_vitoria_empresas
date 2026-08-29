@@ -283,6 +283,9 @@
         <button id="mt_pontos" class="active" onclick="setMapaModo('pontos')">Pontos</button>
         <button id="mt_calor" onclick="setMapaModo('risco')" title="% de empresas com pendência por município — clique numa cidade pra filtrar">🔥 Risco</button>
       </div>
+      <label class="chk" style="margin:0 0 0 10px" title="Limites dos bairros (IJSN/GeoBases-ES) sobre o mapa">
+        <input type="checkbox" id="mt_bairros_chk" onchange="toggleBairros(this.checked)"> 🏘️ Bairros
+      </label>
     </div>
     <div id="citychips" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"></div>
     <div id="mapa" style="height:440px;border-radius:10px;overflow:hidden"></div>
@@ -1352,19 +1355,11 @@ document.addEventListener("keydown",e=>{ if(e.key==="Escape")fechar(); });
   $(id).addEventListener("keydown",e=>{ if(e.key==="Enter")buscar(true); }));
 
 let MAPA=null, MAPA_READY=false, _pendentes=null;
-const _ESTILO = {
-  version: 8,
-  glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
-  sources: {
-    carto: { type:"raster", tileSize:256,
-      tiles:["https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
-             "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
-             "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
-             "https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"],
-      attribution:"© OpenStreetMap © CARTO" }
-  },
-  layers: [{ id:"carto", type:"raster", source:"carto" }]
-};
+// Mapa de fundo: OpenFreeMap "dark" (vetorial, gratuito, sem precisar de API
+// key — tiles/fontes/sprites hospedados pelo próprio projeto). Antes usava
+// raster do CARTO (basemaps.cartocdn.com), que passou a exigir API key e
+// virou um tile só com watermark "API KEY REQUIRED" nos 4 subdomínios.
+const _ESTILO = "https://tiles.openfreemap.org/styles/dark";
 // Textos do aviso de "cooperative gestures" (scroll normal não dá zoom no mapa,
 // evita capturar o scroll da página) — traduzidos, o padrão vem em inglês.
 const _LOCALE_MAPA = {
@@ -1373,7 +1368,11 @@ const _LOCALE_MAPA = {
   "CooperativeGesturesHandler.MobileHelpText": "Use dois dedos para mover o mapa",
 };
 function initMapa(){
-  MAPA = new maplibregl.Map({container:"mapa", style:_ESTILO, center:[-40.32,-20.30], zoom:10, attributionControl:true, cooperativeGestures:true, locale:_LOCALE_MAPA});
+  // O estilo do OpenFreeMap não embute atribuição nas fontes (diferente do
+  // raster do CARTO, que tinha isso no source) -- precisa declarar manual.
+  MAPA = new maplibregl.Map({container:"mapa", style:_ESTILO, center:[-40.32,-20.30], zoom:10,
+    attributionControl:{customAttribution:"© OpenStreetMap contributors · OpenFreeMap · Bairros: IJSN/GeoBases-ES"},
+    cooperativeGestures:true, locale:_LOCALE_MAPA});
   MAPA.addControl(new maplibregl.NavigationControl(), "top-right");
   const popup = new maplibregl.Popup({closeButton:false, closeOnClick:false});
   MAPA.on("load", ()=>{
@@ -1417,6 +1416,33 @@ function initMapa(){
       popup.setLngLat(e.lngLat).setText(`${p.name}: ${Number(p.pct_pendencia).toLocaleString('pt-BR')}% com pendência (${Number(p.total).toLocaleString('pt-BR')} empresas)`).addTo(MAPA); });
     MAPA.on("mouseleave","municipios-fill",()=>{ MAPA.getCanvas().style.cursor=""; popup.remove(); });
 
+    // Bairros (IJSN/GeoBases-ES) -- só linha + nome de referência (sem
+    // preencher, sem interação de clique), pra não competir visualmente com
+    // Pontos/Risco. Fonte só é carregada na 1ª vez que o toggle liga
+    // (checkbox desmarcado por padrão) — evita baixar +400KB pra quem nunca
+    // usa a camada. As duas layers entram ANTES de "ponto" (beforeId) pra
+    // ficarem sempre atrás dos pontos de empresa, nunca por cima -- não
+    // atrapalha clique/visualização das empresas mesmo com a camada ligada.
+    MAPA.addSource("bairros", {type:"geojson", data:{type:"FeatureCollection",features:[]}});
+    MAPA.addLayer({id:"bairros-line", type:"line", source:"bairros", layout:{visibility:"none"},
+      paint:{"line-color":"#39ff14", "line-width":1, "line-opacity":0.5, "line-dasharray":[2,1.5]}}, "ponto");
+    // Nome do bairro no centro do polígono (MapLibre calcula o ponto de
+    // rótulo automaticamente pra symbol layer sobre fonte de polígono).
+    // Só aparece a partir do zoom 12 (com 498 bairros, mostrar em zoom
+    // afastado vira uma poluição de texto ilegível) e o texto não empurra
+    // outros rótulos (allow-overlap:false), then evita empilhar em cima
+    // de nome de rua do basemap.
+    MAPA.addLayer({id:"bairros-label", type:"symbol", source:"bairros", layout:{visibility:"none",
+      "text-field":["get","nome"], "text-font":["Noto Sans Regular"],
+      "text-size":["interpolate",["linear"],["zoom"], 12,10, 16,14],
+      "text-anchor":"center", "text-allow-overlap":false, "text-max-width":8},
+      minzoom:12,
+      paint:{"text-color":"#39ff14", "text-halo-color":"#04060a", "text-halo-width":1.2}}, "ponto");
+    MAPA.on("mouseenter","bairros-line",(e)=>{ MAPA.getCanvas().style.cursor="pointer";
+      const p=e.features[0].properties;
+      popup.setLngLat(e.lngLat).setText(`${p.nome} (${p.municipio})`).addTo(MAPA); });
+    MAPA.on("mouseleave","bairros-line",()=>{ MAPA.getCanvas().style.cursor=""; popup.remove(); });
+
     MAPA_READY=true;
     if(_pendentes){ MAPA.getSource("empresas").setData(_pendentes); _pendentes=null; }
     fetch("/municipios/geojson").then(r=>r.json()).then(gj=>{
@@ -1424,6 +1450,18 @@ function initMapa(){
       atualizarChoropleth();
     }).catch(()=>{});
   });
+}
+let _bairrosCarregados = false;
+function toggleBairros(ligado){
+  if(!MAPA_READY) return;
+  ["bairros-line","bairros-label"].forEach(id=>
+    MAPA.setLayoutProperty(id,"visibility", ligado?"visible":"none"));
+  if(ligado && !_bairrosCarregados){
+    _bairrosCarregados = true;
+    fetch("/bairros/geojson").then(r=>r.json()).then(gj=>{
+      MAPA.getSource("bairros")?.setData(gj);
+    }).catch(()=>{ _bairrosCarregados = false; });
+  }
 }
 let _municipiosGeoJSON = null;
 async function atualizarChoropleth(){
