@@ -47,6 +47,7 @@ app.mount("/mcp", mcp_app)
 DASHBOARD_HTML = config.BASE_DIR / "dashboard" / "index.html"
 MUNICIPIOS_GEOJSON = config.BASE_DIR / "reference" / "municipios_grande_vitoria.geojson"
 BAIRROS_GEOJSON = config.BASE_DIR / "reference" / "bairros_grande_vitoria.geojson"
+OCORRENCIAS_BAIRRO = config.BASE_DIR / "reference" / "ocorrencias_bairro.json"
 OG_IMAGE = config.BASE_DIR / "docs" / "dashboard.png"
 SITE_URL = "https://empresas.brunokobi.duckdns.org"
 
@@ -241,6 +242,19 @@ def get_bairros_geojson():
     # Sem data de atualização mais recente na origem — bairro pode ter mudado
     # desde 2012 (criação/redivisão), é referência visual, não fonte de verdade.
     return FileResponse(BAIRROS_GEOJSON, media_type="application/geo+json",
+                         headers={"Cache-Control": "no-cache"})
+
+
+@app.get("/criminalidade/bairros", summary="Ocorrências criminais agregadas por bairro (SESP-ES) — pro modo 'Crime' do mapa", include_in_schema=False)
+def get_criminalidade_bairros():
+    # Dado ESTÁTICO: microdados baixados manualmente do portal da SESP-ES
+    # (não faz parte do pipeline ETL automático) e agregados por bairro em
+    # reference/ocorrencias_bairro.json (script one-off, não versionado —
+    # a fonte não traz coordenada exata, só município+bairro, então o join
+    # com reference/bairros_grande_vitoria.geojson já vem pronto no arquivo).
+    if not OCORRENCIAS_BAIRRO.exists():
+        return JSONResponse({"bairros": []})
+    return FileResponse(OCORRENCIAS_BAIRRO, media_type="application/json",
                          headers={"Cache-Control": "no-cache"})
 
 
