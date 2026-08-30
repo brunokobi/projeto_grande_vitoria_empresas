@@ -105,8 +105,8 @@ Em desenvolvimento ativo. Estado atual:
 | Contato & redes sociais (WhatsApp, site, Instagram…) | 🧪 implementado |
 | Dashboard · API · MCP · export Excel/PDF | ✅ funcionais |
 | **Classificação de leads** (via API/MCP) | ✅ funciona — 🚧 removida temporariamente da UI do dashboard |
-| **Mapa: Unidades de Conservação/Zona de Amortecimento** (MMA/CNUC + IEMA-ES) | ✅ camada no mapa + filtro/badge — 🚧 cruzamento no banco só testado localmente, falta rodar contra o banco completo da VPS |
-| **Mapa: proximidade ambiental** (fiscalização IDAF/IEMA, barragem IDAF, outorga AGERH) | ✅ camada no mapa + filtro/badge — 🚧 cruzamento no banco só testado localmente, falta rodar contra o banco completo da VPS |
+| **Mapa: Unidades de Conservação/Zona de Amortecimento** (MMA/CNUC + IEMA-ES) | ✅ pronto — camada no mapa + filtro/badge, rodado contra o banco completo da VPS: **9.923 empresas** dentro de UC/zona de amortecimento |
+| **Mapa: proximidade ambiental** (fiscalização IDAF/IEMA, barragem IDAF, outorga AGERH) | ✅ pronto — camada no mapa + filtro/badge, rodado contra o banco completo da VPS: **81.263 empresas** a até 500m de um ponto ambiental |
 
 > 🔄 **Atualização automática:** o dataset publicado (Release) é atualizado
 > **a cada 2 horas** — o dashboard/API baixam a versão nova sozinhos, sem
@@ -163,8 +163,8 @@ Tudo cruzado pelo **CNPJ**, exclusivamente de **fontes públicas oficiais**:
 | **SEDES-ES** — Programa COMPETE-ES | **Incentivo fiscal de ICMS estadual** (portaria de habilitação, vigência, exclusão) | ✅ |
 | **INPI** | **Marcas registradas** (sinal indireto de atividade/inovação) | ✅ |
 | **TSE** | **Vínculo político do sócio** — candidaturas e doações eleitorais declaradas em 2016/2018/2020/2022/2024 (municipal e geral, cruzado por nome+CPF mascarado) | ✅ |
-| **MMA/CNUC + IEMA-ES** (WFS GeoBases-ES) | **Unidade de Conservação/Zona de Amortecimento** — empresa geolocalizada dentro do polígono (identidade, point-in-polygon) | 🚧 |
-| **IDAF/IEMA + AGERH/ANA** (WFS GeoBases-ES) | **Proximidade ambiental** — fiscalização grave, barragem e outorga hídrica a até 500m (proximidade; barragem também por nome do interessado quando bate com sócio) | 🚧 |
+| **MMA/CNUC + IEMA-ES** (WFS GeoBases-ES) | **Unidade de Conservação/Zona de Amortecimento** — empresa geolocalizada dentro do polígono (identidade, point-in-polygon) | ✅ |
+| **IDAF/IEMA + AGERH/ANA** (WFS GeoBases-ES) | **Proximidade ambiental** — fiscalização grave, barragem e outorga hídrica a até 500m (proximidade; barragem também por nome do interessado quando bate com sócio) | ✅ |
 
 > A construção/atualização do dataset é feita por um pipeline de extração mantido em repositório separado. Este é o **produto de consumo** — o histórico completo de fontes já testadas (implementadas e descartadas, com o motivo de cada descarte) fica documentado lá, não aqui.
 
