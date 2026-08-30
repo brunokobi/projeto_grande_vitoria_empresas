@@ -101,10 +101,12 @@ Em desenvolvimento ativo. Estado atual:
 | **Lista Suja do trabalho escravo** (MTE) | ✅ pronto |
 | **Mapa interativo** (MapLibre) + **satélite** na visão 360º | ✅ pronto |
 | Geocodificação (coordenadas de todas as empresas) | ✅ **100% concluído** (344.130/344.130 — snapshot 13/08/2026) |
-| Processos judiciais (**DJEN/CNJ**, por nome da parte) | 🚧 rodando numa máquina local (ver nota) — **66,9% das empresas já consultadas** (230,2 mil/344,1 mil — snapshot 15/08/2026), **1,98 milhão de processos já publicados** |
+| Processos judiciais (**DJEN/CNJ**, por nome da parte) | 🚧 rodando numa máquina local (ver nota) — **88,9% das empresas já consultadas** (305,8 mil/344,1 mil — snapshot 30/08/2026), **2,49 milhões de processos já publicados** |
 | Contato & redes sociais (WhatsApp, site, Instagram…) | 🧪 implementado |
 | Dashboard · API · MCP · export Excel/PDF | ✅ funcionais |
 | **Classificação de leads** (via API/MCP) | ✅ funciona — 🚧 removida temporariamente da UI do dashboard |
+| **Mapa: Unidades de Conservação/Zona de Amortecimento** (MMA/CNUC + IEMA-ES) | ✅ camada no mapa + filtro/badge — 🚧 cruzamento no banco só testado localmente, falta rodar contra o banco completo da VPS |
+| **Mapa: proximidade ambiental** (fiscalização IDAF/IEMA, barragem IDAF, outorga AGERH) | ✅ camada no mapa + filtro/badge — 🚧 cruzamento no banco só testado localmente, falta rodar contra o banco completo da VPS |
 
 > 🔄 **Atualização automática:** o dataset publicado (Release) é atualizado
 > **a cada 2 horas** — o dashboard/API baixam a versão nova sozinhos, sem
@@ -161,6 +163,8 @@ Tudo cruzado pelo **CNPJ**, exclusivamente de **fontes públicas oficiais**:
 | **SEDES-ES** — Programa COMPETE-ES | **Incentivo fiscal de ICMS estadual** (portaria de habilitação, vigência, exclusão) | ✅ |
 | **INPI** | **Marcas registradas** (sinal indireto de atividade/inovação) | ✅ |
 | **TSE** | **Vínculo político do sócio** — candidaturas e doações eleitorais declaradas em 2016/2018/2020/2022/2024 (municipal e geral, cruzado por nome+CPF mascarado) | ✅ |
+| **MMA/CNUC + IEMA-ES** (WFS GeoBases-ES) | **Unidade de Conservação/Zona de Amortecimento** — empresa geolocalizada dentro do polígono (identidade, point-in-polygon) | 🚧 |
+| **IDAF/IEMA + AGERH/ANA** (WFS GeoBases-ES) | **Proximidade ambiental** — fiscalização grave, barragem e outorga hídrica a até 500m (proximidade; barragem também por nome do interessado quando bate com sócio) | 🚧 |
 
 > A construção/atualização do dataset é feita por um pipeline de extração mantido em repositório separado. Este é o **produto de consumo** — o histórico completo de fontes já testadas (implementadas e descartadas, com o motivo de cada descarte) fica documentado lá, não aqui.
 
