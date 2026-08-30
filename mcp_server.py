@@ -102,6 +102,9 @@ def buscar_empresas(
     com_incentivo_estadual: bool = None,
     com_beneficio_fiscal: bool = None,
     beneficio_tipo: list = None,
+    com_unidade_conservacao: bool = None,
+    com_ambiental_proximidade: bool = None,
+    ambiental_proximidade_tipo: list = None,
     capital_min: float = None,
     capital_max: float = None,
     ordenar_por: str = "razao_social",
@@ -166,6 +169,20 @@ def buscar_empresas(
       acima num só). beneficio_tipo restringe o(s) tipo(s) específico(s)
       (RENUNCIA/IMUNE_ISENTO/HABILITADO/COMPETE_ES) — uma lista é AND,
       exige benefício de CADA tipo listado.
+    - com_unidade_conservacao: True exige que a empresa esteja geolocalizada
+      DENTRO de alguma Unidade de Conservação ou Zona de Amortecimento
+      (MMA/CNUC + IEMA-ES) — sinal de contexto ambiental, não é sanção.
+    - com_ambiental_proximidade: True exige que a empresa esteja a até 500m
+      de um ponto de fiscalização ambiental grave, barragem ou outorga
+      hídrica. IMPORTANTE: essas 3 fontes públicas não trazem CNPJ/nome de
+      quem foi autuado ou outorgado, só localização — é sinal de
+      PROXIMIDADE ("tem uma ocorrência ambiental relevante por perto"), não
+      de identidade ("essa empresa foi autuada/outorgada"). Exceção parcial:
+      barragem tem o campo interessado (nome), então parte dos vínculos de
+      tipo="barragem" tem match_confianca="socio" (nome bate com sócio da
+      empresa, é identidade de verdade) em vez de "proximidade".
+      ambiental_proximidade_tipo restringe o(s) tipo(s)
+      (fiscalizacao/barragem/outorga) — uma lista é AND.
     - ordenar_por: razao_social | capital_social | municipio | porte | cnpj.
     - limite (máx. 500) e offset para paginação.
 
@@ -190,6 +207,9 @@ def buscar_empresas(
         com_marca_registrada=com_marca_registrada,
         com_incentivo_estadual=com_incentivo_estadual,
         com_beneficio_fiscal=com_beneficio_fiscal, beneficio_tipo=beneficio_tipo,
+        com_unidade_conservacao=com_unidade_conservacao,
+        com_ambiental_proximidade=com_ambiental_proximidade,
+        ambiental_proximidade_tipo=ambiental_proximidade_tipo,
         capital_min=capital_min, capital_max=capital_max, ordenar_por=ordenar_por,
         limite=limite, offset=offset,
     )
@@ -240,7 +260,8 @@ def buscar_empresas_perto(
 def obter_empresa(cnpj: str, processo_polo: list = None, processo_classe: list = None,
                    sancao_tipo: list = None, sancao_orgao: str = None,
                    beneficio_tipo: list = None, vinculo_fonte: list = None,
-                   pncp_categoria: list = None) -> dict:
+                   pncp_categoria: list = None,
+                   ambiental_proximidade_tipo: list = None) -> dict:
     """Visão 360º de uma empresa pelo CNPJ (14 dígitos): dados cadastrais,
     sócios, complemento JUCEES, geolocalização, todas as pendências
     (processos, sanções, infrações ambientais, dívida ativa), vínculos
@@ -248,26 +269,32 @@ def obter_empresa(cnpj: str, processo_polo: list = None, processo_classe: list =
     órgãos públicos (federais via Portal da Transparência e municipais/
     estaduais/federais via PNCP), benefícios/renúncias fiscais (renúncia
     fiscal por ano, imunidade/isenção de IRPJ, habilitação a regime de
-    benefício) e marcas registradas no INPI, com um resumo agregado.
+    benefício), marcas registradas no INPI, Unidades de Conservação (se a
+    empresa está DENTRO de alguma) e proximidade a pontos ambientais
+    (fiscalização/autuação, barragem, outorga hídrica — a até 500m), com um
+    resumo agregado.
 
     processo_polo (Réu/Autor/Terceiro/TODOS) e processo_classe filtram só a
     LISTA de processos devolvida; sancao_tipo/sancao_orgao filtram só a
     LISTA de sanções; beneficio_tipo filtra a LISTA de benefícios fiscais
     (RENUNCIA/IMUNE_ISENTO/HABILITADO/COMPETE_ES); vinculo_fonte filtra a
     LISTA de vínculos políticos (TSE_DOACAO/TSE_CANDIDATURA); pncp_categoria
-    filtra a LISTA de contratos PNCP — todos (exceto sancao_orgao) aceitam
-    string única OU lista, pra combinar mais de um valor (ex.: vinculo_fonte
-    =["TSE_DOACAO","TSE_CANDIDATURA"] mostra os dois tipos de vínculo na
-    lista). O resumo (contagens, valores totais em R$,
-    tem_pendencia_juridica_ou_fiscal) sempre reflete o total real da
-    empresa, sem esses filtros.
+    filtra a LISTA de contratos PNCP; ambiental_proximidade_tipo filtra a
+    LISTA de proximidade ambiental (fiscalizacao/barragem/outorga) — todos
+    (exceto sancao_orgao) aceitam string única OU lista, pra combinar mais
+    de um valor (ex.: vinculo_fonte=["TSE_DOACAO","TSE_CANDIDATURA"] mostra
+    os dois tipos de vínculo na lista). O resumo (contagens, valores totais
+    em R$, tem_pendencia_juridica_ou_fiscal) sempre reflete o total real da
+    empresa, sem esses filtros. Note que proximidade ambiental NÃO conta
+    como pendência jurídico-fiscal (é sinal de contexto, não de sanção).
 
     Retorna null se o CNPJ não estiver na base."""
     resultado = dataset_queries.obter_empresa(
         cnpj, processo_polo=processo_polo, processo_classe=processo_classe,
         sancao_tipo=sancao_tipo, sancao_orgao=sancao_orgao,
         beneficio_tipo=beneficio_tipo, vinculo_fonte=vinculo_fonte,
-        pncp_categoria=pncp_categoria)
+        pncp_categoria=pncp_categoria,
+        ambiental_proximidade_tipo=ambiental_proximidade_tipo)
     if resultado is None:
         return {"erro": f"CNPJ {cnpj} não encontrado na base."}
     return resultado

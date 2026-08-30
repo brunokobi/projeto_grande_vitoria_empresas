@@ -170,6 +170,7 @@ _PENDENCIA_EXPR = (
 
 def _filtros_sql(*, tem_contato=False, tem_fts=False, tem_contratos=False,
                  tem_beneficios=False, tem_vinculos=False, tem_pncp=False, tem_marcas=False,
+                 tem_uc=False, tem_ambiental_prox=False,
                  municipio=None, cnae=None, cnae_prefix=None,
                  porte=None, regime_tributario=None, texto=None, tem_pendencia=None,
                  com_telefone=None, com_email=None, com_whatsapp=None,
@@ -183,6 +184,8 @@ def _filtros_sql(*, tem_contato=False, tem_fts=False, tem_contratos=False,
                  sancao_tipo=None, sancao_orgao=None,
                  com_beneficio_fiscal=None, beneficio_tipo=None,
                  vinculo_fonte=None, pncp_categoria=None,
+                 com_unidade_conservacao=None,
+                 com_ambiental_proximidade=None, ambiental_proximidade_tipo=None,
                  socio=None, cnpj=None):
     """Monta a cláusula WHERE (sobre o alias `e` = empresas) e os parâmetros."""
     where, params = [], []
@@ -426,6 +429,37 @@ def _filtros_sql(*, tem_contato=False, tem_fts=False, tem_contratos=False,
             where.append("0")  # tabela ainda não existe nesta cópia do dataset → sem resultados
         else:
             where.append("EXISTS (SELECT 1 FROM marcas_inpi m WHERE m.cnpj_empresa = e.cnpj)")
+    if com_unidade_conservacao:
+        # Empresa geolocalizada CAI DENTRO de alguma UC/zona de amortecimento
+        # (MMA/CNUC + IEMA-ES) -- point-in-polygon pré-computado no repo de
+        # ETL (unidades_conservacao_ingest.py), aqui é só um EXISTS.
+        if not tem_uc:
+            where.append("0")  # tabela ainda não existe nesta cópia do dataset → sem resultados
+        else:
+            where.append("EXISTS (SELECT 1 FROM unidades_conservacao_empresas u WHERE u.cnpj_empresa = e.cnpj)")
+    if com_ambiental_proximidade:
+        # Empresa a até 500m de um ponto de fiscalização ambiental grave,
+        # barragem ou outorga hídrica (essas fontes não trazem CNPJ/nome do
+        # autuado/outorgado, só localização — é sinal de PROXIMIDADE, não
+        # de identidade; ver ambiental_proximidade_ingest.py no repo de ETL).
+        if not tem_ambiental_prox:
+            where.append("0")  # tabela ainda não existe nesta cópia do dataset → sem resultados
+        else:
+            tipos_amb = _lista_valores(ambiental_proximidade_tipo)
+            if len(tipos_amb) > 1:
+                # 2+ marcados = "E": precisa ter ponto de CADA tipo por perto.
+                for t in tipos_amb:
+                    where.append("EXISTS (SELECT 1 FROM ambiental_proximidade a WHERE a.cnpj_empresa = e.cnpj AND a.tipo = ?)")
+                    params.append(t)
+            else:
+                cond_amb = "EXISTS (SELECT 1 FROM ambiental_proximidade a WHERE a.cnpj_empresa = e.cnpj"
+                p = []
+                if tipos_amb:
+                    cond_amb += " AND a.tipo = ?"
+                    p.append(tipos_amb[0])
+                cond_amb += ")"
+                where.append(cond_amb)
+                params.extend(p)
     if com_whatsapp or com_rede_social:
         if not tem_contato:
             where.append("0")  # etapa `contato` ainda não rodou → sem resultados
@@ -515,6 +549,12 @@ def estatisticas() -> dict:
         if _tabela_existe(conn, "marcas_inpi"):
             empresas_por_flag["marcas_inpi"] = conn.execute(
                 "SELECT COUNT(DISTINCT cnpj_empresa) FROM marcas_inpi").fetchone()[0]
+        if _tabela_existe(conn, "unidades_conservacao_empresas"):
+            empresas_por_flag["unidade_conservacao"] = conn.execute(
+                "SELECT COUNT(DISTINCT cnpj_empresa) FROM unidades_conservacao_empresas").fetchone()[0]
+        if _tabela_existe(conn, "ambiental_proximidade"):
+            empresas_por_flag["ambiental_proximidade"] = conn.execute(
+                "SELECT COUNT(DISTINCT cnpj_empresa) FROM ambiental_proximidade").fetchone()[0]
         if _tabela_existe(conn, "beneficios_fiscais"):
             # Total consolidado (qualquer tipo) — usado pro checkbox único
             # "Com benefício fiscal" do dashboard (substituiu os 4 checkboxes
@@ -601,6 +641,8 @@ def buscar_empresas(municipio=None, cnae=None, cnae_prefix=None, porte=None,
                     sancao_tipo=None, sancao_orgao=None,
                     com_beneficio_fiscal=None, beneficio_tipo=None,
                     vinculo_fonte=None, pncp_categoria=None,
+                    com_unidade_conservacao=None,
+                    com_ambiental_proximidade=None, ambiental_proximidade_tipo=None,
                     socio=None, cnpj=None, ordenar_por="razao_social",
                     limite=50, offset=0) -> dict:
     """Busca empresas com filtros combináveis. Retorna {'total','itens',...}."""
@@ -615,10 +657,13 @@ def buscar_empresas(municipio=None, cnae=None, cnae_prefix=None, porte=None,
         tem_vinculos = _tabela_existe(conn, "vinculos_politicos")
         tem_pncp = _tabela_existe(conn, "contratos_pncp")
         tem_marcas = _tabela_existe(conn, "marcas_inpi")
+        tem_uc = _tabela_existe(conn, "unidades_conservacao_empresas")
+        tem_ambiental_prox = _tabela_existe(conn, "ambiental_proximidade")
         where_sql, params = _filtros_sql(
             tem_contato=tem_contato, tem_fts=tem_fts, tem_contratos=tem_contratos,
             tem_beneficios=tem_beneficios, tem_vinculos=tem_vinculos,
-            tem_pncp=tem_pncp, tem_marcas=tem_marcas,
+            tem_pncp=tem_pncp, tem_marcas=tem_marcas, tem_uc=tem_uc,
+            tem_ambiental_prox=tem_ambiental_prox,
             municipio=municipio, cnae=cnae,
             cnae_prefix=cnae_prefix, porte=porte, regime_tributario=regime_tributario,
             texto=texto, tem_pendencia=tem_pendencia, com_telefone=com_telefone,
@@ -637,6 +682,9 @@ def buscar_empresas(municipio=None, cnae=None, cnae_prefix=None, porte=None,
             sancao_tipo=sancao_tipo, sancao_orgao=sancao_orgao,
             com_beneficio_fiscal=com_beneficio_fiscal, beneficio_tipo=beneficio_tipo,
             vinculo_fonte=vinculo_fonte, pncp_categoria=pncp_categoria,
+            com_unidade_conservacao=com_unidade_conservacao,
+            com_ambiental_proximidade=com_ambiental_proximidade,
+            ambiental_proximidade_tipo=ambiental_proximidade_tipo,
             socio=socio, cnpj=cnpj)
         total = conn.execute(f"SELECT COUNT(*) FROM empresas e{where_sql}", params).fetchone()[0]
         rows = conn.execute(
@@ -669,11 +717,14 @@ def pontos_mapa(limite=20000, **filtros):
         tem_vinculos = _tabela_existe(conn, "vinculos_politicos")
         tem_pncp = _tabela_existe(conn, "contratos_pncp")
         tem_marcas = _tabela_existe(conn, "marcas_inpi")
+        tem_uc = _tabela_existe(conn, "unidades_conservacao_empresas")
+        tem_ambiental_prox = _tabela_existe(conn, "ambiental_proximidade")
         where_sql, params = _filtros_sql(tem_contato=tem_contato, tem_fts=tem_fts,
                                           tem_contratos=tem_contratos,
                                           tem_beneficios=tem_beneficios,
                                           tem_vinculos=tem_vinculos, tem_pncp=tem_pncp,
-                                          tem_marcas=tem_marcas, **filtros)
+                                          tem_marcas=tem_marcas, tem_uc=tem_uc,
+                                          tem_ambiental_prox=tem_ambiental_prox, **filtros)
         cond = "ep.latitude IS NOT NULL"
         if where_sql:
             cond += " AND " + where_sql[len(" WHERE "):]
@@ -712,11 +763,14 @@ def risco_por_municipio(**filtros) -> list:
         tem_vinculos = _tabela_existe(conn, "vinculos_politicos")
         tem_pncp = _tabela_existe(conn, "contratos_pncp")
         tem_marcas = _tabela_existe(conn, "marcas_inpi")
+        tem_uc = _tabela_existe(conn, "unidades_conservacao_empresas")
+        tem_ambiental_prox = _tabela_existe(conn, "ambiental_proximidade")
         where_sql, params = _filtros_sql(tem_contato=tem_contato, tem_fts=tem_fts,
                                           tem_contratos=tem_contratos,
                                           tem_beneficios=tem_beneficios,
                                           tem_vinculos=tem_vinculos, tem_pncp=tem_pncp,
-                                          tem_marcas=tem_marcas, **filtros)
+                                          tem_marcas=tem_marcas, tem_uc=tem_uc,
+                                          tem_ambiental_prox=tem_ambiental_prox, **filtros)
         cond = where_sql[len(" WHERE "):] if where_sql else "1=1"
         rows = conn.execute(
             f"SELECT e.municipio AS municipio, COUNT(*) AS total, "
@@ -766,11 +820,14 @@ def buscar_por_raio(lat: float, lon: float, raio_km: float = 5, limite=50, offse
         tem_vinculos = _tabela_existe(conn, "vinculos_politicos")
         tem_pncp = _tabela_existe(conn, "contratos_pncp")
         tem_marcas = _tabela_existe(conn, "marcas_inpi")
+        tem_uc = _tabela_existe(conn, "unidades_conservacao_empresas")
+        tem_ambiental_prox = _tabela_existe(conn, "ambiental_proximidade")
         where_sql, params = _filtros_sql(tem_contato=tem_contato, tem_fts=tem_fts,
                                           tem_contratos=tem_contratos,
                                           tem_beneficios=tem_beneficios,
                                           tem_vinculos=tem_vinculos, tem_pncp=tem_pncp,
-                                          tem_marcas=tem_marcas, **filtros)
+                                          tem_marcas=tem_marcas, tem_uc=tem_uc,
+                                          tem_ambiental_prox=tem_ambiental_prox, **filtros)
         cond = ("ep.latitude BETWEEN ? AND ? AND ep.longitude BETWEEN ? AND ? "
                 "AND distancia_km(?, ?, ep.latitude, ep.longitude) <= ?")
         cond_params = [lat - lat_delta, lat + lat_delta, lon - lon_delta, lon + lon_delta,
@@ -952,11 +1009,14 @@ def exportar_empresas(max_linhas=20000, colunas=None, **filtros) -> list:
         tem_vinculos = _tabela_existe(conn, "vinculos_politicos")
         tem_pncp = _tabela_existe(conn, "contratos_pncp")
         tem_marcas = _tabela_existe(conn, "marcas_inpi")
+        tem_uc = _tabela_existe(conn, "unidades_conservacao_empresas")
+        tem_ambiental_prox = _tabela_existe(conn, "ambiental_proximidade")
         where_sql, params = _filtros_sql(tem_contato=tem_contato, tem_fts=tem_fts,
                                           tem_contratos=tem_contratos,
                                           tem_beneficios=tem_beneficios,
                                           tem_vinculos=tem_vinculos, tem_pncp=tem_pncp,
-                                          tem_marcas=tem_marcas, **filtros)
+                                          tem_marcas=tem_marcas, tem_uc=tem_uc,
+                                          tem_ambiental_prox=tem_ambiental_prox, **filtros)
 
         precisa_contato = bool(_COLS_CONTATO & set(colunas)) and tem_contato
         precisa_geo = bool(_COLS_GEO & set(colunas))
@@ -1002,7 +1062,8 @@ def exportar_empresas(max_linhas=20000, colunas=None, **filtros) -> list:
 def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = None,
                    sancao_tipo: str = None, sancao_orgao: str = None,
                    beneficio_tipo: str = None, vinculo_fonte: str = None,
-                   pncp_categoria: str = None) -> dict:
+                   pncp_categoria: str = None,
+                   ambiental_proximidade_tipo: str = None) -> dict:
     """Visão 360º de uma empresa pelo CNPJ (14 dígitos, só números).
 
     processo_polo/processo_classe, sancao_tipo/sancao_orgao, beneficio_tipo,
@@ -1181,6 +1242,31 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
                 "SELECT numero_inpi, nome_marca, situacao, data_deposito, data_concessao, "
                 "data_vigencia FROM marcas_inpi WHERE cnpj_empresa = ? "
                 "ORDER BY data_deposito DESC LIMIT 100", (cnpj,))]
+        unidades_conservacao = []
+        if _tabela_existe(conn, "unidades_conservacao_empresas"):
+            unidades_conservacao = [dict(r) for r in conn.execute(
+                "SELECT uc_nome, uc_categoria, uc_grupo, uc_esfera "
+                "FROM unidades_conservacao_empresas WHERE cnpj_empresa = ?", (cnpj,))]
+        ambiental_proximidade = []
+        ambiental_proximidade_resumo = []
+        if _tabela_existe(conn, "ambiental_proximidade"):
+            sql_amb = ("SELECT tipo, referencia, detalhe, distancia_km, match_confianca "
+                       "FROM ambiental_proximidade WHERE cnpj_empresa = ?")
+            params_amb = [cnpj]
+            tipos_amb = _lista_valores(ambiental_proximidade_tipo)
+            if tipos_amb:
+                ph = ",".join("?" for _ in tipos_amb)
+                sql_amb += f" AND tipo IN ({ph})"
+                params_amb.extend(tipos_amb)
+            sql_amb += " ORDER BY distancia_km ASC LIMIT 100"
+            ambiental_proximidade = [dict(r) for r in conn.execute(sql_amb, params_amb)]
+            if ambiental_proximidade_tipo:
+                # Resumo sempre com o total real, sem o filtro de exibição acima.
+                ambiental_proximidade_resumo = [dict(r) for r in conn.execute(
+                    "SELECT tipo FROM ambiental_proximidade WHERE cnpj_empresa = ? "
+                    "ORDER BY distancia_km ASC LIMIT 100", (cnpj,))]
+            else:
+                ambiental_proximidade_resumo = ambiental_proximidade
         col_precisao = "precisao" if _coluna_existe(conn, "enriquecimento_places", "precisao") else "NULL AS precisao"
         geo = conn.execute(
             f"SELECT latitude, longitude, {col_precisao} FROM enriquecimento_places WHERE cnpj_empresa = ?",
@@ -1218,6 +1304,8 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
         "beneficios_fiscais": beneficios_fiscais,
         "contratos_pncp": contratos_pncp,
         "marcas_inpi": marcas_inpi,
+        "unidades_conservacao": unidades_conservacao,
+        "ambiental_proximidade": ambiental_proximidade,
         "resumo": {
             "qtd_socios": len(socios),
             "qtd_processos": len(processos_resumo),
@@ -1230,6 +1318,8 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
             "qtd_beneficios_fiscais": len(beneficios_resumo),
             "qtd_contratos_pncp": len(contratos_pncp_resumo),
             "qtd_marcas_inpi": len(marcas_inpi),
+            "qtd_unidades_conservacao": len(unidades_conservacao),
+            "qtd_ambiental_proximidade": len(ambiental_proximidade_resumo),
             "valor_total_divida_ativa": valor_divida,
             "valor_total_sancoes": valor_sancoes,
             "valor_total_infracoes_ambientais": valor_ambiental,
