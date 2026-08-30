@@ -122,12 +122,11 @@
   .maptoggle button{background:var(--bg2);color:var(--muted);border:none;padding:6px 12px;
     font-size:12px;cursor:pointer;font-weight:600}
   .maptoggle button.active{background:var(--green-deep);color:var(--green)}
-  /* Toolbar do mapa: título numa ponta, controles (toggle+bairros) na outra —
+  /* Toolbar do mapa: título numa ponta, controles (abas) na outra —
      legenda vai numa linha própria embaixo, sem disputar espaço horizontal
      com os botões (era tudo espremido numa linha só antes). */
   .maptoolbar{justify-content:space-between}
   .mapcontrols{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
-  .bairros-chk{margin:0 !important;white-space:nowrap}
   .maplegend{font-size:11px;color:var(--muted);margin:-4px 0 12px}
   th.sortable{cursor:pointer;user-select:none}
   th.sortable:hover{color:var(--green)}
@@ -285,22 +284,19 @@
     <div class="toolbar maptoolbar">
       <span class="count">🗺️ Mapa da Grande Vitória — <b id="mapinfo">carregando…</b></span>
       <div class="mapcontrols">
-        <div class="maptoggle">
-          <button id="mt_pontos" class="active" onclick="setMapaModo('pontos')">Pontos</button>
+        <!-- Abas independentes (não é mais grupo exclusivo tipo rádio) --
+             cada uma liga/desliga sua própria camada, dá pra combinar
+             quantas quiser ao mesmo tempo (ex.: Empresas + Crime + Bairros). -->
+        <div class="maptoggle" id="map_tabs">
+          <button id="mt_pontos" class="active" onclick="toggleAbaMapa('pontos', this)">Empresas</button>
           <!-- "Risco" (choropleth por município) removido a pedido -- lógica mantida comentada no JS (setMapaModo/atualizarChoropleth) pra reativar fácil depois.
-          <button id="mt_calor" onclick="setMapaModo('risco')" title="% de empresas com pendência por município — clique numa cidade pra filtrar">🔥 Risco</button>
+          <button id="mt_calor" onclick="toggleAbaMapa('risco', this)" title="% de empresas com pendência por município — clique numa cidade pra filtrar">🔥 Risco</button>
           -->
-          <button id="mt_crime" onclick="setMapaModo('crime')" title="Ocorrências criminais por bairro (SESP-ES) — furto/roubo/estelionato, 2018–2026">🚨 Crime</button>
+          <button id="mt_crime" onclick="toggleAbaMapa('crime', this)" title="Ocorrências criminais por bairro (SESP-ES) — furto/roubo/estelionato, 2018–2026">🚨 Crime</button>
+          <button id="mt_bairros" onclick="toggleAbaMapa('bairros', this)" title="Limites dos bairros (IJSN/GeoBases-ES) sobre o mapa">🏘️ Bairros</button>
+          <button id="mt_uc" onclick="toggleAbaMapa('uc', this)" title="Unidades de Conservação e zonas de amortecimento (MMA/CNUC + IEMA-ES) sobre o mapa">🌳 UC</button>
+          <button id="mt_ambiental" onclick="toggleAbaMapa('ambiental', this)" title="Fiscalização ambiental (IDAF/IEMA), barragens (IDAF) e outorgas hídricas (AGERH) sobre o mapa — pontos de proximidade, sem identificar a empresa">🌱 Ambiental</button>
         </div>
-        <label class="chk bairros-chk" title="Limites dos bairros (IJSN/GeoBases-ES) sobre o mapa">
-          <input type="checkbox" id="mt_bairros_chk" onchange="toggleBairros(this.checked)"> 🏘️ Bairros
-        </label>
-        <label class="chk bairros-chk" title="Unidades de Conservação e zonas de amortecimento (MMA/CNUC + IEMA-ES) sobre o mapa">
-          <input type="checkbox" id="mt_uc_chk" onchange="toggleUC(this.checked)"> 🌳 UC
-        </label>
-        <label class="chk bairros-chk" title="Fiscalização ambiental (IDAF/IEMA), barragens (IDAF) e outorgas hídricas (AGERH) sobre o mapa — pontos de proximidade, sem identificar a empresa">
-          <input type="checkbox" id="mt_ambiental_chk" onchange="toggleAmbiental(this.checked)"> 🌱 Ambiental
-        </label>
       </div>
     </div>
     <div class="maplegend" id="maplegend">🟢 sem pendência · 🔴 com pendência · clique num ponto p/ abrir a empresa</div>
@@ -1480,7 +1476,7 @@ function initMapa(){
     // "Risco" (choropleth por município) removido da UI a pedido -- lógica
     // mantida comentada pra reativar fácil depois, se precisar. Descomentar
     // aqui + o botão #mt_calor no HTML + os trechos marcados em
-    // setMapaModo()/carregarMapa() + a função atualizarChoropleth() abaixo.
+    // toggleAbaMapa()/carregarMapa() + a função atualizarChoropleth() abaixo.
     // // "Risco" = choropleth por município (% de empresas com pendência),
     // // não heatmap por ponto — com 344 mil pontos um heatmap satura e vira
     // // só uma mancha sólida cobrindo a região inteira, sem diferenciar nada.
@@ -1691,25 +1687,37 @@ async function atualizarCrime(){
 //   });
 //   MAPA.getSource("municipios")?.setData({type:"FeatureCollection", features: feats});
 // }
-function setMapaModo(modo){
+// Abas do mapa: cada uma liga/desliga independente (não é mais grupo
+// exclusivo tipo rádio) -- dá pra combinar Empresas+Crime+Bairros+UC+
+// Ambiental ao mesmo tempo, sem um esconder o outro. "Empresas" e "Crime"
+// já convivem por design (a camada de bairros/crime entra ANTES de "ponto"
+// no addLayer, sempre atrás); Bairros/UC/Ambiental reusam os toggles que já
+// existiam antes (só passam a ficar visualmente junto na mesma fileira de
+// abas, em vez de checkbox à parte).
+function toggleAbaMapa(aba, btn){
   if(!MAPA_READY) return;
-  // No modo "Crime" os pontos ficam visíveis JUNTO com o choropleth (a
-  // camada de bairros já entra ANTES de "ponto" no addLayer, então os
-  // pontos sempre desenham por cima, sem esconder nada) -- só no "Risco"
-  // que os pontos somem (o choropleth de município já é a visão agregada).
-  MAPA.setLayoutProperty("ponto","visibility", (modo==="pontos"||modo==="crime")?"visible":"none");
-  // "Risco" removido da UI a pedido -- lógica comentada, reativar junto com
-  // o botão #mt_calor (HTML) e atualizarChoropleth() (comentada acima).
-  // ["municipios-fill","municipios-line"].forEach(id=>
-  //   MAPA.setLayoutProperty(id,"visibility", modo==="risco"?"visible":"none"));
-  MAPA.setLayoutProperty("bairros-fill","visibility", modo==="crime"?"visible":"none");
-  $("mt_pontos").classList.toggle("active", modo==="pontos");
-  // $("mt_calor").classList.toggle("active", modo==="risco");
-  $("mt_crime").classList.toggle("active", modo==="crime");
-  if(modo==="crime") atualizarCrime();
-  $("maplegend").textContent = modo==="crime"
+  const ligado = !btn.classList.contains("active");
+  btn.classList.toggle("active", ligado);
+  if(aba==="pontos"){
+    MAPA.setLayoutProperty("ponto","visibility", ligado?"visible":"none");
+  } else if(aba==="crime"){
+    MAPA.setLayoutProperty("bairros-fill","visibility", ligado?"visible":"none");
+    if(ligado) atualizarCrime();
+  } else if(aba==="bairros"){
+    toggleBairros(ligado);
+  } else if(aba==="uc"){
+    toggleUC(ligado);
+  } else if(aba==="ambiental"){
+    toggleAmbiental(ligado);
+  }
+  // "Risco" removido da UI a pedido -- lógica comentada (municipios-fill/
+  // line + atualizarChoropleth), reativar junto com o botão #mt_calor.
+  atualizarLegendaMapa();
+}
+function atualizarLegendaMapa(){
+  const crimeAtivo = $("mt_crime")?.classList.contains("active");
+  $("maplegend").textContent = crimeAtivo
     ? "🚨 ocorrências criminais por bairro (SESP-ES, 2018–2026) — furto/roubo/estelionato, passe o mouse pra ver detalhe"
-    // : modo==="risco" ? "🔥 % de empresas com pendência por município — clique numa cidade pra filtrar" (desativado)
     : "🟢 sem pendência · 🔴 com pendência · clique num ponto p/ abrir a empresa";
 }
 async function carregarMapa(){
@@ -1726,7 +1734,7 @@ async function carregarMapa(){
   if(MAPA_READY) MAPA.getSource("empresas").setData(fc); else _pendentes = fc;
   const cap = (d.total>d.limite) ? ` (mostrando ${d.limite.toLocaleString('pt-BR')} de ${d.total.toLocaleString('pt-BR')})` : "";
   $("mapinfo").textContent = `${(d.total||0).toLocaleString('pt-BR')} empresas geolocalizadas${cap}`;
-  // atualizarChoropleth(); // "Risco" desativado -- ver comentário em setMapaModo()
+  // atualizarChoropleth(); // "Risco" desativado -- ver comentário em toggleAbaMapa()
 }
 window.addEventListener("popstate", ()=>{
   const cnpj = new URLSearchParams(location.search).get("empresa");
