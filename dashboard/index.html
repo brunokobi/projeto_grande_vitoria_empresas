@@ -298,6 +298,9 @@
         <label class="chk bairros-chk" title="Unidades de Conservação e zonas de amortecimento (MMA/CNUC + IEMA-ES) sobre o mapa">
           <input type="checkbox" id="mt_uc_chk" onchange="toggleUC(this.checked)"> 🌳 UC
         </label>
+        <label class="chk bairros-chk" title="Fiscalização ambiental (IDAF/IEMA), barragens (IDAF) e outorgas hídricas (AGERH) sobre o mapa — pontos de proximidade, sem identificar a empresa">
+          <input type="checkbox" id="mt_ambiental_chk" onchange="toggleAmbiental(this.checked)"> 🌱 Ambiental
+        </label>
       </div>
     </div>
     <div class="maplegend" id="maplegend">🟢 sem pendência · 🔴 com pendência · clique num ponto p/ abrir a empresa</div>
@@ -1495,6 +1498,31 @@ function initMapa(){
       popup.setLngLat(e.lngLat).setText(`${p.nome} — ${rotulo}`).addTo(MAPA); });
     MAPA.on("mouseleave","uc-fill",()=>{ MAPA.getCanvas().style.cursor=""; popup.remove(); });
 
+    // Camada "Ambiental" -- combina 3 fontes num único toggle (fiscalização
+    // IDAF/IEMA, barragens IDAF, outorgas hídricas AGERH) pra não voltar a
+    // poluir a toolbar com um checkbox por dataset. Cada feature carrega
+    // "camada" (fiscalizacao/barragem/outorga) pra colorir e popular o
+    // popup certo. São PONTOS de proximidade só (a fonte pública não traz
+    // CNPJ/nome do autuado ou outorgado -- ver comentário nos endpoints).
+    MAPA.addSource("ambiental", {type:"geojson", data:{type:"FeatureCollection",features:[]}});
+    MAPA.addLayer({id:"ambiental-pontos", type:"circle", source:"ambiental", layout:{visibility:"none"},
+      paint:{
+        "circle-radius":4,
+        "circle-color":["match",["get","camada"],
+          "fiscalizacao","#ff5470",
+          "barragem","#4da6ff",
+          "outorga","#00e5ff",
+          "#999999"],
+        "circle-stroke-width":1, "circle-stroke-color":"#04060a", "circle-opacity":0.85}}, "ponto");
+    MAPA.on("mouseenter","ambiental-pontos",(e)=>{ MAPA.getCanvas().style.cursor="pointer";
+      const p=e.features[0].properties;
+      let texto;
+      if(p.camada==="fiscalizacao") texto = `Fiscalização (${p.fonte}): ${p.tipo_infracao||"?"}${p.gravidade?" — "+p.gravidade:""} (${fmtData(p.data)})`;
+      else if(p.camada==="barragem") texto = `Barragem ${p.situacao}: ${p.interessado||"?"} (${p.finalidade||"?"})`;
+      else texto = `Outorga (${p.situacao}): ${p.tipo_intervencao||"?"} — ${p.corpo_hidrico||"?"}`;
+      popup.setLngLat(e.lngLat).setText(texto).addTo(MAPA); });
+    MAPA.on("mouseleave","ambiental-pontos",()=>{ MAPA.getCanvas().style.cursor=""; popup.remove(); });
+
     MAPA_READY=true;
     if(_pendentes){ MAPA.getSource("empresas").setData(_pendentes); _pendentes=null; }
     // "Risco" desativado -- não busca mais /municipios/geojson de cara.
@@ -1535,6 +1563,22 @@ function toggleUC(ligado){
       MAPA.getSource("uc")?.setData(gj);
     }).catch(()=>{ _ucCarregado = false; });
   }
+}
+let _ambientalCarregado = false;
+function toggleAmbiental(ligado){
+  if(!MAPA_READY) return;
+  MAPA.setLayoutProperty("ambiental-pontos","visibility", ligado?"visible":"none");
+  if(!ligado || _ambientalCarregado) return;
+  _ambientalCarregado = true;
+  const marcaCamada = (camada) => (gj) => { gj.features.forEach(f=>f.properties.camada = camada); return gj; };
+  Promise.all([
+    fetch("/fiscalizacao-ambiental/geojson").then(r=>r.json()).then(marcaCamada("fiscalizacao")).catch(()=>({features:[]})),
+    fetch("/barragens/geojson").then(r=>r.json()).then(marcaCamada("barragem")).catch(()=>({features:[]})),
+    fetch("/outorgas-hidricas/geojson").then(r=>r.json()).then(marcaCamada("outorga")).catch(()=>({features:[]})),
+  ]).then(([fisc, barr, out])=>{
+    MAPA.getSource("ambiental")?.setData({type:"FeatureCollection",
+      features:[...fisc.features, ...barr.features, ...out.features]});
+  }).catch(()=>{ _ambientalCarregado = false; });
 }
 let _crimePorBairro = null;
 async function atualizarCrime(){
