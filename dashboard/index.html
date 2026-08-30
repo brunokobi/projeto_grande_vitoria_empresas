@@ -219,6 +219,17 @@
     border-radius:6px;font-size:12px;font-weight:600;padding:6px 10px;
     box-shadow:0 2px 12px rgba(0,0,0,.55)}
   .maplibregl-popup-tip{display:none}
+  /* Atribuição própria do mapa (substitui o AttributionControl nativo do
+     MapLibre) -- ícone "i" recolhido por padrão, texto só aparece com .open */
+  .mapattrib{position:absolute;right:6px;bottom:6px;z-index:5;display:flex;
+    align-items:center;gap:6px;font-size:10px}
+  .mapattrib-btn{background:rgba(4,6,10,.75);border:1px solid var(--line);
+    color:var(--muted);border-radius:50%;width:20px;height:20px;cursor:pointer;
+    font-size:12px;line-height:1;display:flex;align-items:center;justify-content:center}
+  .mapattrib-btn:hover{color:var(--green);border-color:var(--green-dim)}
+  .mapattrib-text{display:none;background:rgba(4,6,10,.85);color:var(--muted);
+    padding:3px 8px;border-radius:6px;white-space:nowrap}
+  .mapattrib.open .mapattrib-text{display:inline-block}
   .mapamsg{display:flex;align-items:center;justify-content:center;height:100%;
     color:var(--muted);font-size:13px;text-align:center;padding:12px}
   .mapaprox{position:absolute;bottom:6px;left:6px;z-index:2;background:#0b1a0f;color:#f5a623;
@@ -301,7 +312,7 @@
     </div>
     <div class="maplegend" id="maplegend">🟢 sem pendência · 🔴 com pendência · clique num ponto p/ abrir a empresa</div>
     <div id="citychips" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"></div>
-    <div id="mapa" style="height:440px;border-radius:10px;overflow:hidden"></div>
+    <div id="mapa" style="height:440px;border-radius:10px;overflow:hidden;position:relative"></div>
   </div>
 
   <div class="grid">
@@ -1373,8 +1384,15 @@ function abrirSobre(){
         <div class="item"><b>OpenStreetMap/Nominatim</b> — geocodificação do endereço cadastral (lat/lng do mapa)</div>
         <div class="item">WhatsApp (derivado do telefone celular), site (derivado do domínio do e-mail corporativo) e redes sociais extraídas do próprio site da empresa — sem raspagem direta de redes sociais</div>
       </div>
+      <div class="sec">Mapa: contexto territorial, criminal e ambiental</div>
+      <div class="lista">
+        <div class="item"><b>IJSN/GeoBases-ES</b> — limites de bairro (Projeto Bairros, 2012), camada de referência visual no mapa (aba "Bairros")</div>
+        <div class="item"><b>SESP-ES</b> — ocorrências criminais por bairro (furto/roubo/estelionato/crimes informáticos, 2018–2026), dado agregado — a fonte não traz coordenada exata, só município+bairro (aba "Crime")</div>
+        <div class="item"><b>MMA/CNUC + IEMA-ES</b> (via GeoBases-ES) — Unidades de Conservação e Zonas de Amortecimento (aba "UC"). Empresa "dentro de UC" é identidade real: a geolocalização da empresa cai dentro do polígono</div>
+        <div class="item"><b>IDAF/IEMA</b> (fiscalização/autuação ambiental), <b>AGERH/ANA</b> (outorga de recursos hídricos) e <b>IDAF</b> (barragens licenciadas/dispensadas) — via GeoBases-ES (aba "Ambiental"). Essas 3 são sinal de <b>proximidade</b> (empresa a até 500m de um ponto), não de identidade — a fonte pública não traz CNPJ/nome de quem foi autuado ou outorgado, exceto barragem, que tem o nome de quem requereu e é cruzado por nome contra os sócios da empresa</div>
+      </div>
       <div class="sec">Como o cruzamento é feito</div>
-      <p>Todas as fontes são combinadas pelo <b>CNPJ</b> (chave única), exceto processos judiciais, localizados por nome da empresa. Nenhuma fonte é editada ou reinterpretada — os campos exibidos vêm direto das bases públicas oficiais. CPFs de sócios são sempre mascarados, conforme a LGPD.</p>
+      <p>A maioria das fontes é combinada pelo <b>CNPJ</b> (chave única). Exceções: processos judiciais são localizados por <b>nome</b> da empresa (a API pública não expõe CNPJ das partes); Unidade de Conservação é por <b>geolocalização</b> (a empresa cai dentro do polígono); fiscalização ambiental/barragem/outorga hídrica são por <b>proximidade geográfica</b> (a fonte não traz CNPJ/nome, exceto barragem, também cruzada por nome do sócio); ocorrências criminais são agregadas por <b>bairro</b> (a fonte não traz coordenada exata). Nenhuma fonte é editada ou reinterpretada — os campos exibidos vêm direto das bases públicas oficiais. CPFs de sócios são sempre mascarados, conforme a LGPD.</p>
       <p style="color:var(--muted);font-size:12px;margin-top:16px">Código aberto: <a href="https://github.com/brunokobi/projeto_grande_vitoria_empresas" target="_blank" rel="noopener">github.com/brunokobi/projeto_grande_vitoria_empresas</a></p>
     </div>`;
 }
@@ -1451,11 +1469,18 @@ const _LOCALE_MAPA = {
   "CooperativeGesturesHandler.MobileHelpText": "Use dois dedos para mover o mapa",
 };
 function initMapa(){
-  // O estilo do OpenFreeMap não embute atribuição nas fontes (diferente do
-  // raster do CARTO, que tinha isso no source) -- precisa declarar manual.
+  // Atribuição própria (não o AttributionControl nativo do MapLibre —
+  // "compact:true" devia recolher num ícone "i", mas na prática mostrava
+  // texto + ícone juntos) -- botão simples que abre/fecha o texto de créditos.
   MAPA = new maplibregl.Map({container:"mapa", style:_ESTILO, center:[-40.32,-20.30], zoom:10,
-    attributionControl:{customAttribution:"© OpenStreetMap contributors · OpenFreeMap · Bairros: IJSN/GeoBases-ES"},
+    attributionControl:false,
     cooperativeGestures:true, locale:_LOCALE_MAPA});
+  const attrib = document.createElement("div");
+  attrib.className = "mapattrib";
+  attrib.id = "mapattrib";
+  attrib.innerHTML = `<button class="mapattrib-btn" onclick="$('mapattrib').classList.toggle('open')" title="Créditos do mapa">ⓘ</button>
+    <span class="mapattrib-text">© OpenStreetMap contributors · OpenFreeMap · Bairros: IJSN/GeoBases-ES</span>`;
+  $("mapa").appendChild(attrib);
   MAPA.addControl(new maplibregl.NavigationControl(), "top-right");
   const popup = new maplibregl.Popup({closeButton:false, closeOnClick:false});
   MAPA.on("load", ()=>{
