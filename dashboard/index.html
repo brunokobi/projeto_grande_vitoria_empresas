@@ -295,6 +295,9 @@
         <label class="chk bairros-chk" title="Limites dos bairros (IJSN/GeoBases-ES) sobre o mapa">
           <input type="checkbox" id="mt_bairros_chk" onchange="toggleBairros(this.checked)"> 🏘️ Bairros
         </label>
+        <label class="chk bairros-chk" title="Unidades de Conservação e zonas de amortecimento (MMA/CNUC + IEMA-ES) sobre o mapa">
+          <input type="checkbox" id="mt_uc_chk" onchange="toggleUC(this.checked)"> 🌳 UC
+        </label>
       </div>
     </div>
     <div class="maplegend" id="maplegend">🟢 sem pendência · 🔴 com pendência · clique num ponto p/ abrir a empresa</div>
@@ -1470,6 +1473,28 @@ function initMapa(){
       popup.setLngLat(e.lngLat).setText(`${p.nome}: ${Number(p.crimes_total||0).toLocaleString('pt-BR')} ocorrências — ${detalhe}`).addTo(MAPA); });
     MAPA.on("mouseleave","bairros-fill",()=>{ MAPA.getCanvas().style.cursor=""; popup.remove(); });
 
+    // Unidades de Conservação + Zonas de Amortecimento (MMA/CNUC + IEMA-ES) --
+    // toggle independente, mesmo padrão de Bairros: carrega só quando liga,
+    // entra ANTES de "ponto" (nunca cobre os pontos de empresa).
+    MAPA.addSource("uc", {type:"geojson", data:{type:"FeatureCollection",features:[]}});
+    MAPA.addLayer({id:"uc-fill", type:"fill", source:"uc", layout:{visibility:"none"},
+      paint:{
+        "fill-color":["match",["get","tipo"],
+          "zona_amortecimento","#ffcf4d",
+          /* unidade_conservacao */ "#12b866"],
+        "fill-opacity":0.35}}, "ponto");
+    MAPA.addLayer({id:"uc-line", type:"line", source:"uc", layout:{visibility:"none"},
+      paint:{
+        "line-color":["match",["get","tipo"],
+          "zona_amortecimento","#ffcf4d",
+          "#12b866"],
+        "line-width":1.2, "line-dasharray":[3,2]}}, "ponto");
+    MAPA.on("mouseenter","uc-fill",(e)=>{ MAPA.getCanvas().style.cursor="pointer";
+      const p=e.features[0].properties;
+      const rotulo = p.tipo==="zona_amortecimento" ? "Zona de amortecimento" : `UC (${p.grupo||"?"}, ${p.esfera||"?"})`;
+      popup.setLngLat(e.lngLat).setText(`${p.nome} — ${rotulo}`).addTo(MAPA); });
+    MAPA.on("mouseleave","uc-fill",()=>{ MAPA.getCanvas().style.cursor=""; popup.remove(); });
+
     MAPA_READY=true;
     if(_pendentes){ MAPA.getSource("empresas").setData(_pendentes); _pendentes=null; }
     // "Risco" desativado -- não busca mais /municipios/geojson de cara.
@@ -1498,6 +1523,18 @@ function toggleBairros(ligado){
   ["bairros-line","bairros-label"].forEach(id=>
     MAPA.setLayoutProperty(id,"visibility", ligado?"visible":"none"));
   if(ligado) garantirBairrosGeojson();
+}
+let _ucCarregado = false;
+function toggleUC(ligado){
+  if(!MAPA_READY) return;
+  ["uc-fill","uc-line"].forEach(id=>
+    MAPA.setLayoutProperty(id,"visibility", ligado?"visible":"none"));
+  if(ligado && !_ucCarregado){
+    _ucCarregado = true;
+    fetch("/unidades-conservacao/geojson").then(r=>r.json()).then(gj=>{
+      MAPA.getSource("uc")?.setData(gj);
+    }).catch(()=>{ _ucCarregado = false; });
+  }
 }
 let _crimePorBairro = null;
 async function atualizarCrime(){

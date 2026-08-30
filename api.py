@@ -48,6 +48,7 @@ DASHBOARD_HTML = config.BASE_DIR / "dashboard" / "index.html"
 MUNICIPIOS_GEOJSON = config.BASE_DIR / "reference" / "municipios_grande_vitoria.geojson"
 BAIRROS_GEOJSON = config.BASE_DIR / "reference" / "bairros_grande_vitoria.geojson"
 OCORRENCIAS_BAIRRO = config.BASE_DIR / "reference" / "ocorrencias_bairro.json"
+UNIDADES_CONSERVACAO_GEOJSON = config.BASE_DIR / "reference" / "unidades_conservacao_es.geojson"
 OG_IMAGE = config.BASE_DIR / "docs" / "dashboard.png"
 SITE_URL = "https://empresas.brunokobi.duckdns.org"
 
@@ -242,6 +243,19 @@ def get_bairros_geojson():
     # Sem data de atualização mais recente na origem — bairro pode ter mudado
     # desde 2012 (criação/redivisão), é referência visual, não fonte de verdade.
     return FileResponse(BAIRROS_GEOJSON, media_type="application/geo+json",
+                         headers={"Cache-Control": "no-cache"})
+
+
+@app.get("/unidades-conservacao/geojson", summary="Unidades de Conservação e Zonas de Amortecimento que tocam a Grande Vitória (GeoJSON, fonte: MMA/CNUC + IEMA-ES via GeoBases-ES)", include_in_schema=False)
+def get_unidades_conservacao_geojson():
+    # Fonte: WFS do GeoBases-ES (mesmo servidor dos bairros) — camadas
+    # geonode:mma_cnuc_uc_es_utf8_epsg_31984 (Cadastro Nacional de Unidades
+    # de Conservação, federal+estadual+municipal) e
+    # geonode:zn_amortecimento_ucs_estaduais (zonas de amortecimento das UCs
+    # estaduais). Filtradas pros municípios da Grande Vitória (38 de 131 UCs
+    # do estado + 2 de 10 zonas de amortecimento) e com geometria
+    # simplificada (mapshaper, dp 10%) — original ~700KB, esse arquivo ~100KB.
+    return FileResponse(UNIDADES_CONSERVACAO_GEOJSON, media_type="application/geo+json",
                          headers={"Cache-Control": "no-cache"})
 
 
