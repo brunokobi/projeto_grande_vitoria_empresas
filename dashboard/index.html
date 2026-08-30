@@ -395,6 +395,16 @@
         </select>
       </div>
       <label class="chk" id="row_marca"><input type="checkbox" id="f_marca"> Marca registrada (INPI)</label>
+      <label class="chk" id="row_uc"><input type="checkbox" id="f_uc"> Dentro de Unidade de Conservação</label>
+      <label class="chk" id="row_ambiental_prox"><input type="checkbox" id="f_ambiental_prox" onchange="toggleSubmenuAmbientalProx()"> Perto de ocorrência ambiental (500m)</label>
+      <div id="ambiental_prox_submenu" style="display:none;margin:-4px 0 8px 22px">
+        <div class="msdica">nada marcado = qualquer tipo; marcar mais de um exige ponto de CADA tipo (E, não OU)</div>
+        <select id="f_ambiental_prox_tipo" multiple size="3">
+          <option value="fiscalizacao">Fiscalização/autuação (IDAF/IEMA)</option>
+          <option value="barragem">Barragem (IDAF)</option>
+          <option value="outorga">Outorga hídrica (AGERH)</option>
+        </select>
+      </div>
       <div class="row2">
         <div><label class="f">Capital mín. (R$)</label><input id="f_capmin" type="number" min="0"></div>
         <div><label class="f">Capital máx. (R$)</label><input id="f_capmax" type="number" min="0"></div>
@@ -519,6 +529,11 @@ function query(){
     addMulti("pncp_categoria","f_pncp_cat");
   }
   if($("f_marca").checked) p.set("com_marca_registrada","true");
+  if($("f_uc").checked) p.set("com_unidade_conservacao","true");
+  if($("f_ambiental_prox").checked){
+    p.set("com_ambiental_proximidade","true");
+    addMulti("ambiental_proximidade_tipo","f_ambiental_prox_tipo");
+  }
   add("ordenar_por",$("f_ordem").value);
   return p;
 }
@@ -558,6 +573,8 @@ async function initEstat(){
   setCnt("row_vinculo", pf.vinculos_politicos);
   setCnt("row_pncp", pf.contratos_pncp);
   setCnt("row_marca", pf.marcas_inpi);
+  setCnt("row_uc", pf.unidade_conservacao);
+  setCnt("row_ambiental_prox", pf.ambiental_proximidade);
   const chips = $("citychips");
   chips.innerHTML = Object.keys(s.por_municipio).map(m=>
     `<span class="citychip" id="chip_${esc(m)}" onclick="filtrarCidade('${esc(m)}')">${esc(m)}</span>`).join("");
@@ -659,6 +676,9 @@ function toggleSubmenuVinculo(){
 }
 function toggleSubmenuPncp(){
   $("pncp_submenu").style.display = $("f_pncp").checked ? "" : "none";
+}
+function toggleSubmenuAmbientalProx(){
+  $("ambiental_prox_submenu").style.display = $("f_ambiental_prox").checked ? "" : "none";
 }
 function copiarCnpj(cnpj, el){
   navigator.clipboard?.writeText(cnpj);
@@ -1050,6 +1070,48 @@ function renderMarcas(arr){
   }).join("");
   return `<div class="sec">™️ Marcas registradas — INPI (${arr.length})</div>${cards}`;
 }
+function renderUnidadesConservacao(arr){
+  if(!arr||!arr.length) return "";
+  const cards = arr.map(x=>{
+    const kv=(k,v)=>v?`<div><span class="k">${k}</span><span class="val">${v}</span></div>`:"";
+    return `<details class="divida">
+      <summary><span class="tag warn">${esc(x.uc_grupo||"?")}</span> <b>${esc(x.uc_nome||"?")}</b>
+        <span style="color:var(--muted)">${esc(x.uc_esfera||"")}</span></summary>
+      <div class="divida-det">
+        ${kv("Categoria", esc(x.uc_categoria))}
+        ${kv("Grupo", esc(x.uc_grupo))}
+        ${kv("Esfera", esc(x.uc_esfera))}
+      </div>
+    </details>`;
+  }).join("");
+  return `<div class="sec">🌳 Dentro de Unidade de Conservação (${arr.length}) <span style="font-size:11px;color:var(--muted);font-weight:normal;text-transform:none;letter-spacing:0">— fonte: MMA/CNUC + IEMA-ES</span></div>${cards}`;
+}
+const _TIPO_AMBIENTAL = {fiscalizacao:"🚨 Fiscalização", barragem:"🌊 Barragem", outorga:"💧 Outorga"};
+function renderAmbientalProximidade(arr, filtrado){
+  if(!arr||!arr.length){
+    return filtrado
+      ? `<div class="sec">🌱 Proximidade ambiental</div><p style="color:var(--muted);font-size:13px">Nenhum ponto bate com o filtro de tipo da busca atual.</p>`
+      : "";
+  }
+  const cards = arr.map(x=>{
+    const kv=(k,v)=>v?`<div><span class="k">${k}</span><span class="val">${v}</span></div>`:"";
+    const rotulo = _TIPO_AMBIENTAL[x.tipo]||x.tipo;
+    const identidade = x.match_confianca==="socio"
+      ? `<span class="tag pend" title="Nome do interessado bate com sócio da empresa">via sócio</span>`
+      : `<span class="tag default" title="A fonte pública não traz CNPJ/nome — é só proximidade geográfica">proximidade</span>`;
+    return `<details class="divida">
+      <summary><span class="tag warn">${rotulo}</span> <b>${esc(x.referencia||"")}</b> ${identidade}
+        ${x.distancia_km!=null?`<span style="color:var(--muted)">${(x.distancia_km*1000).toFixed(0)}m</span>`:""}</summary>
+      <div class="divida-det">
+        ${kv("Detalhe", esc(x.detalhe))}
+        ${kv("Distância", x.distancia_km!=null?`${(x.distancia_km*1000).toFixed(0)}m`:"")}
+        ${kv("Confiança do match", x.match_confianca==="socio"?"Nome do sócio bate com o interessado":"Só proximidade geográfica (sem identificação na fonte)")}
+      </div>
+    </details>`;
+  }).join("");
+  const nota = filtrado ? ` <span style="font-size:11px;color:var(--muted);font-weight:normal;text-transform:none;letter-spacing:0">— filtrado pelo tipo da busca atual</span>` : ` <span style="font-size:11px;color:var(--muted);font-weight:normal;text-transform:none;letter-spacing:0">— fiscalização IDAF/IEMA, barragem IDAF, outorga AGERH, raio 500m</span>`;
+  return `<div class="sec">🌱 Proximidade ambiental (${arr.length})${nota}</div>${cards}`;
+}
 async function abrir(cnpj, viaPopstate){
   $("overlay").classList.add("open");
   $("modal").innerHTML = `<div class="body loading">carregando empresa...</div>`;
@@ -1065,7 +1127,7 @@ async function abrir(cnpj, viaPopstate){
   const qpMulti=(k,selId)=>{
     Array.from($(selId).selectedOptions).forEach(o=>{ if(o.value) qp.append(k,o.value); });
   };
-  let qsProc = false, qsSanc = false, qsBen = false, qsVinc = false, qsPncp = false;
+  let qsProc = false, qsSanc = false, qsBen = false, qsVinc = false, qsPncp = false, qsAmbProx = false;
   if($("f_proc")?.checked){
     qpMulti("processo_polo","f_proc_polo");
     qpMulti("processo_classe","f_proc_classe");
@@ -1086,6 +1148,10 @@ async function abrir(cnpj, viaPopstate){
   if($("f_pncp")?.checked){
     qpMulti("pncp_categoria","f_pncp_cat");
     qsPncp = true;
+  }
+  if($("f_ambiental_prox")?.checked){
+    qpMulti("ambiental_proximidade_tipo","f_ambiental_prox_tipo");
+    qsAmbProx = true;
   }
   const qs = qp.toString() ? "?"+qp.toString() : "";
   const d = await fetchJSONCached("/empresas/"+cnpj+qs);
@@ -1190,6 +1256,8 @@ async function abrir(cnpj, viaPopstate){
         statTile("&#127963;&#65039;", rz.qtd_vinculos_politicos, "Vínculos políticos"),
         statTile("&#128176;", fmtBRL(rz.valor_total_doacoes), "Total em doações eleitorais", true, rz.valor_total_doacoes),
         statTile("&#8482;&#65039;", rz.qtd_marcas_inpi, "Marcas registradas"),
+        statTile("&#127795;", rz.qtd_unidades_conservacao, "Dentro de Unidade de Conservação", false),
+        statTile("&#127793;", rz.qtd_ambiental_proximidade, "Proximidade ambiental (500m)", false),
       )}
       ${renderProcessos(d.processos_judiciais, qsProc)}
       ${renderDividas(d.dividas_ativas, e.capital_social)}
@@ -1200,6 +1268,8 @@ async function abrir(cnpj, viaPopstate){
       ${renderVinculos(d.vinculos_politicos, qsVinc)}
       ${renderContratosPncp(d.contratos_pncp, qsPncp)}
       ${renderMarcas(d.marcas_inpi)}
+      ${renderUnidadesConservacao(d.unidades_conservacao)}
+      ${renderAmbientalProximidade(d.ambiental_proximidade, qsAmbProx)}
 
       <div class="sec">&#128205; Localiza&ccedil;&atilde;o</div>
       ${mapaEmbed(e, d.geolocalizacao)}
@@ -1359,10 +1429,10 @@ function limpar(){
   ["f_segmento","f_porte","f_regime","f_pendencia"].forEach(id=>$(id).value="");
   // Selects multi (submenus de refinamento) não limpam com .value="" — precisa
   // desmarcar cada <option> individualmente.
-  ["f_proc_polo","f_proc_classe","f_sanc_tipo","f_ben_tipo","f_vinc_fonte","f_pncp_cat"].forEach(id=>
+  ["f_proc_polo","f_proc_classe","f_sanc_tipo","f_ben_tipo","f_vinc_fonte","f_pncp_cat","f_ambiental_prox_tipo"].forEach(id=>
     Array.from($(id).options).forEach(o=>o.selected=false));
-  ["f_tel","f_email","f_wpp","f_rede","f_proc","f_sanc","f_amb","f_div","f_lenienc","f_contratos","f_ben","f_vinculo","f_pncp","f_marca"].forEach(id=>$(id).checked=false);
-  toggleSubmenuProc(); toggleSubmenuSanc(); toggleSubmenuBen(); toggleSubmenuVinculo(); toggleSubmenuPncp();
+  ["f_tel","f_email","f_wpp","f_rede","f_proc","f_sanc","f_amb","f_div","f_lenienc","f_contratos","f_ben","f_vinculo","f_pncp","f_marca","f_uc","f_ambiental_prox"].forEach(id=>$(id).checked=false);
+  toggleSubmenuProc(); toggleSubmenuSanc(); toggleSubmenuBen(); toggleSubmenuVinculo(); toggleSubmenuPncp(); toggleSubmenuAmbientalProx();
   document.querySelectorAll("#f_municipio_group input").forEach(cb=>cb.checked=false);
   document.querySelectorAll(".citychip").forEach(c=>c.classList.remove("active"));
   $("f_ordem").value="razao_social"; buscar(true);

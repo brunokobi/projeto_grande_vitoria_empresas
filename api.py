@@ -96,6 +96,9 @@ def filtros_comuns(
     com_incentivo_estadual: bool = Query(None, description="Só empresas com incentivo fiscal de ICMS estadual (COMPETE-ES)"),
     com_beneficio_fiscal: bool = Query(None, description="Só empresas com algum benefício fiscal (renúncia/imune-isento/habilitado/incentivo ICMS)"),
     beneficio_tipo: list[str] = Query(None, description="Restringe o(s) tipo(s) do benefício: RENUNCIA/IMUNE_ISENTO/HABILITADO/COMPETE_ES, ou TODOS. Repita o parâmetro pra exigir MAIS DE UM (AND — precisa ter benefício de cada tipo informado)"),
+    com_unidade_conservacao: bool = Query(None, description="Só empresas geolocalizadas DENTRO de alguma Unidade de Conservação ou Zona de Amortecimento (MMA/CNUC + IEMA-ES)"),
+    com_ambiental_proximidade: bool = Query(None, description="Só empresas a até 500m de um ponto de fiscalização ambiental grave, barragem ou outorga hídrica — sinal de PROXIMIDADE, a fonte pública não traz CNPJ/nome do autuado ou outorgado"),
+    ambiental_proximidade_tipo: list[str] = Query(None, description="Restringe o(s) tipo(s) de ponto ambiental: fiscalizacao/barragem/outorga. Repita o parâmetro pra exigir MAIS DE UM (AND)"),
     capital_min: float = Query(None),
     capital_max: float = Query(None),
     ordenar_por: str = Query("razao_social"),
@@ -117,6 +120,9 @@ def filtros_comuns(
         com_marca_registrada=com_marca_registrada,
         com_incentivo_estadual=com_incentivo_estadual,
         com_beneficio_fiscal=com_beneficio_fiscal, beneficio_tipo=beneficio_tipo,
+        com_unidade_conservacao=com_unidade_conservacao,
+        com_ambiental_proximidade=com_ambiental_proximidade,
+        ambiental_proximidade_tipo=ambiental_proximidade_tipo,
         capital_min=capital_min, capital_max=capital_max, ordenar_por=ordenar_por,
     )
 
@@ -363,12 +369,14 @@ def get_empresa(
     beneficio_tipo: list[str] = Query(None, description="Filtra a lista de benefícios fiscais exibida por tipo (RENUNCIA/IMUNE_ISENTO/HABILITADO/COMPETE_ES/TODOS, repita o parâmetro pra combinar mais de um) — não afeta o resumo"),
     vinculo_fonte: list[str] = Query(None, description="Filtra a lista de vínculos políticos exibida por fonte (TSE_DOACAO/TSE_CANDIDATURA/TODOS, repita o parâmetro pra combinar os dois) — não afeta o resumo"),
     pncp_categoria: list[str] = Query(None, description="Filtra a lista de contratos PNCP exibida pela(s) categoria(s) exata(s) — repita o parâmetro pra combinar mais de uma; não afeta o resumo"),
+    ambiental_proximidade_tipo: list[str] = Query(None, description="Filtra a lista de proximidade ambiental exibida por tipo (fiscalizacao/barragem/outorga) — não afeta o resumo"),
 ):
     resultado = dataset_queries.obter_empresa(
         cnpj, processo_polo=processo_polo, processo_classe=processo_classe,
         sancao_tipo=sancao_tipo, sancao_orgao=sancao_orgao,
         beneficio_tipo=beneficio_tipo, vinculo_fonte=vinculo_fonte,
-        pncp_categoria=pncp_categoria)
+        pncp_categoria=pncp_categoria,
+        ambiental_proximidade_tipo=ambiental_proximidade_tipo)
     if resultado is None:
         raise HTTPException(status_code=404, detail=f"CNPJ {cnpj} não encontrado.")
     return resultado
