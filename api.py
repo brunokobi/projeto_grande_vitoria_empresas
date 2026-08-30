@@ -49,6 +49,9 @@ MUNICIPIOS_GEOJSON = config.BASE_DIR / "reference" / "municipios_grande_vitoria.
 BAIRROS_GEOJSON = config.BASE_DIR / "reference" / "bairros_grande_vitoria.geojson"
 OCORRENCIAS_BAIRRO = config.BASE_DIR / "reference" / "ocorrencias_bairro.json"
 UNIDADES_CONSERVACAO_GEOJSON = config.BASE_DIR / "reference" / "unidades_conservacao_es.geojson"
+FISCALIZACAO_AMBIENTAL_GEOJSON = config.BASE_DIR / "reference" / "fiscalizacao_ambiental_es.geojson"
+BARRAGENS_GEOJSON = config.BASE_DIR / "reference" / "barragens_es.geojson"
+OUTORGAS_HIDRICAS_GEOJSON = config.BASE_DIR / "reference" / "outorgas_hidricas_es.geojson"
 OG_IMAGE = config.BASE_DIR / "docs" / "dashboard.png"
 SITE_URL = "https://empresas.brunokobi.duckdns.org"
 
@@ -256,6 +259,39 @@ def get_unidades_conservacao_geojson():
     # do estado + 2 de 10 zonas de amortecimento) e com geometria
     # simplificada (mapshaper, dp 10%) — original ~700KB, esse arquivo ~100KB.
     return FileResponse(UNIDADES_CONSERVACAO_GEOJSON, media_type="application/geo+json",
+                         headers={"Cache-Control": "no-cache"})
+
+
+@app.get("/fiscalizacao-ambiental/geojson", summary="Pontos de fiscalização/autuação ambiental (IDAF/IEMA-ES) na Grande Vitória (GeoJSON)", include_in_schema=False)
+def get_fiscalizacao_ambiental_geojson():
+    # Fonte: WFS do GeoBases-ES -- geonode:idaf_gelcof_fiscalizacao_2018_2024
+    # (8.598 registros no estado) + geonode:iema_fiscalizacao_ambiental
+    # (10.031). Filtrado pros 7 municípios (1.963 pontos). ATENÇÃO: essa
+    # camada pública NÃO tem CNPJ/nome do autuado (só local+tipo+data+
+    # gravidade) -- é sinal de PROXIMIDADE ("empresa perto de onde já houve
+    # fiscalização/autuação"), não de identidade ("essa empresa foi
+    # autuada"). Pra identidade seria preciso a planilha interna do IDAF.
+    return FileResponse(FISCALIZACAO_AMBIENTAL_GEOJSON, media_type="application/geo+json",
+                         headers={"Cache-Control": "no-cache"})
+
+
+@app.get("/barragens/geojson", summary="Barragens licenciadas e dispensadas de licenciamento (IDAF-ES) na Grande Vitória (GeoJSON)", include_in_schema=False)
+def get_barragens_geojson():
+    # Fonte: WFS do GeoBases-ES -- geonode:idaf_gelcof_barragens_licenciadas
+    # (1.027 no estado) + geonode:idaf_gelcof_cad_barragens_disp_licmto
+    # (18.401). Filtrado pros 7 municípios (346). Tem campo `interessado`
+    # (nome de quem requereu) -- dá pra cruzar por nome com sócios, diferente
+    # da fiscalização/outorga (que só dá pra cruzar por proximidade).
+    return FileResponse(BARRAGENS_GEOJSON, media_type="application/geo+json",
+                         headers={"Cache-Control": "no-cache"})
+
+
+@app.get("/outorgas-hidricas/geojson", summary="Outorgas de recursos hídricos (ANA/AGERH-ES) na Grande Vitória (GeoJSON)", include_in_schema=False)
+def get_outorgas_hidricas_geojson():
+    # Fonte: WFS do GeoBases-ES -- geonode:ana_agerh_outorga_es (15.521 no
+    # estado, já vem em EPSG:4326). Filtrado pros 7 municípios (490). Mesma
+    # limitação da fiscalização: sem nome do outorgado, só proximidade.
+    return FileResponse(OUTORGAS_HIDRICAS_GEOJSON, media_type="application/geo+json",
                          headers={"Cache-Control": "no-cache"})
 
 
