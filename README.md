@@ -4,11 +4,11 @@
 
 ### A base aberta mais completa de empresas ativas do Espírito Santo — pronta para prospecção, pesquisa e análise de mercado.
 
-**344 mil empresas ativas** de **7 municípios**, cruzando dados cadastrais, **sócios**, jurídicos, sanções, dívida ativa, infrações ambientais e **flags de risco** (trabalho escravo, CEPIM, leniência) — tudo de **fontes públicas oficiais**. Com **mapa interativo**, **dashboard**, **API REST**, **MCP** (Claude) e **classificação de leads**.
+**351 mil empresas ativas** de **7 municípios**, cruzando dados cadastrais, **sócios**, jurídicos, sanções, dívida ativa, infrações ambientais e **flags de risco** (trabalho escravo, CEPIM, leniência) — tudo de **fontes públicas oficiais**. Com **mapa interativo**, **dashboard**, **API REST**, **MCP** (Claude) e **classificação de leads**.
 
 <br>
 
-[![Empresas](https://img.shields.io/badge/empresas%20ativas-344k%2B-2563eb?style=flat-square)](#)
+[![Empresas](https://img.shields.io/badge/empresas%20ativas-351k%2B-2563eb?style=flat-square)](#)
 [![Sócios](https://img.shields.io/badge/s%C3%B3cios-231k%2B-2563eb?style=flat-square)](#)
 [![Municípios](https://img.shields.io/badge/munic%C3%ADpios-7-16a34a?style=flat-square)](#)
 [![API](https://img.shields.io/badge/API-FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)](#-consumir-o-dataset)
@@ -93,20 +93,20 @@ Em desenvolvimento ativo. Estado atual:
 
 | Componente | Status |
 |---|---|
-| Cadastro (Receita) · **Sócios** · JUCEES | ✅ pronto (344k empresas · 231k sócios) |
+| Cadastro (Receita) · **Sócios** · JUCEES | ✅ pronto (**351.824 empresas ativas** em produção — snapshot 05/09/2026, cresceu de 344k após a Receita atualizar o universo via cron mensal na VPS) |
 | Dívida ativa **PGFN** (detalhada) | ✅ pronto |
 | Sanções federais **CEIS/CNEP** + estaduais **TCEES** | ✅ pronto |
 | Infrações **IBAMA** (detalhadas) | ✅ pronto |
 | **CEPIM** (impedidas de verba federal) · **Acordos de Leniência** (CGU) | ✅ pronto |
 | **Lista Suja do trabalho escravo** (MTE) | ✅ pronto |
 | **Mapa interativo** (MapLibre) + **satélite** na visão 360º | ✅ pronto |
-| Geocodificação (coordenadas de todas as empresas) | ✅ **100% concluído** (344.130/344.130 — snapshot 13/08/2026) |
-| Processos judiciais (**DJEN/CNJ**, por nome da parte) | ✅ **praticamente 100% concluído** (344.124/344.130 — snapshot 05/09/2026), **2,94 milhões de processos já publicados** — continua rodando numa máquina local (ver nota) pra cobrir CNPJ novo e as ~6 empresas restantes |
+| Geocodificação (coordenadas de todas as empresas) | ✅ **100% concluído em produção** (351.824/351.824 — conferido ao vivo em 05/09/2026) |
+| Processos judiciais (**DJEN/CNJ**, por nome da parte) | ✅ **2,92 milhões de processos publicados em produção**, **142.691 empresas** com algum processo encontrado (qualquer polo) — a consulta roda numa máquina local (ver nota) contra uma base de 344.130 empresas (praticamente 100% já consultada nela), que ainda não inclui as ~7,7 mil empresas mais novas do universo atual |
 | Contato & redes sociais (WhatsApp, site, Instagram…) | 🧪 implementado |
 | Dashboard · API · MCP · export Excel/PDF | ✅ funcionais |
 | **Classificação de leads** (via API/MCP) | ✅ funciona — 🚧 removida temporariamente da UI do dashboard |
-| **Mapa: Unidades de Conservação/Zona de Amortecimento** (MMA/CNUC + IEMA-ES) | ✅ pronto — camada no mapa + filtro/badge, rodado contra o banco completo da VPS: **9.923 empresas** dentro de UC/zona de amortecimento |
-| **Mapa: proximidade ambiental** (fiscalização IDAF/IEMA, barragem IDAF, outorga AGERH) | ✅ pronto — camada no mapa + filtro/badge, rodado contra o banco completo da VPS: **81.263 empresas** a até 500m de um ponto ambiental |
+| **Mapa: Unidades de Conservação/Zona de Amortecimento** (MMA/CNUC + IEMA-ES) | ✅ pronto — camada no mapa + filtro/badge: **9.923 empresas** dentro de UC/zona de amortecimento (rodado contra a base de 344.130; ainda não cobre as ~7,7 mil empresas mais novas do universo atual) |
+| **Mapa: proximidade ambiental** (fiscalização IDAF/IEMA, barragem IDAF, outorga AGERH) | ✅ pronto — camada no mapa + filtro/badge: **81.263 empresas** a até 500m de um ponto ambiental (mesma ressalva acima) |
 
 > 🔄 **Atualização automática:** o dataset publicado (Release) é atualizado
 > **a cada 2 horas** — o dashboard/API baixam a versão nova sozinhos, sem
