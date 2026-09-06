@@ -52,6 +52,7 @@ UNIDADES_CONSERVACAO_GEOJSON = config.BASE_DIR / "reference" / "unidades_conserv
 FISCALIZACAO_AMBIENTAL_GEOJSON = config.BASE_DIR / "reference" / "fiscalizacao_ambiental_es.geojson"
 BARRAGENS_GEOJSON = config.BASE_DIR / "reference" / "barragens_es.geojson"
 OUTORGAS_HIDRICAS_GEOJSON = config.BASE_DIR / "reference" / "outorgas_hidricas_es.geojson"
+RISCO_GEOLOGICO_GEOJSON = config.BASE_DIR / "reference" / "risco_geologico_es.geojson"
 OG_IMAGE = config.BASE_DIR / "docs" / "dashboard.png"
 SITE_URL = "https://empresas.brunokobi.duckdns.org"
 
@@ -99,6 +100,8 @@ def filtros_comuns(
     com_unidade_conservacao: bool = Query(None, description="Só empresas geolocalizadas DENTRO de alguma Unidade de Conservação ou Zona de Amortecimento (MMA/CNUC + IEMA-ES)"),
     com_ambiental_proximidade: bool = Query(None, description="Só empresas a até 500m de um ponto de fiscalização ambiental grave, barragem ou outorga hídrica — sinal de PROXIMIDADE, a fonte pública não traz CNPJ/nome do autuado ou outorgado"),
     ambiental_proximidade_tipo: list[str] = Query(None, description="Restringe o(s) tipo(s) de ponto ambiental: fiscalizacao/barragem/outorga. Repita o parâmetro pra exigir MAIS DE UM (AND)"),
+    com_risco_geologico: bool = Query(None, description="Só empresas geolocalizadas DENTRO de algum setor de risco geológico/inundação mapeado (Defesa Civil/CPRM/PMRR Serra-Viana) — cobertura desigual entre municípios, reflete onde há setor mapeado"),
+    risco_geologico_grau: list[str] = Query(None, description="Restringe o grau de risco: Baixo/Médio/Alto/Muito Alto. Repita o parâmetro pra exigir MAIS DE UM (AND)"),
     capital_min: float = Query(None),
     capital_max: float = Query(None),
     ordenar_por: str = Query("razao_social"),
@@ -123,6 +126,8 @@ def filtros_comuns(
         com_unidade_conservacao=com_unidade_conservacao,
         com_ambiental_proximidade=com_ambiental_proximidade,
         ambiental_proximidade_tipo=ambiental_proximidade_tipo,
+        com_risco_geologico=com_risco_geologico,
+        risco_geologico_grau=risco_geologico_grau,
         capital_min=capital_min, capital_max=capital_max, ordenar_por=ordenar_por,
     )
 
@@ -298,6 +303,21 @@ def get_outorgas_hidricas_geojson():
     # estado, já vem em EPSG:4326). Filtrado pros 7 municípios (490). Mesma
     # limitação da fiscalização: sem nome do outorgado, só proximidade.
     return FileResponse(OUTORGAS_HIDRICAS_GEOJSON, media_type="application/geo+json",
+                         headers={"Cache-Control": "no-cache"})
+
+
+@app.get("/risco-geologico/geojson", summary="Setores de risco geológico/inundação na Grande Vitória (Defesa Civil/CPRM/PMRR, GeoJSON)", include_in_schema=False)
+def get_risco_geologico_geojson():
+    # Fonte: WFS do GeoBases-ES -- geonode:DC_AREAS_RISCO_ES_2018_UTF8 (Defesa
+    # Civil, 924 no estado) + geonode:cprm_setores_de_risco_es_epsg_31984
+    # (CPRM, 1.272) + 4 camadas PMRR (Plano Municipal de Redução de Risco) de
+    # Serra e Viana, via SEDURB -- únicos 2 dos 7 municípios com PMRR próprio
+    # nessa base. Filtrado pros 7 municípios e normalizado num schema único
+    # (fonte/municipio/local/tipo/grau_risco) a partir de 6 camadas originais
+    # com esquemas bem diferentes entre si (767 setores). Cobertura desigual
+    # entre municípios: reflete onde a Defesa Civil/CPRM/prefeitura de fato
+    # mapeou setores, não a ausência real de risco onde não há polígono.
+    return FileResponse(RISCO_GEOLOGICO_GEOJSON, media_type="application/geo+json",
                          headers={"Cache-Control": "no-cache"})
 
 
