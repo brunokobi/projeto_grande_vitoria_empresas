@@ -101,12 +101,12 @@ Em desenvolvimento ativo. Estado atual:
 | **Lista Suja do trabalho escravo** (MTE) | ✅ pronto |
 | **Mapa interativo** (MapLibre) + **satélite** na visão 360º | ✅ pronto |
 | Geocodificação (coordenadas de todas as empresas) | ✅ **100% concluído em produção** (351.824/351.824 — conferido ao vivo em 05/09/2026) |
-| Processos judiciais (**DJEN/CNJ**, por nome da parte) | ✅ **2,92 milhões de processos publicados em produção**, **142.691 empresas** com algum processo encontrado (qualquer polo) — a consulta roda numa máquina local (ver nota) contra uma base de 344.130 empresas (praticamente 100% já consultada nela), que ainda não inclui as ~7,7 mil empresas mais novas do universo atual |
+| Processos judiciais (**DJEN/CNJ**, por nome da parte) | ✅ **3,12 milhões de processos publicados em produção**, **148.870 empresas** com algum processo encontrado (qualquer polo) — a consulta roda numa máquina local (ver nota), **97,8% do universo atual já consultado** (344.124/351.824 — a base local foi sincronizada com a Receita em 05/09/2026, cobrindo as empresas mais novas) |
 | Contato & redes sociais (WhatsApp, site, Instagram…) | 🧪 implementado |
 | Dashboard · API · MCP · export Excel/PDF | ✅ funcionais |
 | **Classificação de leads** (via API/MCP) | ✅ funciona — 🚧 removida temporariamente da UI do dashboard |
-| **Mapa: Unidades de Conservação/Zona de Amortecimento** (MMA/CNUC + IEMA-ES) | ✅ pronto — camada no mapa + filtro/badge: **9.923 empresas** dentro de UC/zona de amortecimento (rodado contra a base de 344.130; ainda não cobre as ~7,7 mil empresas mais novas do universo atual) |
-| **Mapa: proximidade ambiental** (fiscalização IDAF/IEMA, barragem IDAF, outorga AGERH) | ✅ pronto — camada no mapa + filtro/badge: **81.263 empresas** a até 500m de um ponto ambiental (mesma ressalva acima) |
+| **Mapa: Unidades de Conservação/Zona de Amortecimento** (MMA/CNUC + IEMA-ES) | ✅ pronto — camada no mapa + filtro/badge: **10.194 empresas** dentro de UC/zona de amortecimento (rodado contra o universo atual, 351.824 empresas) — entrou no cron mensal, atualiza sozinho todo mês |
+| **Mapa: proximidade ambiental** (fiscalização IDAF/IEMA, barragem IDAF, outorga AGERH) | ✅ pronto — camada no mapa + filtro/badge: **83.052 empresas** a até 500m de um ponto ambiental — mesma cobertura/atualização automática acima |
 
 > 🔄 **Atualização automática:** o dataset publicado (Release) é atualizado
 > **a cada 2 horas** — o dashboard/API baixam a versão nova sozinhos, sem
