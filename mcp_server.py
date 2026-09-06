@@ -105,6 +105,8 @@ def buscar_empresas(
     com_unidade_conservacao: bool = None,
     com_ambiental_proximidade: bool = None,
     ambiental_proximidade_tipo: list = None,
+    com_risco_geologico: bool = None,
+    risco_geologico_grau: list = None,
     capital_min: float = None,
     capital_max: float = None,
     ordenar_por: str = "razao_social",
@@ -183,6 +185,13 @@ def buscar_empresas(
       empresa, é identidade de verdade) em vez de "proximidade".
       ambiental_proximidade_tipo restringe o(s) tipo(s)
       (fiscalizacao/barragem/outorga) — uma lista é AND.
+    - com_risco_geologico: True exige que a empresa esteja geolocalizada
+      DENTRO de algum setor de risco geológico/inundação mapeado (Defesa
+      Civil/CPRM/PMRR Serra-Viana) — sinal de contexto (exposição física a
+      deslizamento/enchente), não é sanção. Cobertura é desigual entre os 7
+      municípios (reflete onde há setor mapeado, não a ausência real de
+      risco onde não há polígono). risco_geologico_grau restringe o grau
+      (Baixo/Médio/Alto/Muito Alto) — uma lista é AND.
     - ordenar_por: razao_social | capital_social | municipio | porte | cnpj.
     - limite (máx. 500) e offset para paginação.
 
@@ -210,6 +219,8 @@ def buscar_empresas(
         com_unidade_conservacao=com_unidade_conservacao,
         com_ambiental_proximidade=com_ambiental_proximidade,
         ambiental_proximidade_tipo=ambiental_proximidade_tipo,
+        com_risco_geologico=com_risco_geologico,
+        risco_geologico_grau=risco_geologico_grau,
         capital_min=capital_min, capital_max=capital_max, ordenar_por=ordenar_por,
         limite=limite, offset=offset,
     )
@@ -270,9 +281,10 @@ def obter_empresa(cnpj: str, processo_polo: list = None, processo_classe: list =
     estaduais/federais via PNCP), benefícios/renúncias fiscais (renúncia
     fiscal por ano, imunidade/isenção de IRPJ, habilitação a regime de
     benefício), marcas registradas no INPI, Unidades de Conservação (se a
-    empresa está DENTRO de alguma) e proximidade a pontos ambientais
-    (fiscalização/autuação, barragem, outorga hídrica — a até 500m), com um
-    resumo agregado.
+    empresa está DENTRO de alguma), proximidade a pontos ambientais
+    (fiscalização/autuação, barragem, outorga hídrica — a até 500m) e setor
+    de risco geológico/inundação (se a empresa está DENTRO de algum, Defesa
+    Civil/CPRM/PMRR Serra-Viana), com um resumo agregado.
 
     processo_polo (Réu/Autor/Terceiro/TODOS) e processo_classe filtram só a
     LISTA de processos devolvida; sancao_tipo/sancao_orgao filtram só a
@@ -285,8 +297,9 @@ def obter_empresa(cnpj: str, processo_polo: list = None, processo_classe: list =
     de um valor (ex.: vinculo_fonte=["TSE_DOACAO","TSE_CANDIDATURA"] mostra
     os dois tipos de vínculo na lista). O resumo (contagens, valores totais
     em R$, tem_pendencia_juridica_ou_fiscal) sempre reflete o total real da
-    empresa, sem esses filtros. Note que proximidade ambiental NÃO conta
-    como pendência jurídico-fiscal (é sinal de contexto, não de sanção).
+    empresa, sem esses filtros. Note que proximidade ambiental e setor de
+    risco geológico NÃO contam como pendência jurídico-fiscal (são sinal de
+    contexto, não de sanção).
 
     Retorna null se o CNPJ não estiver na base."""
     resultado = dataset_queries.obter_empresa(

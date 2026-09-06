@@ -307,6 +307,7 @@
           <button id="mt_bairros" onclick="toggleAbaMapa('bairros', this)" title="Limites dos bairros (IJSN/GeoBases-ES) sobre o mapa">🏘️ Bairros</button>
           <button id="mt_uc" onclick="toggleAbaMapa('uc', this)" title="Unidades de Conservação e zonas de amortecimento (MMA/CNUC + IEMA-ES) sobre o mapa">🌳 UC</button>
           <button id="mt_ambiental" onclick="toggleAbaMapa('ambiental', this)" title="Fiscalização ambiental (IDAF/IEMA), barragens (IDAF) e outorgas hídricas (AGERH) sobre o mapa — pontos de proximidade, sem identificar a empresa">🌱 Ambiental</button>
+          <button id="mt_risco_geo" onclick="toggleAbaMapa('risco_geo', this)" title="Setores de risco geológico/inundação (Defesa Civil/CPRM/PMRR Serra-Viana) sobre o mapa">🏔️ Risco Geo</button>
         </div>
       </div>
     </div>
@@ -410,6 +411,16 @@
           <option value="fiscalizacao">Fiscalização/autuação (IDAF/IEMA)</option>
           <option value="barragem">Barragem (IDAF)</option>
           <option value="outorga">Outorga hídrica (AGERH)</option>
+        </select>
+      </div>
+      <label class="chk" id="row_risco_geo"><input type="checkbox" id="f_risco_geo" onchange="toggleSubmenuRiscoGeo()"> Dentro de setor de risco geológico/inundação</label>
+      <div id="risco_geo_submenu" style="display:none;margin:-4px 0 8px 22px">
+        <div class="msdica">nada marcado = qualquer grau; marcar mais de um exige setor de CADA grau (E, não OU)</div>
+        <select id="f_risco_geo_grau" multiple size="4">
+          <option value="Baixo">Baixo</option>
+          <option value="Médio">Médio</option>
+          <option value="Alto">Alto</option>
+          <option value="Muito Alto">Muito Alto</option>
         </select>
       </div>
       <div class="row2">
@@ -540,6 +551,10 @@ function query(){
   if($("f_ambiental_prox").checked){
     p.set("com_ambiental_proximidade","true");
     addMulti("ambiental_proximidade_tipo","f_ambiental_prox_tipo");
+  }
+  if($("f_risco_geo").checked){
+    p.set("com_risco_geologico","true");
+    addMulti("risco_geologico_grau","f_risco_geo_grau");
   }
   add("ordenar_por",$("f_ordem").value);
   return p;
@@ -686,6 +701,9 @@ function toggleSubmenuPncp(){
 }
 function toggleSubmenuAmbientalProx(){
   $("ambiental_prox_submenu").style.display = $("f_ambiental_prox").checked ? "" : "none";
+}
+function toggleSubmenuRiscoGeo(){
+  $("risco_geo_submenu").style.display = $("f_risco_geo").checked ? "" : "none";
 }
 function copiarCnpj(cnpj, el){
   navigator.clipboard?.writeText(cnpj);
@@ -1119,6 +1137,25 @@ function renderAmbientalProximidade(arr, filtrado){
   const nota = filtrado ? ` <span style="font-size:11px;color:var(--muted);font-weight:normal;text-transform:none;letter-spacing:0">— filtrado pelo tipo da busca atual</span>` : ` <span style="font-size:11px;color:var(--muted);font-weight:normal;text-transform:none;letter-spacing:0">— fiscalização IDAF/IEMA, barragem IDAF, outorga AGERH, raio 500m</span>`;
   return `<div class="sec">🌱 Proximidade ambiental (${arr.length})${nota}</div>${cards}`;
 }
+const _FONTE_RISCO = {defesa_civil:"Defesa Civil", cprm:"CPRM", pdui_pmrr:"PMRR (SEDURB)"};
+function renderRiscoGeologico(arr){
+  if(!arr||!arr.length) return "";
+  const cards = arr.map(x=>{
+    const kv=(k,v)=>v?`<div><span class="k">${k}</span><span class="val">${v}</span></div>`:"";
+    return `<details class="divida">
+      <summary><span class="tag pend">${esc(x.grau_risco||"?")}</span> <b>${esc(x.tipo||"?")}</b>
+        <span style="color:var(--muted)">${esc(x.local||x.municipio||"")}</span></summary>
+      <div class="divida-det">
+        ${kv("Local", esc(x.local))}
+        ${kv("Município", esc(x.municipio))}
+        ${kv("Tipo", esc(x.tipo))}
+        ${kv("Grau de risco", esc(x.grau_risco))}
+        ${kv("Fonte", _FONTE_RISCO[x.fonte]||esc(x.fonte))}
+      </div>
+    </details>`;
+  }).join("");
+  return `<div class="sec">🏔️ Dentro de setor de risco geológico/inundação (${arr.length}) <span style="font-size:11px;color:var(--muted);font-weight:normal;text-transform:none;letter-spacing:0">— fonte: Defesa Civil/CPRM/PMRR Serra-Viana</span></div>${cards}`;
+}
 async function abrir(cnpj, viaPopstate){
   $("overlay").classList.add("open");
   $("modal").innerHTML = `<div class="body loading">carregando empresa...</div>`;
@@ -1265,6 +1302,7 @@ async function abrir(cnpj, viaPopstate){
         statTile("&#8482;&#65039;", rz.qtd_marcas_inpi, "Marcas registradas"),
         statTile("&#127795;", rz.qtd_unidades_conservacao, "Dentro de Unidade de Conservação", false),
         statTile("&#127793;", rz.qtd_ambiental_proximidade, "Proximidade ambiental (500m)", false),
+        statTile("&#127956;&#65039;", rz.qtd_risco_geologico, "Setor de risco geológico/inundação", false),
       )}
       ${renderProcessos(d.processos_judiciais, qsProc)}
       ${renderDividas(d.dividas_ativas, e.capital_social)}
@@ -1277,6 +1315,7 @@ async function abrir(cnpj, viaPopstate){
       ${renderMarcas(d.marcas_inpi)}
       ${renderUnidadesConservacao(d.unidades_conservacao)}
       ${renderAmbientalProximidade(d.ambiental_proximidade, qsAmbProx)}
+      ${renderRiscoGeologico(d.risco_geologico)}
 
       <div class="sec">&#128205; Localiza&ccedil;&atilde;o</div>
       ${mapaEmbed(e, d.geolocalizacao)}
@@ -1390,9 +1429,10 @@ function abrirSobre(){
         <div class="item"><b>SESP-ES</b> — ocorrências criminais por bairro (furto/roubo/estelionato/crimes informáticos, 2018–2026), dado agregado — a fonte não traz coordenada exata, só município+bairro (aba "Crime")</div>
         <div class="item"><b>MMA/CNUC + IEMA-ES</b> (via GeoBases-ES) — Unidades de Conservação e Zonas de Amortecimento (aba "UC"). Empresa "dentro de UC" é identidade real: a geolocalização da empresa cai dentro do polígono</div>
         <div class="item"><b>IDAF/IEMA</b> (fiscalização/autuação ambiental), <b>AGERH/ANA</b> (outorga de recursos hídricos) e <b>IDAF</b> (barragens licenciadas/dispensadas) — via GeoBases-ES (aba "Ambiental"). Essas 3 são sinal de <b>proximidade</b> (empresa a até 500m de um ponto), não de identidade — a fonte pública não traz CNPJ/nome de quem foi autuado ou outorgado, exceto barragem, que tem o nome de quem requereu e é cruzado por nome contra os sócios da empresa</div>
+        <div class="item"><b>Defesa Civil-ES / CPRM</b> (setores de risco geológico/inundação, mapeamento de campo) e <b>PMRR Serra/Viana</b> (Plano Municipal de Redução de Risco, via SEDURB) — via GeoBases-ES (aba "Risco Geo"). Empresa "dentro de setor de risco" é identidade real (a geolocalização cai dentro do polígono), mas a cobertura é desigual entre os 7 municípios: reflete onde a Defesa Civil/CPRM/prefeitura de fato mapeou um setor, não a ausência real de risco onde não há polígono</div>
       </div>
       <div class="sec">Como o cruzamento é feito</div>
-      <p>A maioria das fontes é combinada pelo <b>CNPJ</b> (chave única). Exceções: processos judiciais são localizados por <b>nome</b> da empresa (a API pública não expõe CNPJ das partes); Unidade de Conservação é por <b>geolocalização</b> (a empresa cai dentro do polígono); fiscalização ambiental/barragem/outorga hídrica são por <b>proximidade geográfica</b> (a fonte não traz CNPJ/nome, exceto barragem, também cruzada por nome do sócio); ocorrências criminais são agregadas por <b>bairro</b> (a fonte não traz coordenada exata). Nenhuma fonte é editada ou reinterpretada — os campos exibidos vêm direto das bases públicas oficiais. CPFs de sócios são sempre mascarados, conforme a LGPD.</p>
+      <p>A maioria das fontes é combinada pelo <b>CNPJ</b> (chave única). Exceções: processos judiciais são localizados por <b>nome</b> da empresa (a API pública não expõe CNPJ das partes); Unidade de Conservação e setor de risco geológico/inundação são por <b>geolocalização</b> (a empresa cai dentro do polígono); fiscalização ambiental/barragem/outorga hídrica são por <b>proximidade geográfica</b> (a fonte não traz CNPJ/nome, exceto barragem, também cruzada por nome do sócio); ocorrências criminais são agregadas por <b>bairro</b> (a fonte não traz coordenada exata). Nenhuma fonte é editada ou reinterpretada — os campos exibidos vêm direto das bases públicas oficiais. CPFs de sócios são sempre mascarados, conforme a LGPD.</p>
       <p style="color:var(--muted);font-size:12px;margin-top:16px">Código aberto: <a href="https://github.com/brunokobi/projeto_grande_vitoria_empresas" target="_blank" rel="noopener">github.com/brunokobi/projeto_grande_vitoria_empresas</a></p>
     </div>`;
 }
@@ -1443,10 +1483,10 @@ function limpar(){
   ["f_segmento","f_porte","f_regime","f_pendencia"].forEach(id=>$(id).value="");
   // Selects multi (submenus de refinamento) não limpam com .value="" — precisa
   // desmarcar cada <option> individualmente.
-  ["f_proc_polo","f_proc_classe","f_sanc_tipo","f_ben_tipo","f_vinc_fonte","f_pncp_cat","f_ambiental_prox_tipo"].forEach(id=>
+  ["f_proc_polo","f_proc_classe","f_sanc_tipo","f_ben_tipo","f_vinc_fonte","f_pncp_cat","f_ambiental_prox_tipo","f_risco_geo_grau"].forEach(id=>
     Array.from($(id).options).forEach(o=>o.selected=false));
-  ["f_tel","f_email","f_wpp","f_rede","f_proc","f_sanc","f_amb","f_div","f_lenienc","f_contratos","f_ben","f_vinculo","f_pncp","f_marca","f_uc","f_ambiental_prox"].forEach(id=>$(id).checked=false);
-  toggleSubmenuProc(); toggleSubmenuSanc(); toggleSubmenuBen(); toggleSubmenuVinculo(); toggleSubmenuPncp(); toggleSubmenuAmbientalProx();
+  ["f_tel","f_email","f_wpp","f_rede","f_proc","f_sanc","f_amb","f_div","f_lenienc","f_contratos","f_ben","f_vinculo","f_pncp","f_marca","f_uc","f_ambiental_prox","f_risco_geo"].forEach(id=>$(id).checked=false);
+  toggleSubmenuProc(); toggleSubmenuSanc(); toggleSubmenuBen(); toggleSubmenuVinculo(); toggleSubmenuPncp(); toggleSubmenuAmbientalProx(); toggleSubmenuRiscoGeo();
   document.querySelectorAll("#f_municipio_group input").forEach(cb=>cb.checked=false);
   document.querySelectorAll(".citychip").forEach(c=>c.classList.remove("active"));
   $("f_ordem").value="razao_social"; buscar(true);
@@ -1614,6 +1654,33 @@ function initMapa(){
       popup.setLngLat(e.lngLat).setText(texto).addTo(MAPA); });
     MAPA.on("mouseleave","ambiental-pontos",()=>{ MAPA.getCanvas().style.cursor=""; popup.remove(); });
 
+    // Setores de risco geológico/inundação (Defesa Civil/CPRM/PMRR Serra-
+    // Viana) -- mesmo padrão de UC (fill+line, cor pelo grau de risco),
+    // toggle independente, entra ANTES de "ponto".
+    MAPA.addSource("risco_geo", {type:"geojson", data:{type:"FeatureCollection",features:[]}});
+    MAPA.addLayer({id:"risco-geo-fill", type:"fill", source:"risco_geo", layout:{visibility:"none"},
+      paint:{
+        "fill-color":["match",["get","grau_risco"],
+          "Muito Alto","#ff3b3b",
+          "Alto","#ff8a3d",
+          "Médio","#ffd23d",
+          "Baixo","#8bd450",
+          "#999999"],
+        "fill-opacity":0.4}}, "ponto");
+    MAPA.addLayer({id:"risco-geo-line", type:"line", source:"risco_geo", layout:{visibility:"none"},
+      paint:{
+        "line-color":["match",["get","grau_risco"],
+          "Muito Alto","#ff3b3b",
+          "Alto","#ff8a3d",
+          "Médio","#ffd23d",
+          "Baixo","#8bd450",
+          "#999999"],
+        "line-width":1.2}}, "ponto");
+    MAPA.on("mouseenter","risco-geo-fill",(e)=>{ MAPA.getCanvas().style.cursor="pointer";
+      const p=e.features[0].properties;
+      popup.setLngLat(e.lngLat).setText(`${p.tipo||"?"} (${p.grau_risco||"?"}) — ${p.local||p.municipio||""}`).addTo(MAPA); });
+    MAPA.on("mouseleave","risco-geo-fill",()=>{ MAPA.getCanvas().style.cursor=""; popup.remove(); });
+
     MAPA_READY=true;
     if(_pendentes){ MAPA.getSource("empresas").setData(_pendentes); _pendentes=null; }
     // "Risco" desativado -- não busca mais /municipios/geojson de cara.
@@ -1671,6 +1738,18 @@ function toggleAmbiental(ligado){
       features:[...fisc.features, ...barr.features, ...out.features]});
   }).catch(()=>{ _ambientalCarregado = false; });
 }
+let _riscoGeoCarregado = false;
+function toggleRiscoGeo(ligado){
+  if(!MAPA_READY) return;
+  ["risco-geo-fill","risco-geo-line"].forEach(id=>
+    MAPA.setLayoutProperty(id,"visibility", ligado?"visible":"none"));
+  if(ligado && !_riscoGeoCarregado){
+    _riscoGeoCarregado = true;
+    fetch("/risco-geologico/geojson").then(r=>r.json()).then(gj=>{
+      MAPA.getSource("risco_geo")?.setData(gj);
+    }).catch(()=>{ _riscoGeoCarregado = false; });
+  }
+}
 let _crimePorBairro = null;
 async function atualizarCrime(){
   if(!MAPA_READY) return;
@@ -1714,10 +1793,11 @@ async function atualizarCrime(){
 // }
 // Abas do mapa: cada uma liga/desliga independente (não é mais grupo
 // exclusivo tipo rádio) -- dá pra combinar Empresas+Crime+Bairros+UC+
-// Ambiental ao mesmo tempo, sem um esconder o outro. "Empresas" e "Crime"
-// já convivem por design (a camada de bairros/crime entra ANTES de "ponto"
-// no addLayer, sempre atrás); Bairros/UC/Ambiental reusam os toggles que já
-// existiam antes (só passam a ficar visualmente junto na mesma fileira de
+// Ambiental+Risco Geo ao mesmo tempo, sem um esconder o outro. "Empresas" e
+// "Crime" já convivem por design (a camada de bairros/crime entra ANTES de
+// "ponto" no addLayer, sempre atrás); Bairros/UC/Ambiental/Risco Geo reusam
+// os toggles que já existiam antes (só passam a ficar visualmente junto na
+// mesma fileira de
 // abas, em vez de checkbox à parte).
 function toggleAbaMapa(aba, btn){
   if(!MAPA_READY) return;
@@ -1734,6 +1814,8 @@ function toggleAbaMapa(aba, btn){
     toggleUC(ligado);
   } else if(aba==="ambiental"){
     toggleAmbiental(ligado);
+  } else if(aba==="risco_geo"){
+    toggleRiscoGeo(ligado);
   }
   // "Risco" removido da UI a pedido -- lógica comentada (municipios-fill/
   // line + atualizarChoropleth), reativar junto com o botão #mt_calor.
