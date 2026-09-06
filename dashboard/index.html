@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Empresas · Grande Vitória — Dashboard</title>
-<meta name="description" content="Dataset público com 344 mil empresas ativas da Grande Vitória (ES) — Vitória, Vila Velha, Serra, Cariacica, Viana, Guarapari e Fundão. Cruza dados cadastrais (Receita Federal), sócios, sanções administrativas, dívida ativa, processos judiciais, infrações ambientais, vínculos políticos e contratos públicos. Busca com filtros, mapa interativo, API REST e servidor MCP pra prospecção de clientes.">
+<meta name="description" content="Dataset público com 351 mil empresas ativas da Grande Vitória (ES) — Vitória, Vila Velha, Serra, Cariacica, Viana, Guarapari e Fundão. Cruza dados cadastrais (Receita Federal), sócios, sanções administrativas, dívida ativa, processos judiciais, infrações ambientais, vínculos políticos e contratos públicos. Busca com filtros, mapa interativo, API REST e servidor MCP pra prospecção de clientes.">
 <meta name="keywords" content="empresas Grande Vitória, CNPJ Espírito Santo, prospecção de clientes, dataset empresas, sanções administrativas, dívida ativa, processos judiciais, API empresas, MCP, Vitória, Vila Velha, Serra, Cariacica, Guarapari">
 <meta name="author" content="Bruno Kobi">
 <meta name="robots" content="index, follow">
@@ -13,14 +13,14 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Empresas · Grande Vitória">
 <meta property="og:title" content="Empresas · Grande Vitória — Dashboard">
-<meta property="og:description" content="344 mil empresas ativas da Grande Vitória (ES) com sanções, dívida ativa, processos judiciais, infrações ambientais e vínculos políticos cruzados. Busca, mapa, API e MCP pra prospecção.">
+<meta property="og:description" content="351 mil empresas ativas da Grande Vitória (ES) com sanções, dívida ativa, processos judiciais, infrações ambientais e vínculos políticos cruzados. Busca, mapa, API e MCP pra prospecção.">
 <meta property="og:url" content="https://empresas.brunokobi.duckdns.org/">
 <meta property="og:image" content="https://empresas.brunokobi.duckdns.org/og-image.png">
 <meta property="og:locale" content="pt_BR">
 <!-- Twitter/X Card -->
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Empresas · Grande Vitória — Dashboard">
-<meta name="twitter:description" content="344 mil empresas ativas da Grande Vitória (ES) com sanções, dívida ativa, processos judiciais, infrações ambientais e vínculos políticos cruzados.">
+<meta name="twitter:description" content="351 mil empresas ativas da Grande Vitória (ES) com sanções, dívida ativa, processos judiciais, infrações ambientais e vínculos políticos cruzados.">
 <meta name="twitter:image" content="https://empresas.brunokobi.duckdns.org/og-image.png">
 <!-- Dataset estruturado (schema.org) -- é o que alimenta o Google Dataset Search -->
 <script type="application/ld+json">
@@ -28,7 +28,7 @@
   "@context": "https://schema.org",
   "@type": "Dataset",
   "name": "Empresas Ativas da Grande Vitória (ES)",
-  "description": "Dataset consolidado de 344 mil empresas ativas da Grande Vitória (ES) — cruza dados cadastrais (Receita Federal), sócios (JUCEES), sanções administrativas (CEIS/CNEP/CEPIM/TCEES), dívida ativa (PGFN), infrações ambientais (IBAMA), processos judiciais (DJEN/CNJ), vínculos políticos e doações eleitorais (TSE) e contratos públicos (Portal da Transparência/PNCP).",
+  "description": "Dataset consolidado de 351 mil empresas ativas da Grande Vitória (ES) — cruza dados cadastrais (Receita Federal), sócios (JUCEES), sanções administrativas (CEIS/CNEP/CEPIM/TCEES), dívida ativa (PGFN), infrações ambientais (IBAMA), processos judiciais (DJEN/CNJ), vínculos políticos e doações eleitorais (TSE) e contratos públicos (Portal da Transparência/PNCP).",
   "url": "https://empresas.brunokobi.duckdns.org/",
   "sameAs": "https://github.com/brunokobi/projeto_grande_vitoria_empresas",
   "creator": {"@type": "Person", "name": "Bruno Kobi"},
@@ -1543,7 +1543,7 @@ function initMapa(){
     // aqui + o botão #mt_calor no HTML + os trechos marcados em
     // toggleAbaMapa()/carregarMapa() + a função atualizarChoropleth() abaixo.
     // // "Risco" = choropleth por município (% de empresas com pendência),
-    // // não heatmap por ponto — com 344 mil pontos um heatmap satura e vira
+    // // não heatmap por ponto — com 351 mil pontos um heatmap satura e vira
     // // só uma mancha sólida cobrindo a região inteira, sem diferenciar nada.
     // // Fronteiras de reference/municipios_grande_vitoria.geojson (7 formas,
     // // não milhares de pontos — não tem esse problema).
