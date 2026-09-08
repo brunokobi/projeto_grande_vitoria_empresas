@@ -170,6 +170,18 @@
   .overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:50;display:none;
     align-items:flex-start;justify-content:center;padding:30px 16px;overflow-y:auto}
   .overlay.open{display:flex}
+  /* diálogo de confirmação customizado (substitui o confirm() nativo do navegador) */
+  .confirm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:70;
+    display:flex;align-items:center;justify-content:center;padding:16px;
+    opacity:0;transition:opacity .15s}
+  .confirm-overlay.open{opacity:1}
+  .confirm-card{background:var(--panel);border:1px solid var(--green-dim);border-radius:14px;
+    max-width:420px;width:100%;box-shadow:0 0 40px rgba(0,255,136,.15);padding:22px 24px;
+    transform:translateY(8px) scale(.98);transition:transform .15s}
+  .confirm-overlay.open .confirm-card{transform:translateY(0) scale(1)}
+  .confirm-card h3{margin:0 0 10px;color:#fff;font-size:16px;display:flex;align-items:center;gap:8px}
+  .confirm-card p{margin:0 0 18px;color:var(--text);font-size:13.5px;line-height:1.6}
+  .confirm-card .row{display:flex;gap:10px;justify-content:flex-end}
   .modal{background:var(--panel);border:1px solid var(--green-dim);border-radius:14px;
     max-width:960px;width:100%;box-shadow:0 0 40px rgba(0,255,136,.15);overflow:hidden}
   .modal .top{padding:20px 24px;border-bottom:1px solid var(--line);
@@ -768,13 +780,52 @@ async function verificarDossieCache(cnpj){
     _renderDossieArea(area, d.html, d.gerado_em, true);
   }catch(_){ /* sem dossiê salvo — deixa o botão padrão de gerar */ }
 }
+// Diálogo de confirmação próprio (estilo do dashboard) — substitui o confirm()
+// nativo do navegador, que aparece com o chrome padrão do SO/browser (feio,
+// fora do tema). Promise<boolean>: true = confirmou, false = cancelou/fechou.
+function confirmarDialog(titulo, mensagem, textoOk){
+  return new Promise(resolve=>{
+    const ov = document.createElement("div");
+    ov.className = "confirm-overlay";
+    ov.innerHTML = `
+      <div class="confirm-card" role="alertdialog" aria-modal="true">
+        <h3>${titulo}</h3>
+        <p>${mensagem}</p>
+        <div class="row">
+          <button class="btn ghost" data-act="cancelar">Cancelar</button>
+          <button class="btn" data-act="ok">${textoOk||"OK"}</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+    requestAnimationFrame(()=>ov.classList.add("open"));
+    function terminar(resultado){
+      ov.classList.remove("open");
+      setTimeout(()=>ov.remove(), 150);
+      document.removeEventListener("keydown", aoTeclar);
+      resolve(resultado);
+    }
+    function aoTeclar(ev){
+      if(ev.key === "Escape") terminar(false);
+      if(ev.key === "Enter") terminar(true);
+    }
+    document.addEventListener("keydown", aoTeclar);
+    ov.addEventListener("click", ev=>{ if(ev.target===ov) terminar(false); });
+    ov.querySelector('[data-act="cancelar"]').onclick = ()=>terminar(false);
+    ov.querySelector('[data-act="ok"]').onclick = ()=>terminar(true);
+  });
+}
 async function gerarDossieIA(btn, forcar){
   const area = document.getElementById("dossie_ia_area");
   const cnpj = area.dataset.cnpj;
   const msg = forcar
-    ? "Regerar o dossiê de due diligence com IA?\n\nSubstitui o dossiê salvo por um novo. Consulta grafo societário + score preditivo + parecer redigido por IA. Pode levar até 1 minuto."
-    : "Gerar dossiê de due diligence com IA?\n\nConsulta grafo societário + score preditivo + parecer redigido por IA. Pode levar até 1 minuto — evite clicar mais de uma vez.";
-  if(!confirm(msg)) return;
+    ? "Substitui o dossiê salvo por um novo. Consulta grafo societário, score preditivo e redige um parecer via IA. Pode levar até 1 minuto."
+    : "Consulta grafo societário, score preditivo e redige um parecer via IA. Pode levar até 1 minuto — evite clicar mais de uma vez.";
+  const ok = await confirmarDialog(
+    forcar ? "🔄 Regerar dossiê de due diligence?" : "🔍 Gerar dossiê de due diligence?",
+    msg,
+    forcar ? "Regerar" : "Gerar dossiê"
+  );
+  if(!ok) return;
   if(btn) btn.disabled = true;
   area.innerHTML = `<div class="body loading" style="padding:10px 0">${forcar?"regerando":"gerando"} dossiê (~30-90s)...</div>`;
   try{
