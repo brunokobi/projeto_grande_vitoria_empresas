@@ -728,53 +728,67 @@ function copiarLinkEmpresa(cnpj, el){
   setTimeout(()=>{ el.innerHTML = orig; }, 900);
 }
 
-// Vocabulário do Markdown é 100% controlado pelo nosso próprio template
-// (n8n/montar_markdown.js, repo kobi-intelligence-hub) — só # / ## / ### ,
-// **negrito**, listas "- " e citação "> ". Não precisa de biblioteca externa.
-function mdParaHtml(md){
-  const linhas = esc(md).split("\n");
-  let html = "", emLista = false;
-  for(const linha of linhas){
-    if(/^###\s+/.test(linha)){ if(emLista){html+="</ul>";emLista=false;} html += `<h4>${linha.replace(/^###\s+/,"")}</h4>`; continue; }
-    if(/^##\s+/.test(linha)){ if(emLista){html+="</ul>";emLista=false;} html += `<h3>${linha.replace(/^##\s+/,"")}</h3>`; continue; }
-    if(/^#\s+/.test(linha)){ if(emLista){html+="</ul>";emLista=false;} html += `<h2>${linha.replace(/^#\s+/,"")}</h2>`; continue; }
-    if(/^---\s*$/.test(linha)){ if(emLista){html+="</ul>";emLista=false;} html += `<hr style="border-color:var(--line);margin:14px 0">`; continue; }
-    if(/^&gt;\s?/.test(linha)){ if(emLista){html+="</ul>";emLista=false;} html += `<blockquote style="border-left:3px solid var(--green-dim);margin:8px 0;padding:4px 12px;color:var(--muted)">${linha.replace(/^&gt;\s?/,"")}</blockquote>`; continue; }
-    if(/^-\s+/.test(linha)){ if(!emLista){html+="<ul style='margin:6px 0;padding-left:22px'>";emLista=true;} html += `<li>${linha.replace(/^-\s+/,"")}</li>`; continue; }
-    if(emLista){ html += "</ul>"; emLista = false; }
-    if(linha.trim()==="") continue;
-    html += `<p style="margin:6px 0">${linha}</p>`;
-  }
-  if(emLista) html += "</ul>";
-  return html.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
-}
-
-let _ultimoDossieMd = "";
+// O dossiê agora chega como HTML pronto (n8n/montar_html.js, repo
+// kobi-intelligence-hub — CSS já escopado sob ".kobi-doc", não precisa de
+// sanitização extra: fonte é sempre nosso próprio n8n, nunca input externo).
+let _ultimoDossieTexto = "";
 function copiarUltimoDossie(el){
-  navigator.clipboard?.writeText(_ultimoDossieMd);
+  navigator.clipboard?.writeText(_ultimoDossieTexto);
   const orig = el.textContent; el.textContent = "✓ copiado";
   setTimeout(()=>{ el.textContent = orig; }, 1200);
 }
-async function gerarDossieIA(btn){
+function fmtDataHoraISO(iso){
+  if(!iso) return "";
+  const d = new Date(iso);
+  if(isNaN(d)) return iso;
+  return d.toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+}
+function _renderDossieArea(area, html, geradoEm, deCache){
+  _ultimoDossieTexto = "";
+  area.innerHTML = `
+    <div style="font-size:11px;color:var(--muted);margin-bottom:8px">
+      ${deCache?"&#128190; Dossiê salvo":"&#10024; Dossiê gerado agora"} em <b>${esc(fmtDataHoraISO(geradoEm))}</b>
+    </div>
+    <div id="dossie_html_wrap" style="max-height:600px;overflow:auto;border-radius:10px">${html}</div>
+    <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn" onclick="gerarDossieIA(this,true)">&#128260; Regerar dossiê</button>
+      <button class="btn ghost" onclick="copiarUltimoDossie(this)">&#128203; Copiar texto</button>
+    </div>`;
+  _ultimoDossieTexto = document.getElementById("dossie_html_wrap")?.innerText || "";
+}
+async function verificarDossieCache(cnpj){
+  const area = document.getElementById("dossie_ia_area");
+  if(!area || area.dataset.cnpj !== cnpj) return; // modal já trocou de empresa
+  try{
+    const resp = await fetch(`https://n8n-brunokobi.duckdns.org/webhook/kobi-dossie-cache?cnpj=${encodeURIComponent(cnpj)}`);
+    if(!resp.ok) return; // sem dossiê salvo ainda ou erro — mantém o botão padrão de gerar
+    const d = await resp.json();
+    if(!d.cache || !d.html) return;
+    if(area.dataset.cnpj !== cnpj) return; // usuário já trocou de empresa enquanto isso rodava
+    _renderDossieArea(area, d.html, d.gerado_em, true);
+  }catch(_){ /* sem dossiê salvo — deixa o botão padrão de gerar */ }
+}
+async function gerarDossieIA(btn, forcar){
   const area = document.getElementById("dossie_ia_area");
   const cnpj = area.dataset.cnpj;
-  if(!confirm("Gerar dossiê de due diligence com IA?\n\nConsulta grafo societário + score preditivo + parecer redigido por IA. Pode levar até 1 minuto — evite clicar mais de uma vez.")) return;
-  btn.disabled = true;
-  area.innerHTML = `<div class="body loading" style="padding:10px 0">gerando dossiê (~30-90s)...</div>`;
+  const msg = forcar
+    ? "Regerar o dossiê de due diligence com IA?\n\nSubstitui o dossiê salvo por um novo. Consulta grafo societário + score preditivo + parecer redigido por IA. Pode levar até 1 minuto."
+    : "Gerar dossiê de due diligence com IA?\n\nConsulta grafo societário + score preditivo + parecer redigido por IA. Pode levar até 1 minuto — evite clicar mais de uma vez.";
+  if(!confirm(msg)) return;
+  if(btn) btn.disabled = true;
+  area.innerHTML = `<div class="body loading" style="padding:10px 0">${forcar?"regerando":"gerando"} dossiê (~30-90s)...</div>`;
   try{
     const resp = await fetch("https://n8n-brunokobi.duckdns.org/webhook/kobi-dossie", {
       method: "POST", headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({cnpj})
+      body: JSON.stringify({cnpj, forcar: !!forcar})
     });
     if(!resp.ok) throw new Error("HTTP "+resp.status);
     const d = await resp.json();
-    _ultimoDossieMd = d.markdown || "";
-    area.innerHTML = `
-      <div style="border:1px solid var(--green-dim);border-radius:10px;padding:14px 16px;max-height:480px;overflow:auto">${mdParaHtml(_ultimoDossieMd||"(sem conteúdo)")}</div>
-      <button class="btn ghost" style="margin-top:8px" onclick="copiarUltimoDossie(this)">📋 Copiar Markdown</button>`;
+    if(!d.html) throw new Error("resposta sem conteúdo");
+    _renderDossieArea(area, d.html, d.gerado_em, !!d.cache);
   }catch(err){
     area.innerHTML = `<div style="color:#ff6b6b">Falhou ao gerar o dossiê (${esc(err.message)}). Tente de novo em instantes.</div>
-      <button class="btn" onclick="gerarDossieIA(this)" style="margin-top:8px">&#128269; Tentar de novo</button>`;
+      <button class="btn" onclick="gerarDossieIA(this,${!!forcar})" style="margin-top:8px">&#128269; Tentar de novo</button>`;
   }
 }
 
@@ -1379,6 +1393,7 @@ async function abrir(cnpj, viaPopstate){
       <span class="iconbtn" id="btn_copiar_geo" style="display:none;margin-left:8px;vertical-align:middle" title="Copiar coordenadas (lat, lng)" onclick="copiarGeo(this)">&#9678;</span>
     </div>`;
   initMapaModal(d.geolocalizacao, e);
+  verificarDossieCache(e.cnpj); // se já existe dossiê salvo pra essa empresa, troca o botão pelo dossiê + data + regerar
 }
 function fechar(viaPopstate){
   $("overlay").classList.remove("open");
