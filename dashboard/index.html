@@ -728,6 +728,56 @@ function copiarLinkEmpresa(cnpj, el){
   setTimeout(()=>{ el.innerHTML = orig; }, 900);
 }
 
+// Vocabulário do Markdown é 100% controlado pelo nosso próprio template
+// (n8n/montar_markdown.js, repo kobi-intelligence-hub) — só # / ## / ### ,
+// **negrito**, listas "- " e citação "> ". Não precisa de biblioteca externa.
+function mdParaHtml(md){
+  const linhas = esc(md).split("\n");
+  let html = "", emLista = false;
+  for(const linha of linhas){
+    if(/^###\s+/.test(linha)){ if(emLista){html+="</ul>";emLista=false;} html += `<h4>${linha.replace(/^###\s+/,"")}</h4>`; continue; }
+    if(/^##\s+/.test(linha)){ if(emLista){html+="</ul>";emLista=false;} html += `<h3>${linha.replace(/^##\s+/,"")}</h3>`; continue; }
+    if(/^#\s+/.test(linha)){ if(emLista){html+="</ul>";emLista=false;} html += `<h2>${linha.replace(/^#\s+/,"")}</h2>`; continue; }
+    if(/^---\s*$/.test(linha)){ if(emLista){html+="</ul>";emLista=false;} html += `<hr style="border-color:var(--line);margin:14px 0">`; continue; }
+    if(/^&gt;\s?/.test(linha)){ if(emLista){html+="</ul>";emLista=false;} html += `<blockquote style="border-left:3px solid var(--green-dim);margin:8px 0;padding:4px 12px;color:var(--muted)">${linha.replace(/^&gt;\s?/,"")}</blockquote>`; continue; }
+    if(/^-\s+/.test(linha)){ if(!emLista){html+="<ul style='margin:6px 0;padding-left:22px'>";emLista=true;} html += `<li>${linha.replace(/^-\s+/,"")}</li>`; continue; }
+    if(emLista){ html += "</ul>"; emLista = false; }
+    if(linha.trim()==="") continue;
+    html += `<p style="margin:6px 0">${linha}</p>`;
+  }
+  if(emLista) html += "</ul>";
+  return html.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
+}
+
+let _ultimoDossieMd = "";
+function copiarUltimoDossie(el){
+  navigator.clipboard?.writeText(_ultimoDossieMd);
+  const orig = el.textContent; el.textContent = "✓ copiado";
+  setTimeout(()=>{ el.textContent = orig; }, 1200);
+}
+async function gerarDossieIA(btn){
+  const area = document.getElementById("dossie_ia_area");
+  const cnpj = area.dataset.cnpj;
+  if(!confirm("Gerar dossiê de due diligence com IA?\n\nConsulta grafo societário + score preditivo + parecer redigido por IA. Pode levar até 1 minuto — evite clicar mais de uma vez.")) return;
+  btn.disabled = true;
+  area.innerHTML = `<div class="body loading" style="padding:10px 0">gerando dossiê (~30-90s)...</div>`;
+  try{
+    const resp = await fetch("https://n8n-brunokobi.duckdns.org/webhook/kobi-dossie", {
+      method: "POST", headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({cnpj})
+    });
+    if(!resp.ok) throw new Error("HTTP "+resp.status);
+    const d = await resp.json();
+    _ultimoDossieMd = d.markdown || "";
+    area.innerHTML = `
+      <div style="border:1px solid var(--green-dim);border-radius:10px;padding:14px 16px;max-height:480px;overflow:auto">${mdParaHtml(_ultimoDossieMd||"(sem conteúdo)")}</div>
+      <button class="btn ghost" style="margin-top:8px" onclick="copiarUltimoDossie(this)">📋 Copiar Markdown</button>`;
+  }catch(err){
+    area.innerHTML = `<div style="color:#ff6b6b">Falhou ao gerar o dossiê (${esc(err.message)}). Tente de novo em instantes.</div>
+      <button class="btn" onclick="gerarDossieIA(this)" style="margin-top:8px">&#128269; Tentar de novo</button>`;
+  }
+}
+
 function fmtData(v){
   if(!v) return "";
   v = String(v).trim(); let m;
@@ -1266,6 +1316,12 @@ async function abrir(cnpj, viaPopstate){
       ${alertBar}
     </div>
     <div class="body">
+      <div class="sec">&#128269; Dossi&ecirc; de Due Diligence (IA)</div>
+      <div id="dossie_ia_area" data-cnpj="${e.cnpj}">
+        <button class="btn" onclick="gerarDossieIA(this)">&#128269; Gerar dossi&ecirc; com IA (score preditivo + parecer)</button>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px">Consulta grafo societ&aacute;rio, score preditivo (modelo de pesquisa) e redige um parecer via IA. Demora ~30-90s.</div>
+      </div>
+
       <div class="sec">&#128231; Contato &amp; redes</div>
       <div class="contatos">${contatos.length?contatos.join(""):'<span style="color:var(--muted)">Sem contato/redes capturados. Rode a etapa <code>contato</code>.</span>'}</div>
 
