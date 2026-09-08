@@ -222,6 +222,37 @@ Botão **"Gerar dossiê com IA"** no modal de qualquer empresa do dashboard — 
 
 Como a geração usa um modelo de linguagem rodando em CPU compartilhado, o botão pede confirmação antes de rodar (evita gerar carga à toa clicando sem querer). Mantido no repositório irmão **`kobi-intelligence-hub`** (privado).
 
+### 🧠 Por trás do grafo: pesquisa acadêmica de verdade, não só um recurso de produto
+
+A "rede societária" e o score preditivo do dossiê não são um enfeite — vêm de um
+**projeto de pesquisa de mestrado dedicado** (`experimento2026`, repositório privado),
+que usa este mesmo dataset pra investigar uma pergunta concreta: **uma empresa
+conectada a uma empresa já sancionada — via sócio em comum, mesmo endereço, ou
+vínculo político do sócio — tem risco maior de também estar envolvida em
+irregularidade**, mesmo quando isso não aparece nos dados tabulares comuns (CNAE,
+porte, capital social)? E, se sim, **qual tipo de conexão carrega mais sinal**?
+
+Pra responder isso, o trabalho constrói uma **Rede Heterogênea de Informação (HIN)**
+com as **351 mil empresas** deste dataset (nós de empresa, sócio, endereço, município
+e vínculo político) e compara, com rigor estatístico real, **3 famílias de modelo**:
+
+- **Tabular** (XGBoost, com features de grafo explícitas — grau de sócio/endereço em comum)
+- **GNN homogênea** (grafo colapsado, via PyTorch Geometric)
+- **HAN/HGT** (grafo heterogêneo "de verdade", tratando cada tipo de conexão à parte)
+
+Validado com **CV estratificada repetida (30 folds) + teste de Wilcoxon**, não só uma
+rodada — e reportado **sem maquiagem**, inclusive quando o resultado contraria a
+hipótese inicial da tese (o modelo "mais sofisticado", HAN/HGT, acabou **perdendo**
+estatisticamente pro homogêneo em várias rodadas). É esse tipo de honestidade
+metodológica — comparar contra o *último* resultado, não o mais favorável, e publicar
+o achado negativo do mesmo jeito que o positivo — que dá lastro real ao score que
+aparece no dossiê.
+
+**Preprint publicado em acesso aberto (Zenodo, CC BY 4.0, DOI permanente)**:
+[10.5281/zenodo.21961063](https://doi.org/10.5281/zenodo.21961063) — indexado também
+via [OpenAIRE](https://explore.openaire.eu/search/result?pid=10.5281/zenodo.21961063)
+e no [Currículo Lattes/CNPq](http://lattes.cnpq.br/3842437456265629) do autor.
+
 ---
 
 ## 💛 Apoie o projeto
