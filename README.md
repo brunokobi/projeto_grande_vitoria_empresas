@@ -35,9 +35,9 @@
 
 | | |
 |---|---|
-| 🖥️ **Dashboard** | **[empresas.brunokobi.duckdns.org](https://empresas.brunokobi.duckdns.org)** |
-| 🔌 **API REST** | [empresas.brunokobi.duckdns.org/docs](https://empresas.brunokobi.duckdns.org/docs) |
-| 🤖 **MCP** (Claude, Cursor, Windsurf, VS Code, Cline...) | `https://empresas.brunokobi.duckdns.org/mcp/` — instruções por cliente em **[MCP.md](MCP.md)** |
+| 🖥️ **Dashboard** | **[empresas.brunokobi.tech](https://empresas.brunokobi.tech)** (ou [empresas.brunokobi.duckdns.org](https://empresas.brunokobi.duckdns.org), mesmo serviço) |
+| 🔌 **API REST** | [empresas.brunokobi.tech/docs](https://empresas.brunokobi.tech/docs) |
+| 🤖 **MCP** (Claude, Cursor, Windsurf, VS Code, Cline...) | `https://empresas.brunokobi.tech/mcp/` — instruções por cliente em **[MCP.md](MCP.md)** |
 
 ---
 
@@ -93,7 +93,7 @@ Em desenvolvimento ativo. Estado atual:
 
 | Componente | Status |
 |---|---|
-| Cadastro (Receita) · **Sócios** · JUCEES | ✅ pronto (**351.824 empresas ativas** em produção — snapshot 05/09/2026, cresceu de 344k após a Receita atualizar o universo via cron mensal na VPS) |
+| Cadastro (Receita) · **Sócios** · JUCEES | ✅ pronto (**351.824 empresas ativas** em produção — snapshot 08/09/2026, cresceu de 344k após a Receita atualizar o universo via cron mensal na VPS) |
 | Dívida ativa **PGFN** (detalhada) | ✅ pronto |
 | Sanções federais **CEIS/CNEP** + estaduais **TCEES** | ✅ pronto |
 | Infrações **IBAMA** (detalhadas) | ✅ pronto |
@@ -101,7 +101,8 @@ Em desenvolvimento ativo. Estado atual:
 | **Lista Suja do trabalho escravo** (MTE) | ✅ pronto |
 | **Mapa interativo** (MapLibre) + **satélite** na visão 360º | ✅ pronto |
 | Geocodificação (coordenadas de todas as empresas) | ✅ **100% concluído em produção** (351.824/351.824 — conferido ao vivo em 05/09/2026) |
-| Processos judiciais (**DJEN/CNJ**, por nome da parte) | ✅ **3,12 milhões de processos publicados em produção**, **148.870 empresas** com algum processo encontrado (qualquer polo) — a consulta roda numa máquina local (ver nota), **99,0% do universo atual já consultado** (348.264/351.824 — quase concluído; a base local vai sendo publicada em produção conforme avança) |
+| Processos judiciais (**DJEN/CNJ**, por nome da parte) | ✅ **3,51 milhões de processos publicados em produção**, **109.762 empresas** com algum processo encontrado (qualquer polo) — a consulta roda numa máquina local (ver nota), **99,99% do universo atual já consultado** (351.804/351.824 — praticamente concluído; conferido ao vivo em 08/09/2026) |
+| **🔍 Dossiê de Due Diligence via IA** (score preditivo + grafo societário + parecer redigido) | ✅ **novo** — botão no modal da empresa gera um relatório completo em Markdown (score de risco de um modelo estatístico treinado sobre o dataset, rede de sócios em comum via grafo Neo4j, e um parecer técnico redigido por LLM em cima só dos dados factuais) — ver seção própria abaixo |
 | Contato & redes sociais (WhatsApp, site, Instagram…) | 🧪 implementado |
 | Dashboard · API · MCP · export Excel/PDF | ✅ funcionais |
 | **Classificação de leads** (via API/MCP) | ✅ funciona — 🚧 removida temporariamente da UI do dashboard |
@@ -139,6 +140,7 @@ Em desenvolvimento ativo. Estado atual:
 | 🗺️ **Mapa interativo** | Mapa geral da Grande Vitória com todos os pontos (clique → empresa) e **satélite** na visão 360º; filtros recortam o mapa |
 | 🧭 **Enriquecimento** | Geolocalização e contato/redes sociais |
 | 🎯 **Classificação de leads** | Questionário por objetivo comercial → score 0–100 (🔥 Quente / 🙂 Morno / ❄️ Frio) |
+| 🔍 **Dossiê de Due Diligence via IA** | Botão no modal da empresa → relatório em Markdown com score preditivo, rede societária (grafo) e parecer técnico redigido por IA — ver seção abaixo |
 | 🔌 **Acesso** | Dashboard web, API REST, servidor MCP (Claude), export Excel e PDF |
 
 ---
@@ -200,11 +202,25 @@ Lógica de consulta compartilhada (`src/dataset_queries.py`) entre dashboard, AP
 O dashboard tem meta description/keywords, `robots.txt`+`sitemap.xml`, Open Graph/Twitter Card (preview de link) e um bloco **JSON-LD schema.org/Dataset** — esse último é o que alimenta o [Google Dataset Search](https://datasetsearch.research.google.com/). Nada disso muda o layout: são só tags no `<head>` do `dashboard/index.html` e 3 rotas novas na API.
 
 ### Servidor MCP
-Ferramentas `estatisticas`, `buscar_empresas`, `buscar_empresas_perto` (busca por raio — aceita coordenada ou um **endereço em texto livre**, geocodificado automaticamente), `obter_empresa`, `classificar_empresas`, `ranking_doacoes_eleitorais` para o Claude e outros clientes MCP. Duas formas de conectar: **remoto**, direto em `https://empresas.brunokobi.duckdns.org/mcp/` (sem instalar nada); ou **local**, via `.mcp.json` (detectado automaticamente pelo Claude Code após o `setup.sh`).
+Ferramentas `estatisticas`, `buscar_empresas`, `buscar_empresas_perto` (busca por raio — aceita coordenada ou um **endereço em texto livre**, geocodificado automaticamente), `obter_empresa`, `classificar_empresas`, `ranking_doacoes_eleitorais` para o Claude e outros clientes MCP. Duas formas de conectar: **remoto**, direto em `https://empresas.brunokobi.tech/mcp/` (sem instalar nada); ou **local**, via `.mcp.json` (detectado automaticamente pelo Claude Code após o `setup.sh`).
 
 `obter_empresa` já devolve um `resumo` agregado (mesma lógica dos cards do dashboard) com quantidade **e** valor total em R$ de cada categoria — processos, sanções, infrações ambientais, dívida ativa, contratos públicos, renúncia fiscal e contratos PNCP — além do **link direto pro Jusbrasil** em cada processo (`url_jusbrasil`). É dado suficiente pra pedir ao Claude (ou outro cliente MCP) **"me dá um parecer completo dessa empresa"** e receber uma análise em cima de tudo isso, sem precisar cruzar nada manualmente.
 
 📘 **Tutorial completo de conexão** (Claude Desktop, Claude Code, Cursor, Windsurf, VS Code/Copilot, Cline): **[MCP.md](MCP.md)**.
+
+---
+
+## 🔍 Dossiê de Due Diligence via IA
+
+Botão **"Gerar dossiê com IA"** no modal de qualquer empresa do dashboard — gera, em ~30-90s, um relatório de due diligence em Markdown combinando 3 fontes:
+
+| Fonte | O que traz |
+|---|---|
+| **Score de risco preditivo** | Modelo estatístico (XGBoost) treinado sobre o próprio dataset — vem **sempre** com uma nota metodológica explícita (é sinal de priorização pra investigação manual, não veredito nem substituto de due diligence de verdade) |
+| **Rede societária (grafo)** | Sócio em comum entre empresas, e endereço compartilhado — via banco de grafos (Neo4j), separando automaticamente prédios/condomínios comerciais grandes (ruído) de conexões societárias reais |
+| **Parecer técnico** | Redigido por LLM (Ollama), mas **só em cima dos dados factuais já buscados** (cadastro, sanções, dívida ativa — distinguindo dívida própria de responsabilidade solidária/corresponsável, processos, infrações ambientais) — o LLM nunca inventa número nem fato, só interpreta o que já foi consultado |
+
+Como a geração usa um modelo de linguagem rodando em CPU compartilhado, o botão pede confirmação antes de rodar (evita gerar carga à toa clicando sem querer). Mantido no repositório irmão **`kobi-intelligence-hub`** (privado).
 
 ---
 
