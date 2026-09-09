@@ -283,6 +283,17 @@
   @media(max-width:400px){
     .kv{grid-template-columns:1fr}
   }
+  /* Dossiê de Due Diligence (IA): minimizar/maximizar recolhe o conteúdo,
+     mantendo cabeçalho+botões visíveis; impressão isola só o conteúdo do
+     dossiê (esconde o resto da página sem alterar o layout dela). */
+  #dossie_html_wrap.dossie-minimizado{max-height:0!important;overflow:hidden!important;
+    padding-top:0!important;padding-bottom:0!important;border:none!important;margin:0!important}
+  @media print{
+    body *{visibility:hidden}
+    #dossie_html_wrap,#dossie_html_wrap *{visibility:visible}
+    #dossie_html_wrap{position:absolute;left:0;top:0;width:100%;
+      max-height:none!important;overflow:visible!important}
+  }
 </style>
 </head>
 <body>
@@ -755,16 +766,29 @@ function fmtDataHoraISO(iso){
   if(isNaN(d)) return iso;
   return d.toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
 }
+function alternarDossieMinimizado(btn){
+  const wrap = document.getElementById("dossie_html_wrap");
+  if(!wrap) return;
+  const minimizado = wrap.classList.toggle("dossie-minimizado");
+  btn.innerHTML = minimizado ? "&#128465; Maximizar" : "&#128469; Minimizar";
+}
+function imprimirDossie(){
+  // @media print (CSS) isola só #dossie_html_wrap na hora de imprimir --
+  // não precisa manipular o DOM, window.print() já usa a folha de estilo.
+  window.print();
+}
 function _renderDossieArea(area, html, geradoEm, deCache){
   _ultimoDossieTexto = "";
   area.innerHTML = `
-    <div style="font-size:11px;color:var(--muted);margin-bottom:8px">
-      ${deCache?"&#128190; Dossiê salvo":"&#10024; Dossiê gerado agora"} em <b>${esc(fmtDataHoraISO(geradoEm))}</b>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:8px">
+      <span>${deCache?"&#128190; Dossiê salvo":"&#10024; Dossiê gerado agora"} em <b>${esc(fmtDataHoraISO(geradoEm))}</b></span>
+      <button class="btn ghost" style="padding:4px 10px;font-size:11px" onclick="alternarDossieMinimizado(this)">&#128469; Minimizar</button>
     </div>
-    <div id="dossie_html_wrap" style="max-height:600px;overflow:auto;border-radius:10px">${html}</div>
+    <div id="dossie_html_wrap" style="max-height:600px;overflow:auto;border-radius:10px;transition:max-height .2s ease">${html}</div>
     <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn" onclick="gerarDossieIA(this,true)">&#128260; Regerar dossiê</button>
       <button class="btn ghost" onclick="copiarUltimoDossie(this)">&#128203; Copiar texto</button>
+      <button class="btn ghost" onclick="imprimirDossie()">&#128424;&#65039; Imprimir / PDF</button>
     </div>`;
   _ultimoDossieTexto = document.getElementById("dossie_html_wrap")?.innerText || "";
 }
