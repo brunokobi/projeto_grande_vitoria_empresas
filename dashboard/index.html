@@ -764,6 +764,8 @@ function alternarDossieMinimizado(btn){
   const wrap = document.getElementById("dossie_html_wrap");
   if(!wrap) return;
   const minimizado = wrap.classList.toggle("dossie-minimizado");
+  const botoes = document.getElementById("dossie_botoes");
+  if(botoes) botoes.hidden = minimizado;
   btn.innerHTML = minimizado ? "&#128465; Maximizar" : "&#128469; Minimizar";
 }
 function imprimirDossie(){
@@ -799,7 +801,7 @@ function _renderDossieArea(area, html, geradoEm, deCache){
       <button class="btn ghost" style="padding:4px 10px;font-size:11px" onclick="alternarDossieMinimizado(this)">&#128469; Minimizar</button>
     </div>
     <div id="dossie_html_wrap" style="max-height:600px;overflow:auto;border-radius:10px;transition:max-height .2s ease">${html}</div>
-    <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+    <div id="dossie_botoes" style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn" onclick="gerarDossieIA(this,true)">&#128260; Regerar dossiê</button>
       <button class="btn ghost" onclick="copiarUltimoDossie(this)">&#128203; Copiar texto</button>
       <button class="btn ghost" onclick="imprimirDossie()">&#128424;&#65039; Imprimir / PDF</button>
