@@ -291,7 +291,17 @@
   @media print{
     body *{visibility:hidden}
     #dossie_html_wrap,#dossie_html_wrap *{visibility:visible}
-    #dossie_html_wrap{position:absolute;left:0;top:0;width:100%;
+    /* .overlay é position:fixed (fica por cima da tela) -- um ancestral com
+       posição fixa faz o navegador REPETIR o conteúdo em toda página impressa
+       (a mesma página 5x em vez do dossiê inteiro). Precisa neutralizar isso
+       -- e o overflow:hidden do .modal, que também cortaria o conteúdo -- pra
+       o dossiê paginar normalmente no PDF/impressão. */
+    .overlay{position:static!important;inset:auto!important;background:none!important;
+      padding:0!important;display:block!important}
+    .modal{position:static!important;max-width:none!important;width:100%!important;
+      overflow:visible!important;box-shadow:none!important;border:none!important;margin:0!important}
+    .modal .body{overflow:visible!important;max-height:none!important;padding:0!important}
+    #dossie_html_wrap{position:static!important;width:100%;
       max-height:none!important;overflow:visible!important}
   }
 </style>
