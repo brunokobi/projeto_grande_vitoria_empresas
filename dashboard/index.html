@@ -765,7 +765,10 @@ function alternarDossieMinimizado(btn){
   if(!wrap) return;
   const minimizado = wrap.classList.toggle("dossie-minimizado");
   const botoes = document.getElementById("dossie_botoes");
-  if(botoes) botoes.hidden = minimizado;
+  // .hidden não funciona aqui: o próprio elemento já tem style="display:flex"
+  // fixo no HTML, que tem prioridade maior que a regra padrão fraca do
+  // atributo [hidden] -- precisa sobrescrever o display direto.
+  if(botoes) botoes.style.display = minimizado ? "none" : "flex";
   btn.innerHTML = minimizado ? "&#128465; Maximizar" : "&#128469; Minimizar";
 }
 function imprimirDossie(){
