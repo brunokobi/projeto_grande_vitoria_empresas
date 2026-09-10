@@ -738,6 +738,21 @@ def buscar_empresas(municipio=None, cnae=None, cnae_prefix=None, porte=None,
     return {"total": total, "limite": limite, "offset": offset, "itens": itens}
 
 
+# Cache em memória de /mapa, por combinação de filtros+limite — invalidado
+# sozinho quando o arquivo do banco muda (refresh_dataset.py troca o arquivo
+# a cada 2h via os.replace atômico; comparamos a mtime, não um TTL chutado).
+# Existe porque a carga inicial do dashboard sempre pede TODOS os pontos sem
+# filtro (~350 mil linhas) — sem cache, cada usuário paga de novo os ~11s/
+# 43MB dessa mesma consulta idêntica. Tamanho limitado (LRU simples) pra não
+# crescer sem limite com combinações de filtro raras/one-off.
+_MAPA_CACHE = {}
+_MAPA_CACHE_MAX = 30
+
+
+def _mapa_cache_key(limite, filtros):
+    return json.dumps({"limite": limite, **filtros}, sort_keys=True, default=str)
+
+
 def pontos_mapa(limite=20000, **filtros):
     """Empresas geocodificadas (lat/long) que batem nos filtros — para o mapa
     do dashboard. Retorna {'total', 'limite', 'pontos':[{cnpj,nome,lat,lng,
@@ -745,6 +760,22 @@ def pontos_mapa(limite=20000, **filtros):
     mostra até `limite`). Só traz os campos que o mapa realmente desenha —
     payload menor, resposta mais rápida no filtro."""
     filtros.pop("ordenar_por", None)
+    try:
+        db_mtime = config.DB_PATH.stat().st_mtime
+    except OSError:
+        db_mtime = None
+    chave = _mapa_cache_key(limite, filtros)
+    cacheado = _MAPA_CACHE.get(chave)
+    if cacheado and cacheado[0] == db_mtime:
+        return cacheado[1]
+    resultado = _pontos_mapa_sem_cache(limite, filtros)
+    if len(_MAPA_CACHE) >= _MAPA_CACHE_MAX:
+        _MAPA_CACHE.pop(next(iter(_MAPA_CACHE)))  # descarta a entrada mais antiga
+    _MAPA_CACHE[chave] = (db_mtime, resultado)
+    return resultado
+
+
+def _pontos_mapa_sem_cache(limite, filtros):
     limite = max(1, min(int(limite), 400000))
     with _conn() as conn:
         tem_contato = _tabela_existe(conn, "enriquecimento_contato")
