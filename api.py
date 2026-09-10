@@ -212,9 +212,27 @@ def indice_api():
     }
 
 
+# Mesmo padrão de cache do /mapa: estatisticas() roda ~18 queries de
+# COUNT(DISTINCT cnpj_empresa), uma por tabela satélite (algumas com
+# milhões de linhas, ex. processos_judiciais) -- ~1-3s medidos, sempre o
+# mesmo resultado até o dataset mudar (a cada 2h). Sem parâmetro nenhum,
+# então a chave do cache é só a mtime do banco.
+_ESTATISTICAS_CACHE = {}
+
+
 @app.get("/estatisticas", summary="Panorama geral do dataset")
 def get_estatisticas():
-    return dataset_queries.estatisticas()
+    try:
+        db_mtime = config.DB_PATH.stat().st_mtime
+    except OSError:
+        db_mtime = None
+    cacheado = _ESTATISTICAS_CACHE.get("v")
+    if cacheado and cacheado[0] == db_mtime:
+        return Response(content=cacheado[1], media_type="application/json")
+    resultado = dataset_queries.estatisticas()
+    corpo = json.dumps(resultado, ensure_ascii=False).encode("utf-8")
+    _ESTATISTICAS_CACHE["v"] = (db_mtime, corpo)
+    return Response(content=corpo, media_type="application/json")
 
 
 @app.get("/segmentos", summary="Segmentos (divisões CNAE) com contagem")
