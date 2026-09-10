@@ -1089,6 +1089,7 @@ function renderProcessos(arr, filtrado){
         ${kv("Situação", esc(x.status))}
         ${kv("Última movimentação", fmtData(x.data_ultima_movimentacao))}
         ${kv("Vínculo", x.nome_socio_vinculado?`Processo pessoal do sócio ${esc(x.nome_socio_vinculado)}, não da empresa diretamente`:"")}
+        ${x.nome_socio_vinculado?`<div style="grid-column:1/-1;color:var(--amber);font-size:12px">&#9888;&#65039; Correspondência feita só pelo nome do sócio (a fonte pública não expõe o CPF completo) — pode haver erro em caso de homônimos ou de duas pessoas com o CPF mascarado idêntico.</div>`:""}
         ${x.url_jusbrasil?`<a class="maplink" href="${esc(x.url_jusbrasil)}" target="_blank" rel="noopener noreferrer">Ver Processo &#8599;</a>`:""}
       </div>
     </details>`;
