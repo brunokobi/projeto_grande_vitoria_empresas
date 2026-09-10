@@ -11,6 +11,7 @@ Docs da API: http://localhost:8000/docs
 """
 import contextlib
 import io
+import json
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, Request, Depends
 from fastapi.responses import FileResponse, StreamingResponse, JSONResponse, Response
@@ -348,12 +349,36 @@ def get_empresas(
     return dataset_queries.buscar_empresas(limite=limite, offset=offset, **filtros)
 
 
+# Cache do JSON já serializado do /mapa -- o dataset_queries.pontos_mapa() já
+# cacheia o dict em si (evita a query de ~350 mil linhas de novo), mas o
+# FastAPI ainda reserializava esse dict (jsonable_encoder + json.dumps) EM
+# TODA chamada mesmo com o dict cacheado -- ~0,7-2s medidos só nisso pra
+# 150-350 mil pontos. Cacheando os bytes já prontos, a segunda chamada em
+# diante não paga nem a query nem a reserialização, só a leitura do dict.
+_MAPA_JSON_CACHE = {}
+_MAPA_JSON_CACHE_MAX = 30
+
+
 @app.get("/mapa", summary="Pontos geocodificados (lat/long) para o mapa, com os mesmos filtros")
 def get_mapa(
     filtros: dict = Depends(filtros_comuns),
     limite: int = Query(20000, ge=1, le=400000),
 ):
-    return dataset_queries.pontos_mapa(limite=limite, **filtros)
+    try:
+        db_mtime = config.DB_PATH.stat().st_mtime
+    except OSError:
+        db_mtime = None
+    chave = json.dumps({"limite": limite, **filtros}, sort_keys=True, default=str)
+    cacheado = _MAPA_JSON_CACHE.get(chave)
+    if cacheado and cacheado[0] == db_mtime:
+        corpo = cacheado[1]
+    else:
+        resultado = dataset_queries.pontos_mapa(limite=limite, **filtros)
+        corpo = json.dumps(resultado, ensure_ascii=False).encode("utf-8")
+        if len(_MAPA_JSON_CACHE) >= _MAPA_JSON_CACHE_MAX:
+            _MAPA_JSON_CACHE.pop(next(iter(_MAPA_JSON_CACHE)))
+        _MAPA_JSON_CACHE[chave] = (db_mtime, corpo)
+    return Response(content=corpo, media_type="application/json")
 
 
 @app.get("/empresas/perto", summary="Empresas geocodificadas num raio (km) de um ponto — combine com /geocode pra buscar perto de um endereço")
