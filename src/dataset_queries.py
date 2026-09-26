@@ -1482,6 +1482,14 @@ _RE_CANDIDATO_CAMPANHA = re.compile(
     r"pra campanha de (.+?) \((.+?)\) em (.+?)/([A-Z]{2})"
 )
 
+# Achado real (26/09/2026): pelo menos 1 candidato (Prefeito de Vitória,
+# 2024) vem com NM_CANDIDATO = CPF completo na fonte do próprio TSE (bug
+# da fonte, não nosso -- só 1 caso em toda a base até agora). Sem nome de
+# verdade não dá pra mostrar no ranking de candidatos -- ainda assim o
+# vínculo da EMPRESA continua contando normalmente, só não vira uma linha
+# de candidato com um CPF no lugar do nome.
+_RE_NOME_MASCARADO_CPF = re.compile(r"^\d{3}\.\d{3}\.\d{3}-\d{2}$")
+
 # Fontes TSE que representam algum tipo de APOIO FINANCEIRO a uma campanha
 # (dinheiro ou produto/serviço) -- exclui TSE_CANDIDATURA (não é dinheiro,
 # é o sócio sendo o próprio candidato) e PEP (não vem do TSE).
@@ -1584,33 +1592,37 @@ def ranking_doacoes_eleitorais(limite: int = 20, ano: str | None = "2026") -> di
             # TSE (ex.: "JOSÉ RENATO CASAGRANDE" vs "JOSE RENATO
             # CASAGRANDE"). Mantém a primeira grafia "bonita" vista (com
             # acento) pra exibir.
-            chave_cand = ((_sem_acento(candidato), _sem_acento(cargo), _sem_acento(municipio), uf, r["ano"])
-                          if ano else (_sem_acento(candidato),))
-            agg_c = candidatos.setdefault(
-                chave_cand, {"qtd": 0, "valor": 0.0, "candidato": candidato, "cargo": cargo,
-                             "municipio": municipio, "uf": uf, "sq_candidato": r["sq_candidato"],
-                             "ano": r["ano"], "fontes": set(), "candidaturas": {}})
-            agg_c["qtd"] += 1
-            agg_c["valor"] += valor
-            agg_c["fontes"].add(r["fonte"])
-            # No "Todos os anos", os dados de EXIBIÇÃO (cargo, município,
-            # sq_candidato -> foto/redes/bens) vêm sempre da candidatura mais
-            # RECENTE já vista pra essa pessoa -- o valor somado é histórico,
-            # mas a foto/perfil mostrado é sempre o mais atual disponível.
-            if not ano and r["ano"] and (not agg_c["ano"] or r["ano"] > agg_c["ano"]):
-                agg_c.update(cargo=cargo, municipio=municipio, uf=uf,
-                             sq_candidato=r["sq_candidato"], ano=r["ano"])
-            elif ano and not agg_c["sq_candidato"] and r["sq_candidato"]:
-                agg_c["sq_candidato"] = r["sq_candidato"]
-            # Cada candidatura distinta (cargo+ano) que compõe essa linha --
-            # transparência de onde vem o total somado (mostrado no front
-            # quando há mais de uma, pra não parecer que tudo veio de uma
-            # campanha só).
-            info_candidatura = agg_c["candidaturas"].setdefault(
-                (cargo, r["ano"]), {"cargo": cargo, "ano": r["ano"], "qtd": 0, "valor": 0.0})
-            info_candidatura["qtd"] += 1
-            info_candidatura["valor"] += valor
+            if not _RE_NOME_MASCARADO_CPF.match(candidato):
+                chave_cand = ((_sem_acento(candidato), _sem_acento(cargo), _sem_acento(municipio), uf, r["ano"])
+                              if ano else (_sem_acento(candidato),))
+                agg_c = candidatos.setdefault(
+                    chave_cand, {"qtd": 0, "valor": 0.0, "candidato": candidato, "cargo": cargo,
+                                 "municipio": municipio, "uf": uf, "sq_candidato": r["sq_candidato"],
+                                 "ano": r["ano"], "fontes": set(), "candidaturas": {}})
+                agg_c["qtd"] += 1
+                agg_c["valor"] += valor
+                agg_c["fontes"].add(r["fonte"])
+                # No "Todos os anos", os dados de EXIBIÇÃO (cargo, município,
+                # sq_candidato -> foto/redes/bens) vêm sempre da candidatura
+                # mais RECENTE já vista pra essa pessoa -- o valor somado é
+                # histórico, mas a foto/perfil mostrado é sempre o mais atual.
+                if not ano and r["ano"] and (not agg_c["ano"] or r["ano"] > agg_c["ano"]):
+                    agg_c.update(cargo=cargo, municipio=municipio, uf=uf,
+                                 sq_candidato=r["sq_candidato"], ano=r["ano"])
+                elif ano and not agg_c["sq_candidato"] and r["sq_candidato"]:
+                    agg_c["sq_candidato"] = r["sq_candidato"]
+                # Cada candidatura distinta (cargo+ano) que compõe essa linha
+                # -- transparência de onde vem o total somado (mostrado no
+                # front quando há mais de uma, pra não parecer que tudo veio
+                # de uma campanha só).
+                info_candidatura = agg_c["candidaturas"].setdefault(
+                    (cargo, r["ano"]), {"cargo": cargo, "ano": r["ano"], "qtd": 0, "valor": 0.0})
+                info_candidatura["qtd"] += 1
+                info_candidatura["valor"] += valor
 
+            # A EMPRESA continua contando o vínculo mesmo quando o nome do
+            # candidato veio corrompido na fonte (bug do TSE, ver acima) --
+            # só a linha de candidato não é criada nesse caso.
             cnpj = r["cnpj_empresa"]
             agg_e = empresas.setdefault(cnpj, {"qtd": 0, "valor": 0.0, "socios": set(), "fontes": set()})
             agg_e["qtd"] += 1

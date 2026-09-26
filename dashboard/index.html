@@ -1601,7 +1601,7 @@ function renderRankingDoacoes(ordem){
       : `<span style="display:inline-flex;width:28px;height:28px;border-radius:50%;background:var(--bg2);align-items:center;justify-content:center;vertical-align:middle;margin-right:8px;font-size:13px">👤</span>`;
     return `<details class="divida">
       <summary>#${i+1} ${fotoMini}<b>${esc(c.candidato)}</b>
-        <span style="color:var(--muted)">${esc(c.cargo)} · ${esc(c.municipio)}/${esc(c.uf)}</span>
+        <span style="color:var(--muted)">${esc(c.cargo)} · ${esc(c.municipio)}/${esc(c.uf)} · ${esc(c.ano)}</span>
         <b>${fmtBRL(c.valor_total)}</b>
         <span style="color:var(--muted)">(${c.qtd_doacoes.toLocaleString('pt-BR')})</span></summary>
       <div class="divida-det">
