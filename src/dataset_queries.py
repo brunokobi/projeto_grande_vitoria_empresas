@@ -49,10 +49,19 @@ def cnae_desc(codigo):
     return _CNAE.get(str(codigo or "").strip())
 
 
-# Valor da doação eleitoral não é coluna estruturada em vinculos_politicos
-# (fonte=TSE_DOACAO) — só vem embutido no texto livre de `detalhe`, tipo
-# "Doou R$ 8.500,00 pra campanha de MARIA NUNES LEAL (Vereador) em ...".
-_RE_VALOR_DOACAO = re.compile(r"Doou R\$ ([\d.,]+) pra campanha")
+# Valor de vínculo eleitoral (doação, doador originário ou fornecedor de
+# campanha) não é coluna estruturada em vinculos_politicos — só vem embutido
+# no texto livre de `detalhe`, tipo "Doou R$ 8.500,00 pra campanha de ...",
+# "Empresa é a fonte original de R$ X doados pra campanha de ...", ou
+# "Forneceu produto/serviço (R$ X, N despesa(s)) pra campanha de ..."
+# (fontes TSE_DOACAO / TSE_DOADOR_ORIGINARIO / TSE_FORNECEDOR_CAMPANHA,
+# ver grande_vitoria_empresas_extracao/src/tse_ingest.py) — regex genérica
+# (primeiro "R$ <número>" no texto) cobre as três frases. Exige 2 casas
+# decimais (\d{2}) pra não "vazar" pro próximo número quando o texto segue
+# com mais coisa depois de uma vírgula (ex.: "R$ 136.492,50, 40 despesa(s))"
+# -- sem essa borda, [\d.,]+ ganancioso capturava a vírgula seguinte junto
+# e o float() quebrava, devolvendo None).
+_RE_VALOR_DOACAO = re.compile(r"R\$ ([\d.]+,\d{2})")
 
 
 def valor_doacao(detalhe) -> float | None:
@@ -140,6 +149,49 @@ def _tabela_existe(conn, nome: str) -> bool:
 
 def _coluna_existe(conn, tabela: str, coluna: str) -> bool:
     return any(r[1] == coluna for r in conn.execute(f"PRAGMA table_info({tabela})"))
+
+
+def _anexar_perfil_candidato(conn, vinculos: list[dict]) -> None:
+    """Enriquece cada linha de vinculos_politicos que tenha `sq_candidato`
+    com o perfil rico do TSE (foto, redes sociais, bens declarados, dados
+    pessoais) -- ver grande_vitoria_empresas_extracao/src/tse_ingest.py
+    (26/09/2026). Modifica `vinculos` in-place, adicionando a chave
+    `perfil_candidato` (None quando não há sq_candidato ou o perfil ainda
+    não foi importado -- ex.: vínculo PEP, que não vem do TSE)."""
+    for v in vinculos:
+        v["perfil_candidato"] = None
+    if not _tabela_existe(conn, "candidatos_perfil"):
+        return
+    chaves = {(v["sq_candidato"], v["ano"]) for v in vinculos if v.get("sq_candidato") and v.get("ano")}
+    if not chaves:
+        return
+    perfis = {}
+    for sq, ano in chaves:
+        row = conn.execute(
+            "SELECT nome_candidato, nome_urna, cargo, partido, municipio, situacao, genero, "
+            "raca_cor, grau_instrucao, estado_civil, idade, naturalidade, ocupacao, tem_foto, "
+            "redes_sociais, valor_total_bens FROM candidatos_perfil WHERE sq_candidato = ? AND ano = ?",
+            (sq, ano)
+        ).fetchone()
+        if row is None:
+            continue
+        perfil = dict(row)
+        try:
+            perfil["redes_sociais"] = json.loads(perfil["redes_sociais"]) if perfil["redes_sociais"] else []
+        except (TypeError, ValueError):
+            perfil["redes_sociais"] = []
+        perfil["foto_url"] = f"/candidatos/{ano}/{sq}/foto.jpg" if perfil["tem_foto"] else None
+        if _tabela_existe(conn, "candidatos_bens"):
+            perfil["bens"] = [dict(r) for r in conn.execute(
+                "SELECT tipo_bem, descricao, valor FROM candidatos_bens "
+                "WHERE sq_candidato = ? AND ano = ? ORDER BY valor DESC", (sq, ano)
+            )]
+        else:
+            perfil["bens"] = []
+        perfis[(sq, ano)] = perfil
+    for v in vinculos:
+        chave = (v.get("sq_candidato"), v.get("ano"))
+        v["perfil_candidato"] = perfis.get(chave)
 
 
 def _fts_query(texto: str) -> str:
@@ -1235,7 +1287,7 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
         vinculos_resumo = []
         if _tabela_existe(conn, "vinculos_politicos"):
             sql_vinc = ("SELECT nome_socio_vinculado, fonte, cargo_ou_funcao, orgao_ou_partido, "
-                        "ano, situacao, detalhe FROM vinculos_politicos WHERE cnpj_empresa = ?")
+                        "ano, situacao, detalhe, sq_candidato FROM vinculos_politicos WHERE cnpj_empresa = ?")
             params_vinc = [cnpj]
             fontes = _lista_valores(vinculo_fonte)
             if fontes:
@@ -1246,6 +1298,7 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
             vinculos_politicos = [dict(r) for r in conn.execute(sql_vinc, params_vinc)]
             for v in vinculos_politicos:
                 v["valor_doacao"] = valor_doacao(v.get("detalhe"))
+            _anexar_perfil_candidato(conn, vinculos_politicos)
             if vinculo_fonte:
                 # Resumo sempre com o total real, sem o filtro de exibição acima
                 # (senão o valor de doações somado abaixo ficaria mascarado

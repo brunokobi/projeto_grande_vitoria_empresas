@@ -7,6 +7,7 @@ set -e
 cd "$(dirname "$0")"
 
 RELEASE_URL="https://github.com/brunokobi/projeto_grande_vitoria_empresas/releases/download/dataset-latest/grande_vitoria.db.gz"
+FOTOS_URL="https://github.com/brunokobi/projeto_grande_vitoria_empresas/releases/download/dataset-latest/fotos_candidatos.tar.gz"
 
 # uv (https://docs.astral.sh/uv/) gerencia o próprio Python (3.12, isolado do
 # sistema) — não depende da versão de "python3" já instalada nem de pacotes do
@@ -58,6 +59,19 @@ else
     curl -L --fail -o data/grande_vitoria.db.gz "$RELEASE_URL"
     gunzip -f data/grande_vitoria.db.gz
     echo "    data/grande_vitoria.db pronto."
+fi
+
+echo "==> Baixando fotos de candidatos (GitHub Release)"
+if [ -d data/fotos_candidatos ] && [ -n "$(ls -A data/fotos_candidatos 2>/dev/null)" ]; then
+    echo "    data/fotos_candidatos/ já existe, mantido."
+else
+    if curl -L --fail -o /tmp/fotos_candidatos.tar.gz "$FOTOS_URL"; then
+        tar -xzf /tmp/fotos_candidatos.tar.gz -C data/
+        rm -f /tmp/fotos_candidatos.tar.gz
+        echo "    data/fotos_candidatos/ pronto."
+    else
+        echo "    aviso: não achou o asset de fotos no Release (ok se o dataset ainda não tem candidatos vinculados) — seguindo sem fotos."
+    fi
 fi
 
 echo ""

@@ -1179,7 +1179,53 @@ function renderBeneficios(arr, filtrado){
   const nota = filtrado ? ` <span style="font-size:11px;color:var(--muted);font-weight:normal;text-transform:none;letter-spacing:0">— filtrado pelo tipo da busca atual</span>` : "";
   return `<div class="sec">💰 Benefícios e renúncias fiscais (${arr.length})${nota}</div>${cards}`;
 }
-const _FONTE_VINCULO = {PEP:"🏅 PEP", TSE_CANDIDATURA:"🗳️ Candidatura", TSE_DOACAO:"💰 Doação eleitoral"};
+const _FONTE_VINCULO = {PEP:"🏅 PEP", TSE_CANDIDATURA:"🗳️ Candidatura", TSE_DOACAO:"💰 Doação eleitoral",
+  TSE_DOADOR_ORIGINARIO:"💰 Fonte original de doação", TSE_FORNECEDOR_CAMPANHA:"📦 Fornecedor de campanha"};
+// Ícone por rede social (heurística simples via domínio da URL) — cai pra
+// 🔗 genérico se não reconhecer.
+function _iconeRedeSocial(url){
+  const u = url.toLowerCase();
+  if(u.includes("instagram")) return "📷";
+  if(u.includes("facebook")) return "📘";
+  if(u.includes("twitter.com")||u.includes("x.com")) return "🐦";
+  if(u.includes("tiktok")) return "🎵";
+  if(u.includes("youtube")) return "📺";
+  if(u.includes("linkedin")) return "💼";
+  if(u.includes("threads")) return "🧵";
+  return "🔗";
+}
+// Perfil rico do candidato (TSE) — foto, redes sociais, bens declarados,
+// dados pessoais. Só renderiza o que veio (todo campo é opcional: perfil
+// pode não ter sido importado ainda, ou o vínculo pode ser PEP, sem TSE).
+function renderPerfilCandidato(p){
+  if(!p) return "";
+  const redes = (p.redes_sociais||[]).map(u=>
+    `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer" style="margin-right:8px">${_iconeRedeSocial(u)} ${esc(u.replace(/^https?:\/\/(www\.)?/i,'').slice(0,40))}</a>`
+  ).join("");
+  const dadosPessoais = [
+    p.idade?`${p.idade} anos`:"", esc(p.genero||""), esc(p.raca_cor||""),
+    esc(p.estado_civil||""), esc(p.grau_instrucao||""),
+    p.ocupacao?`Ocupação: ${esc(p.ocupacao)}`:"", p.naturalidade?`Natural de ${esc(p.naturalidade)}`:"",
+  ].filter(Boolean).join(" · ");
+  const bens = (p.bens||[]);
+  const bensHtml = bens.length ? `<div style="margin-top:8px">
+      <span class="k">Bens declarados (${bens.length}) — total ${fmtBRL(p.valor_total_bens||0)}</span>
+      <div style="display:flex;flex-direction:column;gap:4px;margin-top:4px">
+        ${bens.slice(0,8).map(b=>`<div style="font-size:12px;color:var(--text)">${esc(b.tipo_bem||"")}: ${esc(b.descricao||"")} — <b>${fmtBRL(b.valor)}</b></div>`).join("")}
+        ${bens.length>8?`<div style="font-size:11px;color:var(--muted)">+ ${bens.length-8} bem(ns) adicional(is)</div>`:""}
+      </div>
+    </div>` : "";
+  return `<div style="grid-column:1/-1;display:flex;gap:12px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line)">
+      ${p.foto_url?`<img src="${esc(p.foto_url)}" alt="Foto de ${esc(p.nome_urna||p.nome_candidato||'')}" style="width:70px;height:98px;object-fit:cover;border-radius:6px;border:1px solid var(--line);flex-shrink:0" loading="lazy">`:""}
+      <div style="flex:1;min-width:0">
+        <div><b>${esc(p.nome_urna||p.nome_candidato||"")}</b> ${p.cargo?`<span style="color:var(--muted)">— ${esc(p.cargo)}</span>`:""}</div>
+        ${p.partido?`<div style="font-size:12px;color:var(--muted)">${esc(p.partido)}${p.municipio?` · ${esc(p.municipio)}`:""}</div>`:""}
+        ${dadosPessoais?`<div style="font-size:12px;color:var(--text);margin-top:4px">${dadosPessoais}</div>`:""}
+        ${redes?`<div style="font-size:12px;margin-top:6px">${redes}</div>`:""}
+        ${bensHtml}
+      </div>
+    </div>`;
+}
 function renderVinculos(arr, filtrado){
   if(!arr||!arr.length){
     return filtrado
@@ -1197,10 +1243,11 @@ function renderVinculos(arr, filtrado){
         ${kv("Sócio", esc(x.nome_socio_vinculado))}
         ${kv("Cargo/função", esc(x.cargo_ou_funcao))}
         ${kv("Órgão/partido", esc(x.orgao_ou_partido))}
-        ${kv("Valor doado", x.valor_doacao?fmtBRL(x.valor_doacao):"")}
+        ${kv("Valor", x.valor_doacao?fmtBRL(x.valor_doacao):"")}
         ${kv("Ano", esc(x.ano))}
         ${kv("Situação", esc(x.situacao))}
         ${kv("Detalhe", esc(x.detalhe))}
+        ${renderPerfilCandidato(x.perfil_candidato)}
       </div>
     </details>`;
   }).join("");

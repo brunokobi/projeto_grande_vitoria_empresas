@@ -18,6 +18,13 @@ DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 CHECKPOINT_DIR = BASE_DIR / "data" / "checkpoints"
 CHECKPOINT_DIR.mkdir(parents=True, exist_ok=True)
 
+# Fotos oficiais de candidatos (TSE, divulgação candidatura) -- publicadas
+# junto do dataset como asset separado (fotos_candidatos.tar.gz), baixadas
+# pelo setup.sh igual o .db.gz. Layout: {ano}/{sq_candidato}.jpg -- ver
+# grande_vitoria_empresas_extracao/src/tse_ingest.py:processar_fotos.
+FOTOS_CANDIDATOS_DIR = BASE_DIR / "data" / "fotos_candidatos"
+FOTOS_CANDIDATOS_DIR.mkdir(parents=True, exist_ok=True)
+
 # Notificação de visita no dashboard via Telegram (opcional — se algum dos
 # dois faltar, src/notificar_telegram.py simplesmente não envia nada).
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN") or None

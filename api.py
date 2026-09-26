@@ -191,6 +191,20 @@ def og_image():
     return JSONResponse({"erro": "imagem não encontrada"}, status_code=404)
 
 
+@app.get("/candidatos/{ano}/{sq_candidato}/foto.jpg", include_in_schema=False)
+def foto_candidato(ano: str, sq_candidato: str):
+    """Foto oficial de divulgação de candidatura (TSE) -- referenciada em
+    perfil_candidato.foto_url (ver dataset_queries._anexar_perfil_candidato).
+    `ano`/`sq_candidato` só dígitos (evita path traversal via URL)."""
+    if not (ano.isdigit() and sq_candidato.isdigit()):
+        raise HTTPException(status_code=404, detail="não encontrada")
+    caminho = config.FOTOS_CANDIDATOS_DIR / ano / f"{sq_candidato}.jpg"
+    if not caminho.exists():
+        raise HTTPException(status_code=404, detail="foto não encontrada")
+    return FileResponse(caminho, media_type="image/jpeg",
+                         headers={"Cache-Control": "public, max-age=604800"})
+
+
 @app.get("/api", summary="Índice da API")
 def indice_api():
     return {
