@@ -213,7 +213,7 @@ def indice_api():
             "GET /segmentos": "Segmentos (divisões CNAE) com contagem",
             "GET /processos/classes": "Classes de processo judicial mais frequentes",
             "GET /sancoes/orgaos": "Órgãos sancionadores mais frequentes",
-            "GET /vinculos/ranking-doacoes": "Ranking de doações eleitorais (candidatos e empresas)",
+            "GET /vinculos/ranking-doacoes": "Ranking de apoio financeiro eleitoral 2026 (candidatos e empresas) — ?ano= pra outro ciclo",
             "GET /municipios/risco": "Total e % de pendência por município (choropleth do mapa)",
             "GET /empresas": "Busca com filtros",
             "GET /empresas/perto": "Busca num raio (km) de um ponto (lat/lon)",
@@ -264,9 +264,10 @@ def get_orgaos_sancionadores(limite: int = Query(100, ge=1, le=169)):
     return dataset_queries.orgaos_sancionadores(limite=limite)
 
 
-@app.get("/vinculos/ranking-doacoes", summary="Ranking de doações eleitorais (TSE) — candidatos e empresas")
-def get_ranking_doacoes(limite: int = Query(20, ge=1, le=200)):
-    return dataset_queries.ranking_doacoes_eleitorais(limite=limite)
+@app.get("/vinculos/ranking-doacoes", summary="Ranking de apoio financeiro eleitoral (TSE) — candidatos e empresas")
+def get_ranking_doacoes(limite: int = Query(20, ge=1, le=200),
+                        ano: str | None = Query("2026", description="Ano da eleição (None/vazio combina todos os anos disponíveis)")):
+    return dataset_queries.ranking_doacoes_eleitorais(limite=limite, ano=ano or None)
 
 
 @app.get("/municipios/geojson", summary="Fronteiras dos 7 municípios da Grande Vitória (GeoJSON)", include_in_schema=False)

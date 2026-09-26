@@ -1488,7 +1488,7 @@ _RE_CANDIDATO_CAMPANHA = re.compile(
 _FONTES_APOIO_FINANCEIRO = ("TSE_DOACAO", "TSE_DOADOR_ORIGINARIO", "TSE_FORNECEDOR_CAMPANHA")
 
 
-def ranking_doacoes_eleitorais(limite: int = 20) -> dict:
+def ranking_doacoes_eleitorais(limite: int = 20, ano: str | None = "2026") -> dict:
     """Ranking de apoio financeiro eleitoral (TSE, via vinculos_politicos)
     — quais CANDIDATOS mais receberam e quais EMPRESAS mais apoiaram, por
     nº de vínculos e por valor total. Cobre os 3 tipos de vínculo que têm
@@ -1498,6 +1498,16 @@ def ranking_doacoes_eleitorais(limite: int = 20) -> dict:
     esse último é hoje o maior grupo (~1.284 vínculos no ES/2026, contra
     ~950 de doação por sócio).
 
+    `ano` filtra pra uma eleição específica (padrão "2026", a atual) —
+    None combina todos os anos disponíveis. Por quê o padrão não é "todos":
+    um político de carreira (ex.: já foi candidato a Governador em anos
+    anteriores) acumula MUITO mais doações históricas que qualquer
+    candidato do ciclo atual, então sem esse filtro a candidatura atual
+    dele ficava "escondida" atrás da agregação de anos antigos (achado
+    real, 26/09/2026: JOSÉ RENATO CASAGRANDE tinha 18 vínculos reais como
+    candidato a Senador em 2026, mas só aparecia no ranking combinado como
+    "Governador" com 907 doações de ciclos passados).
+
     O valor/candidato/cargo/município não são colunas estruturadas na
     fonte — só existe o texto livre em `detalhe`, parseado aqui (valor via
     `valor_doacao()`, resto via `_RE_CANDIDATO_CAMPANHA` — ver os dois pra
@@ -1505,7 +1515,7 @@ def ranking_doacoes_eleitorais(limite: int = 20) -> dict:
 
     Cada candidato do ranking vem enriquecido com `perfil_candidato` (foto,
     redes sociais, bens declarados — ver `_buscar_perfis_candidatos`),
-    quando o perfil já foi importado.
+    quando o perfil já foi importado (só existe pra 2026 até agora).
 
     Atenção: o vínculo de doação por sócio é por SÓCIO, não por empresa —
     se a mesma pessoa é sócia de várias empresas, a doação aparece em
@@ -1518,11 +1528,13 @@ def ranking_doacoes_eleitorais(limite: int = 20) -> dict:
             return {"candidatos_por_quantidade": [], "candidatos_por_valor": [],
                      "empresas_por_quantidade": [], "empresas_por_valor": []}
         ph = ",".join("?" for _ in _FONTES_APOIO_FINANCEIRO)
-        rows = conn.execute(
-            f"SELECT cnpj_empresa, nome_socio_vinculado, detalhe, fonte, sq_candidato, ano "
-            f"FROM vinculos_politicos WHERE fonte IN ({ph})",
-            _FONTES_APOIO_FINANCEIRO
-        ).fetchall()
+        sql = (f"SELECT cnpj_empresa, nome_socio_vinculado, detalhe, fonte, sq_candidato, ano "
+               f"FROM vinculos_politicos WHERE fonte IN ({ph})")
+        params = list(_FONTES_APOIO_FINANCEIRO)
+        if ano:
+            sql += " AND ano = ?"
+            params.append(ano)
+        rows = conn.execute(sql, params).fetchall()
         razoes = {}
         cnpjs = list({r["cnpj_empresa"] for r in rows})
         for i in range(0, len(cnpjs), 900):  # SQLite limita ~999 params por IN
@@ -1540,12 +1552,14 @@ def ranking_doacoes_eleitorais(limite: int = 20) -> dict:
                 continue
             candidato, cargo, municipio, uf = m.groups()
 
-            # Agrupa por nome/cargo/município normalizados (sem acento) — o
-            # mesmo candidato pode vir com/sem acento em anos diferentes do
-            # TSE (ex.: "JOSÉ RENATO CASAGRANDE" vs "JOSE RENATO CASAGRANDE"),
-            # o que duplicava a entrada no ranking. Mantém a primeira grafia
-            # "bonita" vista (com acento) pra exibir.
-            chave_cand = (_sem_acento(candidato), _sem_acento(cargo), _sem_acento(municipio), uf)
+            # Agrupa por nome/cargo/município/ANO normalizados (sem acento)
+            # — o mesmo candidato pode vir com/sem acento em anos diferentes
+            # do TSE (ex.: "JOSÉ RENATO CASAGRANDE" vs "JOSE RENATO
+            # CASAGRANDE"), o que duplicava a entrada no ranking. Mantém a
+            # primeira grafia "bonita" vista (com acento) pra exibir. O ANO
+            # entra na chave pra não misturar ciclos eleitorais diferentes
+            # (ver docstring acima) mesmo quando `ano=None` combina tudo.
+            chave_cand = (_sem_acento(candidato), _sem_acento(cargo), _sem_acento(municipio), uf, r["ano"])
             agg_c = candidatos.setdefault(
                 chave_cand, {"qtd": 0, "valor": 0.0, "candidato": candidato, "cargo": cargo,
                              "municipio": municipio, "uf": uf, "sq_candidato": r["sq_candidato"],
@@ -1554,14 +1568,7 @@ def ranking_doacoes_eleitorais(limite: int = 20) -> dict:
             agg_c["valor"] += valor
             agg_c["fontes"].add(r["fonte"])
             if not agg_c["sq_candidato"] and r["sq_candidato"]:
-                # sq_candidato e ano têm que vir da MESMA linha -- o ranking
-                # combina vários anos de eleição, e candidatos_perfil só tem
-                # sq_candidato+ano de 2026 até agora; se ano ficasse "preso"
-                # no valor do primeiro vínculo visto (pode ser de outro ano),
-                # a busca de perfil combinaria um sq_candidato de 2026 com
-                # um ano antigo e nunca bateria em candidatos_perfil.
                 agg_c["sq_candidato"] = r["sq_candidato"]
-                agg_c["ano"] = r["ano"]
 
             cnpj = r["cnpj_empresa"]
             agg_e = empresas.setdefault(cnpj, {"qtd": 0, "valor": 0.0, "socios": set(), "fontes": set()})
@@ -1577,8 +1584,8 @@ def ranking_doacoes_eleitorais(limite: int = 20) -> dict:
 
     lista_candidatos = [
         {"candidato": v["candidato"], "cargo": v["cargo"], "municipio": v["municipio"], "uf": v["uf"],
-         "qtd_doacoes": v["qtd"], "valor_total": round(v["valor"], 2), "fontes": sorted(v["fontes"]),
-         "perfil_candidato": perfis.get((v["sq_candidato"], v["ano"]))}
+         "ano": v["ano"], "qtd_doacoes": v["qtd"], "valor_total": round(v["valor"], 2),
+         "fontes": sorted(v["fontes"]), "perfil_candidato": perfis.get((v["sq_candidato"], v["ano"]))}
         for v in candidatos.values()
     ]
     lista_empresas = [
