@@ -151,20 +151,17 @@ def _coluna_existe(conn, tabela: str, coluna: str) -> bool:
     return any(r[1] == coluna for r in conn.execute(f"PRAGMA table_info({tabela})"))
 
 
-def _anexar_perfil_candidato(conn, vinculos: list[dict]) -> None:
-    """Enriquece cada linha de vinculos_politicos que tenha `sq_candidato`
-    com o perfil rico do TSE (foto, redes sociais, bens declarados, dados
-    pessoais) -- ver grande_vitoria_empresas_extracao/src/tse_ingest.py
-    (26/09/2026). Modifica `vinculos` in-place, adicionando a chave
-    `perfil_candidato` (None quando não há sq_candidato ou o perfil ainda
-    não foi importado -- ex.: vínculo PEP, que não vem do TSE)."""
-    for v in vinculos:
-        v["perfil_candidato"] = None
-    if not _tabela_existe(conn, "candidatos_perfil"):
-        return
-    chaves = {(v["sq_candidato"], v["ano"]) for v in vinculos if v.get("sq_candidato") and v.get("ano")}
-    if not chaves:
-        return
+def _buscar_perfis_candidatos(conn, chaves: set[tuple[str, str]]) -> dict[tuple[str, str], dict]:
+    """Busca em lote o perfil rico do TSE (foto, redes sociais, bens
+    declarados, dados pessoais) pra um conjunto de (sq_candidato, ano) --
+    ver grande_vitoria_empresas_extracao/src/tse_ingest.py (26/09/2026).
+    Retorna só as chaves encontradas (perfil ainda não importado = ausente
+    do dict, não erro). Usado tanto por `_anexar_perfil_candidato` (por
+    vínculo) quanto por `ranking_doacoes_eleitorais` (por candidato do
+    ranking)."""
+    if not chaves or not _tabela_existe(conn, "candidatos_perfil"):
+        return {}
+    tem_bens = _tabela_existe(conn, "candidatos_bens")
     perfis = {}
     for sq, ano in chaves:
         row = conn.execute(
@@ -181,7 +178,7 @@ def _anexar_perfil_candidato(conn, vinculos: list[dict]) -> None:
         except (TypeError, ValueError):
             perfil["redes_sociais"] = []
         perfil["foto_url"] = f"/candidatos/{ano}/{sq}/foto.jpg" if perfil["tem_foto"] else None
-        if _tabela_existe(conn, "candidatos_bens"):
+        if tem_bens:
             perfil["bens"] = [dict(r) for r in conn.execute(
                 "SELECT tipo_bem, descricao, valor FROM candidatos_bens "
                 "WHERE sq_candidato = ? AND ano = ? ORDER BY valor DESC", (sq, ano)
@@ -189,9 +186,18 @@ def _anexar_perfil_candidato(conn, vinculos: list[dict]) -> None:
         else:
             perfil["bens"] = []
         perfis[(sq, ano)] = perfil
+    return perfis
+
+
+def _anexar_perfil_candidato(conn, vinculos: list[dict]) -> None:
+    """Enriquece cada linha de vinculos_politicos que tenha `sq_candidato`
+    com o perfil rico do TSE. Modifica `vinculos` in-place, adicionando a
+    chave `perfil_candidato` (None quando não há sq_candidato ou o perfil
+    ainda não foi importado -- ex.: vínculo PEP, que não vem do TSE)."""
+    chaves = {(v["sq_candidato"], v["ano"]) for v in vinculos if v.get("sq_candidato") and v.get("ano")}
+    perfis = _buscar_perfis_candidatos(conn, chaves)
     for v in vinculos:
-        chave = (v.get("sq_candidato"), v.get("ano"))
-        v["perfil_candidato"] = perfis.get(chave)
+        v["perfil_candidato"] = perfis.get((v.get("sq_candidato"), v.get("ano")))
 
 
 def _fts_query(texto: str) -> str:
@@ -1466,32 +1472,56 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
     }
 
 
-# Doou R$ 8.500,00 pra campanha de MARIA NUNES LEAL (Vereador) em SÃO MATEUS/ES
-_RE_DOACAO_COMPLETA = re.compile(
-    r"Doou R\$ ([\d.,]+) pra campanha de (.+?) \((.+?)\) em (.+?)/([A-Z]{2})"
+# Candidato/cargo/município/UF do beneficiário -- comum às 3 fontes que
+# têm essa cauda no texto de `detalhe` (só muda o prefixo/valor antes):
+#   "Doou R$ X pra campanha de Y (cargo) em cidade/UF"                  (TSE_DOACAO)
+#   "...fonte original de R$ X doados pra campanha de Y (cargo) em .../UF" (TSE_DOADOR_ORIGINARIO)
+#   "Forneceu produto/serviço (R$ X, N despesa(s)) pra campanha de Y (cargo) em .../UF" (TSE_FORNECEDOR_CAMPANHA)
+# O valor em si já é extraído à parte por `valor_doacao()` (cobre as 3).
+_RE_CANDIDATO_CAMPANHA = re.compile(
+    r"pra campanha de (.+?) \((.+?)\) em (.+?)/([A-Z]{2})"
 )
+
+# Fontes TSE que representam algum tipo de APOIO FINANCEIRO a uma campanha
+# (dinheiro ou produto/serviço) -- exclui TSE_CANDIDATURA (não é dinheiro,
+# é o sócio sendo o próprio candidato) e PEP (não vem do TSE).
+_FONTES_APOIO_FINANCEIRO = ("TSE_DOACAO", "TSE_DOADOR_ORIGINARIO", "TSE_FORNECEDOR_CAMPANHA")
 
 
 def ranking_doacoes_eleitorais(limite: int = 20) -> dict:
-    """Ranking de doações eleitorais (TSE, via vinculos_politicos) — quais
-    CANDIDATOS mais receberam e quais EMPRESAS (via sócio doador) mais
-    doaram, por nº de doações e por valor total.
+    """Ranking de apoio financeiro eleitoral (TSE, via vinculos_politicos)
+    — quais CANDIDATOS mais receberam e quais EMPRESAS mais apoiaram, por
+    nº de vínculos e por valor total. Cobre os 3 tipos de vínculo que têm
+    valor em R$ (26/09/2026 em diante, ver _FONTES_APOIO_FINANCEIRO):
+    doação por sócio pessoa física, empresa como fonte original de doação
+    (CNPJ direto) e empresa como fornecedora de campanha (CNPJ direto) --
+    esse último é hoje o maior grupo (~1.284 vínculos no ES/2026, contra
+    ~950 de doação por sócio).
 
     O valor/candidato/cargo/município não são colunas estruturadas na
-    fonte — só existe o texto livre em `detalhe` ("Doou R$ X pra campanha
-    de Y (cargo) em cidade/UF"), parseado aqui pela mesma regex.
+    fonte — só existe o texto livre em `detalhe`, parseado aqui (valor via
+    `valor_doacao()`, resto via `_RE_CANDIDATO_CAMPANHA` — ver os dois pra
+    o formato exato de cada fonte).
 
-    Atenção: o vínculo é por SÓCIO, não por empresa — se a mesma pessoa é
-    sócia de várias empresas, a doação aparece em todas elas (risco de
-    duplicação ao ler "empresas que mais doaram" como doações distintas).
+    Cada candidato do ranking vem enriquecido com `perfil_candidato` (foto,
+    redes sociais, bens declarados — ver `_buscar_perfis_candidatos`),
+    quando o perfil já foi importado.
+
+    Atenção: o vínculo de doação por sócio é por SÓCIO, não por empresa —
+    se a mesma pessoa é sócia de várias empresas, a doação aparece em
+    todas elas (risco de duplicação ao ler "empresas que mais apoiaram"
+    como vínculos distintos). Os dois vínculos por CNPJ direto não têm
+    esse problema.
     """
     with _conn() as conn:
         if not _tabela_existe(conn, "vinculos_politicos"):
             return {"candidatos_por_quantidade": [], "candidatos_por_valor": [],
                      "empresas_por_quantidade": [], "empresas_por_valor": []}
+        ph = ",".join("?" for _ in _FONTES_APOIO_FINANCEIRO)
         rows = conn.execute(
-            "SELECT cnpj_empresa, nome_socio_vinculado, detalhe "
-            "FROM vinculos_politicos WHERE fonte = 'TSE_DOACAO'"
+            f"SELECT cnpj_empresa, nome_socio_vinculado, detalhe, fonte, sq_candidato, ano "
+            f"FROM vinculos_politicos WHERE fonte IN ({ph})",
+            _FONTES_APOIO_FINANCEIRO
         ).fetchall()
         razoes = {}
         cnpjs = list({r["cnpj_empresa"] for r in rows})
@@ -1502,44 +1532,58 @@ def ranking_doacoes_eleitorais(limite: int = 20) -> dict:
                     f"SELECT cnpj, razao_social FROM empresas WHERE cnpj IN ({qs})", lote):
                 razoes[r["cnpj"]] = r["razao_social"]
 
-    candidatos, empresas = {}, {}
-    for r in rows:
-        m = _RE_DOACAO_COMPLETA.search(r["detalhe"] or "")
-        if not m:
-            continue
-        valor_txt, candidato, cargo, municipio, uf = m.groups()
-        try:
-            valor = float(valor_txt.replace(".", "").replace(",", "."))
-        except ValueError:
-            valor = 0.0
+        candidatos, empresas = {}, {}
+        for r in rows:
+            valor = valor_doacao(r["detalhe"]) or 0.0
+            m = _RE_CANDIDATO_CAMPANHA.search(r["detalhe"] or "")
+            if not m:
+                continue
+            candidato, cargo, municipio, uf = m.groups()
 
-        # Agrupa por nome/cargo/município normalizados (sem acento) — o
-        # mesmo candidato pode vir com/sem acento em anos diferentes do TSE
-        # (ex.: "JOSÉ RENATO CASAGRANDE" vs "JOSE RENATO CASAGRANDE"), o que
-        # duplicava a entrada no ranking. Mantém a primeira grafia "bonita"
-        # vista (com acento) pra exibir.
-        chave_cand = (_sem_acento(candidato), _sem_acento(cargo), _sem_acento(municipio), uf)
-        agg_c = candidatos.setdefault(
-            chave_cand, {"qtd": 0, "valor": 0.0, "candidato": candidato,
-                         "cargo": cargo, "municipio": municipio, "uf": uf})
-        agg_c["qtd"] += 1
-        agg_c["valor"] += valor
+            # Agrupa por nome/cargo/município normalizados (sem acento) — o
+            # mesmo candidato pode vir com/sem acento em anos diferentes do
+            # TSE (ex.: "JOSÉ RENATO CASAGRANDE" vs "JOSE RENATO CASAGRANDE"),
+            # o que duplicava a entrada no ranking. Mantém a primeira grafia
+            # "bonita" vista (com acento) pra exibir.
+            chave_cand = (_sem_acento(candidato), _sem_acento(cargo), _sem_acento(municipio), uf)
+            agg_c = candidatos.setdefault(
+                chave_cand, {"qtd": 0, "valor": 0.0, "candidato": candidato, "cargo": cargo,
+                             "municipio": municipio, "uf": uf, "sq_candidato": r["sq_candidato"],
+                             "ano": r["ano"], "fontes": set()})
+            agg_c["qtd"] += 1
+            agg_c["valor"] += valor
+            agg_c["fontes"].add(r["fonte"])
+            if not agg_c["sq_candidato"] and r["sq_candidato"]:
+                # sq_candidato e ano têm que vir da MESMA linha -- o ranking
+                # combina vários anos de eleição, e candidatos_perfil só tem
+                # sq_candidato+ano de 2026 até agora; se ano ficasse "preso"
+                # no valor do primeiro vínculo visto (pode ser de outro ano),
+                # a busca de perfil combinaria um sq_candidato de 2026 com
+                # um ano antigo e nunca bateria em candidatos_perfil.
+                agg_c["sq_candidato"] = r["sq_candidato"]
+                agg_c["ano"] = r["ano"]
 
-        cnpj = r["cnpj_empresa"]
-        agg_e = empresas.setdefault(cnpj, {"qtd": 0, "valor": 0.0, "socios": set()})
-        agg_e["qtd"] += 1
-        agg_e["valor"] += valor
-        if r["nome_socio_vinculado"]:
-            agg_e["socios"].add(r["nome_socio_vinculado"])
+            cnpj = r["cnpj_empresa"]
+            agg_e = empresas.setdefault(cnpj, {"qtd": 0, "valor": 0.0, "socios": set(), "fontes": set()})
+            agg_e["qtd"] += 1
+            agg_e["valor"] += valor
+            agg_e["fontes"].add(r["fonte"])
+            if r["nome_socio_vinculado"]:
+                agg_e["socios"].add(r["nome_socio_vinculado"])
+
+        perfis = _buscar_perfis_candidatos(
+            conn, {(v["sq_candidato"], v["ano"]) for v in candidatos.values() if v["sq_candidato"] and v["ano"]}
+        )
 
     lista_candidatos = [
         {"candidato": v["candidato"], "cargo": v["cargo"], "municipio": v["municipio"], "uf": v["uf"],
-         "qtd_doacoes": v["qtd"], "valor_total": round(v["valor"], 2)}
+         "qtd_doacoes": v["qtd"], "valor_total": round(v["valor"], 2), "fontes": sorted(v["fontes"]),
+         "perfil_candidato": perfis.get((v["sq_candidato"], v["ano"]))}
         for v in candidatos.values()
     ]
     lista_empresas = [
         {"cnpj": cnpj, "razao_social": razoes.get(cnpj), "qtd_doacoes": v["qtd"],
-         "valor_total": round(v["valor"], 2), "socios": sorted(v["socios"])}
+         "valor_total": round(v["valor"], 2), "socios": sorted(v["socios"]), "fontes": sorted(v["fontes"])}
         for cnpj, v in empresas.items()
     ]
 

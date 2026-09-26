@@ -1561,37 +1561,52 @@ function renderRankingDoacoes(ordem){
   const d = _rankingDoacoesCache;
   const cand = ordem==="valor" ? d.candidatos_por_valor : d.candidatos_por_quantidade;
   const emp = ordem==="valor" ? d.empresas_por_valor : d.empresas_por_quantidade;
-  const linhaCand = (c,i)=>`<tr>
-    <td>${i+1}</td><td><b>${esc(c.candidato)}</b></td><td>${esc(c.cargo)}</td>
-    <td>${esc(c.municipio)}/${esc(c.uf)}</td>
-    <td>${c.qtd_doacoes.toLocaleString('pt-BR')}</td><td>${fmtBRL(c.valor_total)}</td>
-  </tr>`;
+  const tagsFontes = (fontes)=>(fontes||[]).map(f=>`<span class="tag default" style="font-size:10px">${esc((_FONTE_VINCULO[f]||f).replace(/^\S+\s/,''))}</span>`).join(" ");
+  // Cada candidato vira um <details> (não <tr>) pra caber o perfil rico
+  // (foto, redes sociais, bens) expandido — mesmo padrão de accordion
+  // usado no resto do site (renderVinculos, renderProcessos etc.).
+  const cardCand = (c,i)=>{
+    const p = c.perfil_candidato;
+    const fotoMini = (p&&p.foto_url)
+      ? `<img src="${esc(p.foto_url)}" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:8px;border:1px solid var(--line)" loading="lazy">`
+      : `<span style="display:inline-flex;width:28px;height:28px;border-radius:50%;background:var(--bg2);align-items:center;justify-content:center;vertical-align:middle;margin-right:8px;font-size:13px">👤</span>`;
+    return `<details class="divida">
+      <summary>#${i+1} ${fotoMini}<b>${esc(c.candidato)}</b>
+        <span style="color:var(--muted)">${esc(c.cargo)} · ${esc(c.municipio)}/${esc(c.uf)}</span>
+        <b>${fmtBRL(c.valor_total)}</b>
+        <span style="color:var(--muted)">(${c.qtd_doacoes.toLocaleString('pt-BR')})</span></summary>
+      <div class="divida-det">
+        <div style="grid-column:1/-1">${tagsFontes(c.fontes)}</div>
+        ${renderPerfilCandidato(p)}
+        ${!p?'<div style="grid-column:1/-1;color:var(--muted);font-size:12px">Perfil do candidato (foto/redes/bens) ainda não disponível pra este vínculo.</div>':''}
+      </div>
+    </details>`;
+  };
   const linhaEmp = (e,i)=>`<tr>
     <td>${i+1}</td>
     <td><b>${esc(e.razao_social||"—")}</b><br><span class="mono" style="color:var(--muted);font-size:11px">${formatarCnpj(e.cnpj)}</span></td>
+    <td style="font-size:11px">${tagsFontes(e.fontes)}</td>
     <td>${e.qtd_doacoes.toLocaleString('pt-BR')}</td><td>${fmtBRL(e.valor_total)}</td>
     <td style="font-size:11px;color:var(--muted)">${(e.socios||[]).map(esc).join(", ")}</td>
   </tr>`;
   $("modal").innerHTML = `
     <div class="top">
       <span class="close" onclick="fechar()">&times;</span>
-      <h2>🗳️ Ranking de doações eleitorais (TSE)</h2>
-      <div class="sub">Top 20 — ${ordem==="valor"?"por valor total":"por nº de doações"}</div>
+      <h2>🗳️ Ranking de apoio financeiro eleitoral (TSE)</h2>
+      <div class="sub">Top 20 — ${ordem==="valor"?"por valor total":"por nº de vínculos"} · doação por sócio, fonte original de doação e fornecedor de campanha</div>
       <div class="badges" style="margin-top:10px">
         <span class="badge pill${ordem!=="valor"?" status-ok":""}" style="cursor:pointer" onclick="renderRankingDoacoes('quantidade')">Por quantidade</span>
         <span class="badge pill${ordem==="valor"?" status-ok":""}" style="cursor:pointer" onclick="renderRankingDoacoes('valor')">Por valor</span>
       </div>
     </div>
     <div class="body">
-      <div class="sec">🏅 Candidatos que mais receberam</div>
+      <div class="sec">🏅 Candidatos que mais receberam apoio</div>
+      <p style="color:var(--muted);font-size:12px;margin:-4px 0 10px">Clique num candidato pra ver foto, redes sociais e bens declarados (quando disponíveis).</p>
+      ${cand.map(cardCand).join("")}
+      <div class="sec" style="margin-top:22px">🏢 Empresas que mais aparecem apoiando</div>
+      <p style="color:var(--muted);font-size:12px;margin:-4px 0 10px">Doação por sócio é por PESSOA, não por empresa — se a mesma pessoa é sócia de várias empresas, aparece em todas elas (não são vínculos distintos). Fornecedor de campanha e fonte original já são pelo CNPJ direto.</p>
       <div style="overflow-x:auto"><table>
-        <thead><tr><th>#</th><th>Candidato</th><th>Cargo</th><th>Município</th><th>Doações</th><th>Valor total</th></tr></thead>
-        <tbody>${cand.map(linhaCand).join("")}</tbody>
-      </table></div>
-      <div class="sec" style="margin-top:22px">🏢 Empresas que mais aparecem doando</div>
-      <p style="color:var(--muted);font-size:12px;margin:-4px 0 10px">O vínculo é por sócio — se a mesma pessoa é sócia de várias empresas, a doação aparece em todas elas (não são doações distintas).</p>
-      <div style="overflow-x:auto"><table>
-        <thead><tr><th>#</th><th>Empresa</th><th>Doações</th><th>Valor total</th><th>Sócio(s) doador(es)</th></tr></thead>
+        <thead><tr><th>#</th><th>Empresa</th><th>Tipo</th><th>Vínculos</th><th>Valor total</th><th>Sócio(s) doador(es)</th></tr></thead>
         <tbody>${emp.map(linhaEmp).join("")}</tbody>
       </table></div>
     </div>`;
