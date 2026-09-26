@@ -1194,6 +1194,20 @@ function _iconeRedeSocial(url){
   if(u.includes("threads")) return "🧵";
   return "🔗";
 }
+// No ranking "Todos os anos", cada pessoa é UMA linha (valor somado de
+// todas as candidaturas dela) — isso só aparece quando há MAIS DE UMA
+// candidatura distinta somada, pra deixar claro que o total é histórico
+// (ex.: 2 vezes candidato a Governador + 1 a Senador), não uma campanha só.
+function renderCandidaturas(candidaturas){
+  if(!candidaturas || candidaturas.length<2) return "";
+  const linhas = candidaturas.map(c=>
+    `<div style="font-size:12px;color:var(--text)">${esc(c.cargo)} (${esc(c.ano)}): ${fmtBRL(c.valor_total)} <span style="color:var(--muted)">(${c.qtd.toLocaleString('pt-BR')})</span></div>`
+  ).join("");
+  return `<div style="grid-column:1/-1;background:var(--bg2);border-radius:8px;padding:8px 10px">
+    <div class="k" style="margin-bottom:4px">Valor somado de ${candidaturas.length} candidaturas</div>
+    ${linhas}
+  </div>`;
+}
 // Perfil rico do candidato (TSE) — foto, redes sociais, bens declarados,
 // dados pessoais. Só renderiza o que veio (todo campo é opcional: perfil
 // pode não ter sido importado ainda, ou o vínculo pode ser PEP, sem TSE).
@@ -1592,6 +1606,7 @@ function renderRankingDoacoes(ordem){
         <span style="color:var(--muted)">(${c.qtd_doacoes.toLocaleString('pt-BR')})</span></summary>
       <div class="divida-det">
         <div style="grid-column:1/-1">${tagsFontes(c.fontes)}</div>
+        ${renderCandidaturas(c.candidaturas)}
         ${renderPerfilCandidato(p)}
         ${!p?'<div style="grid-column:1/-1;color:var(--muted);font-size:12px">Perfil do candidato (foto/redes/bens) ainda não disponível pra este vínculo.</div>':''}
       </div>

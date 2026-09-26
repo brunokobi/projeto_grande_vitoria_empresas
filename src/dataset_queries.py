@@ -1517,6 +1517,16 @@ def ranking_doacoes_eleitorais(limite: int = 20, ano: str | None = "2026") -> di
     redes sociais, bens declarados — ver `_buscar_perfis_candidatos`),
     quando o perfil já foi importado (só existe pra 2026 até agora).
 
+    Com `ano=None` ("Todos os anos"), cada pessoa vira UMA linha só (agrupa
+    só por nome, não por cargo/ano) — valor/qtd somados de TODAS as
+    candidaturas dela, mas cargo/município/perfil_candidato (foto, redes,
+    bens) exibidos são sempre da candidatura mais RECENTE. `candidaturas`
+    lista cada cargo+ano que compõe a soma (com qtd/valor individuais),
+    pra deixar claro que o total é histórico quando há mais de uma —
+    achado real, 26/09/2026: sem isso, JOSÉ RENATO CASAGRANDE aparecia 3x
+    (Governador/2018, Governador/2022, Senador/2026) em vez de uma linha
+    consolidada.
+
     Atenção: o vínculo de doação por sócio é por SÓCIO, não por empresa —
     se a mesma pessoa é sócia de várias empresas, a doação aparece em
     todas elas (risco de duplicação ao ler "empresas que mais apoiaram"
@@ -1560,23 +1570,46 @@ def ranking_doacoes_eleitorais(limite: int = 20, ano: str | None = "2026") -> di
                 continue
             candidato, cargo, municipio, uf = m.groups()
 
-            # Agrupa por nome/cargo/município/ANO normalizados (sem acento)
-            # — o mesmo candidato pode vir com/sem acento em anos diferentes
-            # do TSE (ex.: "JOSÉ RENATO CASAGRANDE" vs "JOSE RENATO
-            # CASAGRANDE"), o que duplicava a entrada no ranking. Mantém a
-            # primeira grafia "bonita" vista (com acento) pra exibir. O ANO
-            # entra na chave pra não misturar ciclos eleitorais diferentes
-            # (ver docstring acima) mesmo quando `ano=None` combina tudo.
-            chave_cand = (_sem_acento(candidato), _sem_acento(cargo), _sem_acento(municipio), uf, r["ano"])
+            # Com `ano` filtrado (um ciclo eleitoral só), agrupa por
+            # nome/cargo/município/ano — não tem ambiguidade (ninguém é
+            # candidato a 2 cargos na mesma eleição). Com `ano=None` ("Todos
+            # os anos"), agrupa só por NOME — um político de carreira (ex.:
+            # já foi candidato a Governador em anos anteriores e é Senador
+            # em 2026) vira UMA linha só, valor somado de todas as
+            # candidaturas (achado real, 26/09/2026: JOSÉ RENATO CASAGRANDE
+            # aparecia 3x no "Todos os anos" — Governador/2018,
+            # Governador/2022, Senador/2026 — cada cargo/ano virando uma
+            # linha separada, confuso). Nome normalizado sem acento porque o
+            # mesmo candidato pode vir com/sem acento em anos diferentes do
+            # TSE (ex.: "JOSÉ RENATO CASAGRANDE" vs "JOSE RENATO
+            # CASAGRANDE"). Mantém a primeira grafia "bonita" vista (com
+            # acento) pra exibir.
+            chave_cand = ((_sem_acento(candidato), _sem_acento(cargo), _sem_acento(municipio), uf, r["ano"])
+                          if ano else (_sem_acento(candidato),))
             agg_c = candidatos.setdefault(
                 chave_cand, {"qtd": 0, "valor": 0.0, "candidato": candidato, "cargo": cargo,
                              "municipio": municipio, "uf": uf, "sq_candidato": r["sq_candidato"],
-                             "ano": r["ano"], "fontes": set()})
+                             "ano": r["ano"], "fontes": set(), "candidaturas": {}})
             agg_c["qtd"] += 1
             agg_c["valor"] += valor
             agg_c["fontes"].add(r["fonte"])
-            if not agg_c["sq_candidato"] and r["sq_candidato"]:
+            # No "Todos os anos", os dados de EXIBIÇÃO (cargo, município,
+            # sq_candidato -> foto/redes/bens) vêm sempre da candidatura mais
+            # RECENTE já vista pra essa pessoa -- o valor somado é histórico,
+            # mas a foto/perfil mostrado é sempre o mais atual disponível.
+            if not ano and r["ano"] and (not agg_c["ano"] or r["ano"] > agg_c["ano"]):
+                agg_c.update(cargo=cargo, municipio=municipio, uf=uf,
+                             sq_candidato=r["sq_candidato"], ano=r["ano"])
+            elif ano and not agg_c["sq_candidato"] and r["sq_candidato"]:
                 agg_c["sq_candidato"] = r["sq_candidato"]
+            # Cada candidatura distinta (cargo+ano) que compõe essa linha --
+            # transparência de onde vem o total somado (mostrado no front
+            # quando há mais de uma, pra não parecer que tudo veio de uma
+            # campanha só).
+            info_candidatura = agg_c["candidaturas"].setdefault(
+                (cargo, r["ano"]), {"cargo": cargo, "ano": r["ano"], "qtd": 0, "valor": 0.0})
+            info_candidatura["qtd"] += 1
+            info_candidatura["valor"] += valor
 
             cnpj = r["cnpj_empresa"]
             agg_e = empresas.setdefault(cnpj, {"qtd": 0, "valor": 0.0, "socios": set(), "fontes": set()})
@@ -1593,7 +1626,11 @@ def ranking_doacoes_eleitorais(limite: int = 20, ano: str | None = "2026") -> di
     lista_candidatos = [
         {"candidato": v["candidato"], "cargo": v["cargo"], "municipio": v["municipio"], "uf": v["uf"],
          "ano": v["ano"], "qtd_doacoes": v["qtd"], "valor_total": round(v["valor"], 2),
-         "fontes": sorted(v["fontes"]), "perfil_candidato": perfis.get((v["sq_candidato"], v["ano"]))}
+         "fontes": sorted(v["fontes"]), "perfil_candidato": perfis.get((v["sq_candidato"], v["ano"])),
+         "candidaturas": sorted(
+             ({"cargo": c["cargo"], "ano": c["ano"], "qtd": c["qtd"], "valor_total": round(c["valor"], 2)}
+              for c in v["candidaturas"].values()),
+             key=lambda c: c["ano"] or "", reverse=True)}
         for v in candidatos.values()
     ]
     lista_empresas = [
