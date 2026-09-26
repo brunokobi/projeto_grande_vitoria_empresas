@@ -1526,8 +1526,16 @@ def ranking_doacoes_eleitorais(limite: int = 20, ano: str | None = "2026") -> di
     with _conn() as conn:
         if not _tabela_existe(conn, "vinculos_politicos"):
             return {"candidatos_por_quantidade": [], "candidatos_por_valor": [],
-                     "empresas_por_quantidade": [], "empresas_por_valor": []}
+                     "empresas_por_quantidade": [], "empresas_por_valor": [], "anos_disponiveis": []}
         ph = ",".join("?" for _ in _FONTES_APOIO_FINANCEIRO)
+        # Anos com vínculo financeiro de verdade (não necessariamente todo
+        # ano em config.TSE_ANOS_ELEICAO -- alguns nunca completaram o
+        # processamento) -- pro front montar os botões de filtro dinamicamente,
+        # sem precisar saber de antemão quais anos existem.
+        anos_disponiveis = [r["ano"] for r in conn.execute(
+            f"SELECT DISTINCT ano FROM vinculos_politicos WHERE fonte IN ({ph}) ORDER BY ano DESC",
+            _FONTES_APOIO_FINANCEIRO
+        )]
         sql = (f"SELECT cnpj_empresa, nome_socio_vinculado, detalhe, fonte, sq_candidato, ano "
                f"FROM vinculos_politicos WHERE fonte IN ({ph})")
         params = list(_FONTES_APOIO_FINANCEIRO)
@@ -1599,4 +1607,6 @@ def ranking_doacoes_eleitorais(limite: int = 20, ano: str | None = "2026") -> di
         "candidatos_por_valor": sorted(lista_candidatos, key=lambda x: -x["valor_total"])[:limite],
         "empresas_por_quantidade": sorted(lista_empresas, key=lambda x: -x["qtd_doacoes"])[:limite],
         "empresas_por_valor": sorted(lista_empresas, key=lambda x: -x["valor_total"])[:limite],
+        "anos_disponiveis": anos_disponiveis,
+        "ano_selecionado": ano,
     }
