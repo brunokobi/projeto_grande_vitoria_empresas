@@ -213,7 +213,8 @@ def indice_api():
             "GET /segmentos": "Segmentos (divisões CNAE) com contagem",
             "GET /processos/classes": "Classes de processo judicial mais frequentes",
             "GET /sancoes/orgaos": "Órgãos sancionadores mais frequentes",
-            "GET /vinculos/ranking-doacoes": "Ranking de apoio financeiro eleitoral 2026 (candidatos e empresas) — ?ano= pra outro ciclo",
+            "GET /vinculos/ranking-doacoes": "Ranking de apoio financeiro eleitoral 2026 (candidatos e empresas) — ?ano= pra outro ciclo, ?limite= corta (default: todos)",
+            "GET /vinculos/evolucao-eleitoral": "Total de apoio financeiro eleitoral por ano (2018+) — pro gráfico de evolução",
             "GET /municipios/risco": "Total e % de pendência por município (choropleth do mapa)",
             "GET /empresas": "Busca com filtros",
             "GET /empresas/perto": "Busca num raio (km) de um ponto (lat/lon)",
@@ -265,9 +266,14 @@ def get_orgaos_sancionadores(limite: int = Query(100, ge=1, le=169)):
 
 
 @app.get("/vinculos/ranking-doacoes", summary="Ranking de apoio financeiro eleitoral (TSE) — candidatos e empresas")
-def get_ranking_doacoes(limite: int = Query(20, ge=1, le=200),
+def get_ranking_doacoes(limite: int | None = Query(None, ge=1, description="Corta o resultado — omitido/None devolve todo mundo com vínculo"),
                         ano: str | None = Query("2026", description="Ano da eleição (None/vazio combina todos os anos disponíveis)")):
     return dataset_queries.ranking_doacoes_eleitorais(limite=limite, ano=ano or None)
+
+
+@app.get("/vinculos/evolucao-eleitoral", summary="Total de apoio financeiro eleitoral (TSE) por ano, pro gráfico de evolução")
+def get_evolucao_eleitoral():
+    return dataset_queries.evolucao_apoio_financeiro_por_ano()
 
 
 @app.get("/municipios/geojson", summary="Fronteiras dos 7 municípios da Grande Vitória (GeoJSON)", include_in_schema=False)

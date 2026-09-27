@@ -1566,15 +1566,41 @@ function fechar(viaPopstate){
 // cada chave só é buscada uma vez, trocar de aba depois é instantâneo.
 let _rankingDoacoesCache = {};
 let _rankingAnoAtual = "2026";
+let _evolucaoEleitoralCache = null; // independe de ano/ordem -- busca só 1x
+// Gráfico de barras horizontal em SVG puro (sem lib externa, mesmo espírito
+// minimalista do resto do site) -- usado tanto pro top do ranking atual
+// quanto pra evolução por ano.
+function renderBarChartSVG(items, opts){
+  const {getLabel, getValue, cor='var(--green)', maxItems=15, formatarValor=(v)=>Math.round(v).toLocaleString('pt-BR')} = opts;
+  const topItems = items.slice(0, maxItems);
+  if(!topItems.length) return '<p style="color:var(--muted);font-size:12px">Sem dados pra exibir.</p>';
+  const maxVal = Math.max(...topItems.map(getValue), 1);
+  const alturaLinha = 26, larguraTotal = 720, larguraLabel = 220, larguraGrafico = larguraTotal - larguraLabel - 100;
+  const alturaSvg = topItems.length * alturaLinha + 8;
+  const barras = topItems.map((it, i) => {
+    const y = i * alturaLinha + 4;
+    const val = getValue(it);
+    const w = Math.max((val / maxVal) * larguraGrafico, 2);
+    const rotulo = String(getLabel(it));
+    const rotuloCurto = rotulo.length > 30 ? rotulo.slice(0, 29) + "…" : rotulo;
+    return `<text x="${larguraLabel - 8}" y="${y + 14}" text-anchor="end" font-size="11" fill="var(--text)">${esc(rotuloCurto)}</text>
+      <rect x="${larguraLabel}" y="${y}" width="${w}" height="18" fill="${cor}" rx="3"></rect>
+      <text x="${larguraLabel + w + 6}" y="${y + 14}" font-size="11" fill="var(--muted)">${esc(formatarValor(val))}</text>`;
+  }).join("");
+  return `<div style="overflow-x:auto"><svg viewBox="0 0 ${larguraTotal} ${alturaSvg}" width="100%" style="max-width:${larguraTotal}px;font-family:inherit">${barras}</svg></div>`;
+}
 async function abrirRankingDoacoes(){
   $("overlay").classList.add("open");
+  if(!_evolucaoEleitoralCache){
+    _evolucaoEleitoralCache = await (await fetch("/vinculos/evolucao-eleitoral")).json();
+  }
   await _garantirRankingAno(_rankingAnoAtual);
   renderRankingDoacoes("quantidade");
 }
 async function _garantirRankingAno(ano){
   if(_rankingDoacoesCache[ano]) return;
   $("modal").innerHTML = `<div class="body loading">carregando ranking...</div>`;
-  _rankingDoacoesCache[ano] = await (await fetch(`/vinculos/ranking-doacoes?limite=20&ano=${encodeURIComponent(ano)}`)).json();
+  _rankingDoacoesCache[ano] = await (await fetch(`/vinculos/ranking-doacoes?ano=${encodeURIComponent(ano)}`)).json();
 }
 async function trocarAnoRanking(ano, ordem){
   _rankingAnoAtual = ano;
@@ -1620,11 +1646,18 @@ function renderRankingDoacoes(ordem){
     <td style="font-size:11px;color:var(--muted)">${(e.socios||[]).map(esc).join(", ")}</td>
   </tr>`;
   const rotuloAno = _rankingAnoAtual ? `eleição ${esc(_rankingAnoAtual)}` : "todos os anos (soma)";
+  const graficoCandidatos = renderBarChartSVG(cand, {
+    getLabel: c => c.candidato, getValue: c => c.valor_total, formatarValor: v => fmtBRL(v),
+  });
+  const graficoEvolucao = renderBarChartSVG(_evolucaoEleitoralCache || [], {
+    getLabel: e => e.ano, getValue: e => e.valor_total, cor: "var(--green-dim)",
+    formatarValor: v => fmtBRL(v), maxItems: 20,
+  });
   $("modal").innerHTML = `
     <div class="top">
       <span class="close" onclick="fechar()">&times;</span>
       <h2>🗳️ Ranking de apoio financeiro eleitoral (TSE)</h2>
-      <div class="sub">Top 20 — ${ordem==="valor"?"por valor total":"por nº de vínculos"} · ${rotuloAno} · doação por sócio, fonte original de doação e fornecedor de campanha</div>
+      <div class="sub">${cand.length.toLocaleString('pt-BR')} candidato(s) — ${ordem==="valor"?"por valor total":"por nº de vínculos"} · ${rotuloAno} · doação por sócio, fonte original de doação e fornecedor de campanha</div>
       <div class="badges" style="margin-top:10px">${botoesAno}</div>
       <div class="badges" style="margin-top:8px">
         <span class="badge pill${ordem!=="valor"?" status-ok":""}" style="cursor:pointer" onclick="renderRankingDoacoes('quantidade')">Por quantidade</span>
@@ -1632,10 +1665,14 @@ function renderRankingDoacoes(ordem){
       </div>
     </div>
     <div class="body">
-      <div class="sec">🏅 Candidatos que mais receberam apoio</div>
-      <p style="color:var(--muted);font-size:12px;margin:-4px 0 10px">Clique num candidato pra ver foto, redes sociais e bens declarados (quando disponíveis).</p>
+      <div class="sec">📈 Evolução do apoio financeiro por ano (2018+)</div>
+      <p style="color:var(--muted);font-size:12px;margin:-4px 0 10px">Soma de todos os anos disponíveis — independe do filtro de ano acima.</p>
+      ${graficoEvolucao}
+      <div class="sec" style="margin-top:22px">🏅 Candidatos que mais receberam apoio</div>
+      <p style="color:var(--muted);font-size:12px;margin:-4px 0 10px">Top 15 do filtro atual (${rotuloAno}) — a lista completa (${cand.length.toLocaleString('pt-BR')}) está logo abaixo do gráfico. Clique num candidato pra ver foto, redes sociais e bens declarados (quando disponíveis).</p>
+      ${graficoCandidatos}
       ${cand.map(cardCand).join("")}
-      <div class="sec" style="margin-top:22px">🏢 Empresas que mais aparecem apoiando</div>
+      <div class="sec" style="margin-top:22px">🏢 Empresas que mais aparecem apoiando (${emp.length.toLocaleString('pt-BR')})</div>
       <p style="color:var(--muted);font-size:12px;margin:-4px 0 10px">Doação por sócio é por PESSOA, não por empresa — se a mesma pessoa é sócia de várias empresas, aparece em todas elas (não são vínculos distintos). Fornecedor de campanha e fonte original já são pelo CNPJ direto.</p>
       <div style="overflow-x:auto"><table>
         <thead><tr><th>#</th><th>Empresa</th><th>Tipo</th><th>Vínculos</th><th>Valor total</th><th>Sócio(s) doador(es)</th></tr></thead>

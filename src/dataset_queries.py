@@ -1496,7 +1496,7 @@ _RE_NOME_MASCARADO_CPF = re.compile(r"^\d{3}\.\d{3}\.\d{3}-\d{2}$")
 _FONTES_APOIO_FINANCEIRO = ("TSE_DOACAO", "TSE_DOADOR_ORIGINARIO", "TSE_FORNECEDOR_CAMPANHA")
 
 
-def ranking_doacoes_eleitorais(limite: int = 20, ano: str | None = "2026") -> dict:
+def ranking_doacoes_eleitorais(limite: int | None = None, ano: str | None = "2026") -> dict:
     """Ranking de apoio financeiro eleitoral (TSE, via vinculos_politicos)
     — quais CANDIDATOS mais receberam e quais EMPRESAS mais apoiaram, por
     nº de vínculos e por valor total. Cobre os 3 tipos de vínculo que têm
@@ -1651,11 +1651,44 @@ def ranking_doacoes_eleitorais(limite: int = 20, ano: str | None = "2026") -> di
         for cnpj, v in empresas.items()
     ]
 
+    # limite=None -- comportamento padrão desde 27/09/2026 -- devolve TODO
+    # mundo com vínculo (não só um top N): a lista completa (não só 20) é
+    # o que o usuário pediu pra poder rolar/ver tudo, e o gráfico de barras
+    # do front já corta visualmente pros primeiros N por conta própria.
+    fatia = slice(None) if limite is None else slice(0, limite)
     return {
-        "candidatos_por_quantidade": sorted(lista_candidatos, key=lambda x: -x["qtd_doacoes"])[:limite],
-        "candidatos_por_valor": sorted(lista_candidatos, key=lambda x: -x["valor_total"])[:limite],
-        "empresas_por_quantidade": sorted(lista_empresas, key=lambda x: -x["qtd_doacoes"])[:limite],
-        "empresas_por_valor": sorted(lista_empresas, key=lambda x: -x["valor_total"])[:limite],
+        "candidatos_por_quantidade": sorted(lista_candidatos, key=lambda x: -x["qtd_doacoes"])[fatia],
+        "candidatos_por_valor": sorted(lista_candidatos, key=lambda x: -x["valor_total"])[fatia],
+        "empresas_por_quantidade": sorted(lista_empresas, key=lambda x: -x["qtd_doacoes"])[fatia],
+        "empresas_por_valor": sorted(lista_empresas, key=lambda x: -x["valor_total"])[fatia],
         "anos_disponiveis": anos_disponiveis,
         "ano_selecionado": ano,
     }
+
+
+def evolucao_apoio_financeiro_por_ano() -> list[dict]:
+    """Total de apoio financeiro eleitoral (TSE) por ano -- pro gráfico de
+    evolução no ranking (`ranking_doacoes_eleitorais`), independente do
+    filtro de ano escolhido na tela (esse aqui sempre traz TODOS os anos
+    disponíveis, é o que dá pra comparar 2018→2026). Soma valor e conta
+    vínculos das 3 fontes financeiras (ver _FONTES_APOIO_FINANCEIRO),
+    ano a ano. Endpoint separado (não embutido no ranking principal)
+    porque não muda com `ano`/`limite` -- o front busca uma vez só."""
+    with _conn() as conn:
+        if not _tabela_existe(conn, "vinculos_politicos"):
+            return []
+        ph = ",".join("?" for _ in _FONTES_APOIO_FINANCEIRO)
+        rows = conn.execute(
+            f"SELECT ano, detalhe FROM vinculos_politicos WHERE fonte IN ({ph})",
+            _FONTES_APOIO_FINANCEIRO
+        ).fetchall()
+    por_ano = {}
+    for r in rows:
+        valor = valor_doacao(r["detalhe"]) or 0.0
+        d = por_ano.setdefault(r["ano"], {"ano": r["ano"], "qtd": 0, "valor": 0.0})
+        d["qtd"] += 1
+        d["valor"] += valor
+    return sorted(
+        ({"ano": v["ano"], "qtd": v["qtd"], "valor_total": round(v["valor"], 2)} for v in por_ano.values()),
+        key=lambda x: x["ano"] or ""
+    )
