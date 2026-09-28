@@ -922,10 +922,10 @@ function ehAjuizada(x){
   return /AJUIZAD/.test(s) && !/A SER AJUIZAD/.test(s);
 }
 let _mostrarMaisSeq = 0;
-// Toda seção do modal da EMPRESA (não a do ranking, que já pede lista
-// completa por outro motivo) com mais de `limite` itens mostra só os
-// primeiros e um botão "Mostrar mais N" que revela o resto -- os dados já
-// vieram na resposta, só alterna visibilidade (sem round-trip novo).
+// Toda seção do modal (empresa e ranking eleitoral) com mais de `limite`
+// itens mostra só os primeiros e um botão "Mostrar mais N" que revela o
+// resto -- os dados já vieram na resposta, só alterna visibilidade (sem
+// round-trip novo).
 function _limitarCards(cardsArr, limite = 10){
   if(cardsArr.length <= limite) return cardsArr.join("");
   const id = "mm" + (_mostrarMaisSeq++);
@@ -933,6 +933,20 @@ function _limitarCards(cardsArr, limite = 10){
   return cardsArr.slice(0, limite).join("")
     + `<div id="${id}" hidden>${cardsArr.slice(limite).join("")}</div>`
     + `<button class="btn ghost" style="margin-top:6px;font-size:12px" onclick="document.getElementById('${id}').hidden=false;this.remove();">Mostrar mais ${restantes.toLocaleString('pt-BR')}</button>`;
+}
+// Mesma ideia de _limitarCards, mas pra linhas <tr> dentro de <table> --
+// um <div> quebraria a tabela (o navegador reposiciona pra fora), então
+// usa múltiplos <tbody> (elemento válido como filho direto de <table>,
+// pode repetir) e o botão "Mostrar mais" vira uma linha própria também.
+function _limitarLinhasTabela(linhasArr, limite, colspan){
+  if(linhasArr.length <= limite) return `<tbody>${linhasArr.join("")}</tbody>`;
+  const id = "mm" + (_mostrarMaisSeq++);
+  const restantes = linhasArr.length - limite;
+  return `<tbody>${linhasArr.slice(0, limite).join("")}</tbody>`
+    + `<tbody id="${id}" hidden>${linhasArr.slice(limite).join("")}</tbody>`
+    + `<tbody id="${id}_btn"><tr><td colspan="${colspan}" style="text-align:center;padding:10px">`
+    + `<button class="btn ghost" style="font-size:12px" onclick="document.getElementById('${id}').hidden=false;document.getElementById('${id}_btn').remove();">Mostrar mais ${restantes.toLocaleString('pt-BR')}</button>`
+    + `</td></tr></tbody>`;
 }
 function renderDividas(arr, capital){
   if(!arr||!arr.length) return "";
@@ -1684,12 +1698,12 @@ function renderRankingDoacoes(ordem){
       <div class="sec" style="margin-top:22px">🏅 Candidatos que mais receberam apoio</div>
       <p style="color:var(--muted);font-size:12px;margin:-4px 0 10px">Top 15 do filtro atual (${rotuloAno}) — a lista completa (${cand.length.toLocaleString('pt-BR')}) está logo abaixo do gráfico. Clique num candidato pra ver foto, redes sociais e bens declarados (quando disponíveis).</p>
       ${graficoCandidatos}
-      ${cand.map(cardCand).join("")}
+      ${_limitarCards(cand.map(cardCand), 20)}
       <div class="sec" style="margin-top:22px">🏢 Empresas que mais aparecem apoiando (${emp.length.toLocaleString('pt-BR')})</div>
       <p style="color:var(--muted);font-size:12px;margin:-4px 0 10px">Doação por sócio é por PESSOA, não por empresa — se a mesma pessoa é sócia de várias empresas, aparece em todas elas (não são vínculos distintos). Fornecedor de campanha e fonte original já são pelo CNPJ direto.</p>
       <div style="overflow-x:auto"><table>
         <thead><tr><th>#</th><th>Empresa</th><th>Tipo</th><th>Vínculos</th><th>Valor total</th><th>Sócio(s) doador(es)</th></tr></thead>
-        <tbody>${emp.map(linhaEmp).join("")}</tbody>
+        ${_limitarLinhasTabela(emp.map(linhaEmp), 20, 6)}
       </table></div>
     </div>`;
 }
