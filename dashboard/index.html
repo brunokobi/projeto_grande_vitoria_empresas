@@ -921,9 +921,22 @@ function ehAjuizada(x){
   const s=(x.situacao||"").toUpperCase();
   return /AJUIZAD/.test(s) && !/A SER AJUIZAD/.test(s);
 }
+let _mostrarMaisSeq = 0;
+// Toda seção do modal da EMPRESA (não a do ranking, que já pede lista
+// completa por outro motivo) com mais de `limite` itens mostra só os
+// primeiros e um botão "Mostrar mais N" que revela o resto -- os dados já
+// vieram na resposta, só alterna visibilidade (sem round-trip novo).
+function _limitarCards(cardsArr, limite = 10){
+  if(cardsArr.length <= limite) return cardsArr.join("");
+  const id = "mm" + (_mostrarMaisSeq++);
+  const restantes = cardsArr.length - limite;
+  return cardsArr.slice(0, limite).join("")
+    + `<div id="${id}" hidden>${cardsArr.slice(limite).join("")}</div>`
+    + `<button class="btn ghost" style="margin-top:6px;font-size:12px" onclick="document.getElementById('${id}').hidden=false;this.remove();">Mostrar mais ${restantes.toLocaleString('pt-BR')}</button>`;
+}
 function renderDividas(arr, capital){
   if(!arr||!arr.length) return "";
-  const cards = arr.map(x=>{
+  const cards = _limitarCards(arr.map(x=>{
     const aj=ehAjuizada(x), idade=idadeTexto(x.data_inscricao);
     const vezes=(capital&&capital>0)? x.valor/capital : null;
     const alto=(x.valor||0)>=100000;
@@ -945,7 +958,7 @@ function renderDividas(arr, capital){
         ${kv("Unidade PGFN", esc(x.unidade_responsavel))}
       </div>
     </details>`;
-  }).join("");
+  }));
   return `<div class="sec">💸 Dívida ativa (${arr.length})</div>${cards}`;
 }
 function mapaEmbed(e, geo){ return `<div id="mapa_modal" class="mapa"></div>`; }
@@ -1017,7 +1030,7 @@ async function classificar(){
 }
 function renderSocios(arr){
   if(!arr||!arr.length) return "";
-  const cards = arr.map(s=>{
+  const cards = _limitarCards(arr.map(s=>{
     const q = s.qualificacao_desc||s.qualificacao||"";
     const outras = s.outras_empresas||[];
     const kv=(k,v)=>v?`<div><span class="k">${k}</span><span class="val">${v}</span></div>`:"";
@@ -1034,12 +1047,12 @@ function renderSocios(arr){
       </div>
       ${rede}
     </details>`;
-  }).join("");
+  }));
   return `<div class="sec">👥 Sócios (${arr.length})</div>${cards}`;
 }
 function renderInfracoes(arr){
   if(!arr||!arr.length) return "";
-  const cards = arr.map(x=>{
+  const cards = _limitarCards(arr.map(x=>{
     const kv=(k,v)=>v?`<div><span class="k">${k}</span><span class="val">${v}</span></div>`:"";
     const local=[x.municipio_infracao,x.uf_infracao].filter(Boolean).join("/");
     const valTxt = x.valor_multa? fmtBRL(x.valor_multa) : "valor n/d";
@@ -1056,7 +1069,7 @@ function renderInfracoes(arr){
         ${kv("Enquadramento", esc(x.enquadramento))}
       </div>
     </details>`;
-  }).join("");
+  }));
   return `<div class="sec">🌱 Infrações ambientais (${arr.length})</div>${cards}`;
 }
 const _POLO_LABEL = {"Réu":"Réu/Ré", "Autor":"Autor(a)", "Terceiro":"Terceiro"};
@@ -1069,7 +1082,7 @@ function renderProcessos(arr, filtrado){
   const nota = filtrado
     ? `— filtrado pelo polo/classe da busca atual`
     : `— só conta como pendência quando a empresa é ré`;
-  const cards = arr.map(x=>{
+  const cards = _limitarCards(arr.map(x=>{
     const kv=(k,v)=>v?`<div><span class="k">${k}</span><span class="val">${v}</span></div>`:"";
     const fuzzy = (x.match_confianca||"").toLowerCase()==="fuzzy";
     const poloLabel = _POLO_LABEL[x.polo] || esc(x.polo) || "—";
@@ -1093,7 +1106,7 @@ function renderProcessos(arr, filtrado){
         ${x.url_jusbrasil?`<a class="maplink" href="${esc(x.url_jusbrasil)}" target="_blank" rel="noopener noreferrer">Ver Processo &#8599;</a>`:""}
       </div>
     </details>`;
-  }).join("");
+  }));
   return `<div class="sec">📂 Processos judiciais (${arr.length}) <span style="font-size:11px;color:var(--muted);font-weight:normal;text-transform:none;letter-spacing:0">${nota}</span></div>${cards}`;
 }
 function renderSancoes(arr, filtrado){
@@ -1102,7 +1115,7 @@ function renderSancoes(arr, filtrado){
       ? `<div class="sec">🚫 Sanções</div><p style="color:var(--muted);font-size:13px">Nenhuma sanção bate com o filtro de tipo/órgão da busca atual.</p>`
       : "";
   }
-  const cards = arr.map(x=>{
+  const cards = _limitarCards(arr.map(x=>{
     const kv=(k,v)=>v?`<div><span class="k">${k}</span><span class="val">${v}</span></div>`:"";
     const periodo=[fmtData(x.data_inicio),fmtData(x.data_fim)].filter(Boolean).join(" — ");
     const proc = x.numero_processo? esc(x.numero_processo)+(x.ano_processo?"/"+esc(x.ano_processo):"") : "";
@@ -1122,13 +1135,13 @@ function renderSancoes(arr, filtrado){
         ${kv("Vínculo", x.nome_socio_vinculado?`Sanção pessoal do sócio ${esc(x.nome_socio_vinculado)}, não da empresa diretamente`:"")}
       </div>
     </details>`;
-  }).join("");
+  }));
   const nota = filtrado ? ` <span style="font-size:11px;color:var(--muted);font-weight:normal;text-transform:none;letter-spacing:0">— filtrado pelo tipo/órgão da busca atual</span>` : "";
   return `<div class="sec">🚫 Sanções (${arr.length})${nota}</div>${cards}`;
 }
 function renderContratos(arr){
   if(!arr||!arr.length) return "";
-  const cards = arr.map(x=>{
+  const cards = _limitarCards(arr.map(x=>{
     const kv=(k,v)=>v?`<div><span class="k">${k}</span><span class="val">${v}</span></div>`:"";
     const valor = x.valor_final||x.valor_inicial;
     return `<details class="divida">
@@ -1147,7 +1160,7 @@ function renderContratos(arr){
         ${kv("Valor final", x.valor_final?fmtBRL(x.valor_final):"")}
       </div>
     </details>`;
-  }).join("");
+  }));
   return `<div class="sec">📄 Contratos com órgãos públicos (${arr.length})</div>${cards}`;
 }
 const _TIPO_BENEFICIO = {RENUNCIA:"💰 Renúncia fiscal", IMUNE_ISENTO:"⛪ Imune/isento", HABILITADO:"🏗️ Habilitado a benefício", COMPETE_ES:"💵 Incentivo ICMS (Compete-ES)"};
@@ -1157,7 +1170,7 @@ function renderBeneficios(arr, filtrado){
       ? `<div class="sec">💰 Benefícios e renúncias fiscais</div><p style="color:var(--muted);font-size:13px">Nenhum benefício bate com o filtro de tipo da busca atual.</p>`
       : "";
   }
-  const cards = arr.map(x=>{
+  const cards = _limitarCards(arr.map(x=>{
     const kv=(k,v)=>v?`<div><span class="k">${k}</span><span class="val">${v}</span></div>`:"";
     const rotulo = _TIPO_BENEFICIO[x.tipo]||x.tipo;
     const titulo = x.tipo==="RENUNCIA" ? (x.valor?fmtBRL(x.valor):"valor n/d")
@@ -1175,7 +1188,7 @@ function renderBeneficios(arr, filtrado){
         ${kv("Fim habilitação", fmtData(x.fim_habilitacao))}
       </div>
     </details>`;
-  }).join("");
+  }));
   const nota = filtrado ? ` <span style="font-size:11px;color:var(--muted);font-weight:normal;text-transform:none;letter-spacing:0">— filtrado pelo tipo da busca atual</span>` : "";
   return `<div class="sec">💰 Benefícios e renúncias fiscais (${arr.length})${nota}</div>${cards}`;
 }
@@ -1246,7 +1259,7 @@ function renderVinculos(arr, filtrado){
       ? `<div class="sec">🏛️ Vínculos políticos</div><p style="color:var(--muted);font-size:13px">Nenhum vínculo bate com o filtro de fonte da busca atual.</p>`
       : "";
   }
-  const cards = arr.map(x=>{
+  const cards = _limitarCards(arr.map(x=>{
     const kv=(k,v)=>v?`<div><span class="k">${k}</span><span class="val">${v}</span></div>`:"";
     const rotulo = _FONTE_VINCULO[x.fonte]||x.fonte;
     return `<details class="divida">
@@ -1264,7 +1277,7 @@ function renderVinculos(arr, filtrado){
         ${renderPerfilCandidato(x.perfil_candidato)}
       </div>
     </details>`;
-  }).join("");
+  }));
   const nota = filtrado ? ` <span style="font-size:11px;color:var(--muted);font-weight:normal;text-transform:none;letter-spacing:0">— filtrado pela fonte da busca atual</span>` : "";
   return `<div class="sec">🏛️ Vínculos políticos (${arr.length})${nota}</div>${cards}`;
 }
@@ -1274,7 +1287,7 @@ function renderContratosPncp(arr, filtrado){
       ? `<div class="sec">📄 Contratos via PNCP</div><p style="color:var(--muted);font-size:13px">Nenhum contrato bate com o filtro de categoria da busca atual.</p>`
       : "";
   }
-  const cards = arr.map(x=>{
+  const cards = _limitarCards(arr.map(x=>{
     const kv=(k,v)=>v?`<div><span class="k">${k}</span><span class="val">${v}</span></div>`:"";
     const valor = x.valor_global||x.valor_inicial;
     return `<details class="divida">
@@ -1293,13 +1306,13 @@ function renderContratosPncp(arr, filtrado){
         ${kv("Valor global", x.valor_global?fmtBRL(x.valor_global):"")}
       </div>
     </details>`;
-  }).join("");
+  }));
   const nota = filtrado ? ` <span style="font-size:11px;color:var(--muted);font-weight:normal;text-transform:none;letter-spacing:0">— filtrado pela categoria da busca atual</span>` : "";
   return `<div class="sec">📜 Contratos via PNCP (${arr.length})${nota}</div>${cards}`;
 }
 function renderMarcas(arr){
   if(!arr||!arr.length) return "";
-  const cards = arr.map(x=>{
+  const cards = _limitarCards(arr.map(x=>{
     const kv=(k,v)=>v?`<div><span class="k">${k}</span><span class="val">${v}</span></div>`:"";
     return `<details class="divida">
       <summary><b>${esc(x.nome_marca||"(sem nome)")}</b> <span style="color:var(--muted)">${esc(x.situacao||"")}</span></summary>
@@ -1312,12 +1325,12 @@ function renderMarcas(arr){
         ${kv("Vigência até", fmtData(x.data_vigencia))}
       </div>
     </details>`;
-  }).join("");
+  }));
   return `<div class="sec">™️ Marcas registradas — INPI (${arr.length})</div>${cards}`;
 }
 function renderUnidadesConservacao(arr){
   if(!arr||!arr.length) return "";
-  const cards = arr.map(x=>{
+  const cards = _limitarCards(arr.map(x=>{
     const kv=(k,v)=>v?`<div><span class="k">${k}</span><span class="val">${v}</span></div>`:"";
     return `<details class="divida">
       <summary><span class="tag warn">${esc(x.uc_grupo||"?")}</span> <b>${esc(x.uc_nome||"?")}</b>
@@ -1328,7 +1341,7 @@ function renderUnidadesConservacao(arr){
         ${kv("Esfera", esc(x.uc_esfera))}
       </div>
     </details>`;
-  }).join("");
+  }));
   return `<div class="sec">🌳 Dentro de Unidade de Conservação (${arr.length}) <span style="font-size:11px;color:var(--muted);font-weight:normal;text-transform:none;letter-spacing:0">— fonte: MMA/CNUC + IEMA-ES</span></div>${cards}`;
 }
 const _TIPO_AMBIENTAL = {fiscalizacao:"🚨 Fiscalização", barragem:"🌊 Barragem", outorga:"💧 Outorga"};
@@ -1338,7 +1351,7 @@ function renderAmbientalProximidade(arr, filtrado){
       ? `<div class="sec">🌱 Proximidade ambiental</div><p style="color:var(--muted);font-size:13px">Nenhum ponto bate com o filtro de tipo da busca atual.</p>`
       : "";
   }
-  const cards = arr.map(x=>{
+  const cards = _limitarCards(arr.map(x=>{
     const kv=(k,v)=>v?`<div><span class="k">${k}</span><span class="val">${v}</span></div>`:"";
     const rotulo = _TIPO_AMBIENTAL[x.tipo]||x.tipo;
     const identidade = x.match_confianca==="socio"
@@ -1353,14 +1366,14 @@ function renderAmbientalProximidade(arr, filtrado){
         ${kv("Confiança do match", x.match_confianca==="socio"?"Nome do sócio bate com o interessado":"Só proximidade geográfica (sem identificação na fonte)")}
       </div>
     </details>`;
-  }).join("");
+  }));
   const nota = filtrado ? ` <span style="font-size:11px;color:var(--muted);font-weight:normal;text-transform:none;letter-spacing:0">— filtrado pelo tipo da busca atual</span>` : ` <span style="font-size:11px;color:var(--muted);font-weight:normal;text-transform:none;letter-spacing:0">— fiscalização IDAF/IEMA, barragem IDAF, outorga AGERH, raio 500m</span>`;
   return `<div class="sec">🌱 Proximidade ambiental (${arr.length})${nota}</div>${cards}`;
 }
 const _FONTE_RISCO = {defesa_civil:"Defesa Civil", cprm:"CPRM", pdui_pmrr:"PMRR (SEDURB)"};
 function renderRiscoGeologico(arr){
   if(!arr||!arr.length) return "";
-  const cards = arr.map(x=>{
+  const cards = _limitarCards(arr.map(x=>{
     const kv=(k,v)=>v?`<div><span class="k">${k}</span><span class="val">${v}</span></div>`:"";
     return `<details class="divida">
       <summary><span class="tag pend">${esc(x.grau_risco||"?")}</span> <b>${esc(x.tipo||"?")}</b>
@@ -1373,7 +1386,7 @@ function renderRiscoGeologico(arr){
         ${kv("Fonte", _FONTE_RISCO[x.fonte]||esc(x.fonte))}
       </div>
     </details>`;
-  }).join("");
+  }));
   return `<div class="sec">🏔️ Dentro de setor de risco geológico/inundação (${arr.length}) <span style="font-size:11px;color:var(--muted);font-weight:normal;text-transform:none;letter-spacing:0">— fonte: Defesa Civil/CPRM/PMRR Serra-Viana</span></div>${cards}`;
 }
 async function abrir(cnpj, viaPopstate){

@@ -1254,11 +1254,17 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
         if processo_polo or processo_classe:
             # Resumo sempre com o total real, sem o filtro de exibição acima.
             processos_resumo = [dict(r) for r in conn.execute(
-                "SELECT polo FROM processos_judiciais WHERE cnpj_empresa = ? "
+                "SELECT polo, match_confianca FROM processos_judiciais WHERE cnpj_empresa = ? "
                 "ORDER BY data_ultima_movimentacao DESC LIMIT 100", (cnpj,))]
         else:
             processos_resumo = processos
-        processos_re = [p for p in processos_resumo if p.get("polo") == "Réu"]
+        # match_confianca='socio' -- processo achado pelo NOME DO SÓCIO (ação
+        # pessoal dele, ex.: dívida particular, briga de vizinho), não da
+        # empresa -- não deve contar como pendência jurídica DA EMPRESA,
+        # mesmo com a empresa citada como ré. Só 'nome' (achado pela razão
+        # social, via DJEN) é pendência de verdade da empresa.
+        processos_re = [p for p in processos_resumo
+                        if p.get("polo") == "Réu" and p.get("match_confianca") != "socio"]
         sql_sanc = ("SELECT tipo, motivo, orgao_sancionador, data_inicio, data_fim, valor_multa, "
                     "fundamentacao, numero_processo, ano_processo, numero_deliberacao, ano_deliberacao, "
                     "nome_socio_vinculado "
