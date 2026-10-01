@@ -1613,6 +1613,7 @@ function fechar(viaPopstate){
 // cada chave só é buscada uma vez, trocar de aba depois é instantâneo.
 let _rankingDoacoesCache = {};
 let _rankingAnoAtual = "2026";
+let _rankingOrdemAtual = "quantidade";
 let _evolucaoEleitoralCache = null; // independe de ano/ordem -- busca só 1x
 // Gráfico de barras horizontal em SVG puro (sem lib externa, mesmo espírito
 // minimalista do resto do site) -- usado tanto pro top do ranking atual
@@ -1642,56 +1643,111 @@ async function abrirRankingDoacoes(){
     _evolucaoEleitoralCache = await (await fetch("/vinculos/evolucao-eleitoral")).json();
   }
   await _garantirRankingAno(_rankingAnoAtual);
-  renderRankingDoacoes("quantidade");
+  _rankingOrdemAtual = "quantidade";
+  renderRankingDoacoes();
 }
 async function _garantirRankingAno(ano){
   if(_rankingDoacoesCache[ano]) return;
   $("modal").innerHTML = `<div class="body loading">carregando ranking...</div>`;
   _rankingDoacoesCache[ano] = await (await fetch(`/vinculos/ranking-doacoes?ano=${encodeURIComponent(ano)}`)).json();
 }
-async function trocarAnoRanking(ano, ordem){
+async function trocarAnoRanking(ano){
   _rankingAnoAtual = ano;
   await _garantirRankingAno(ano);
-  renderRankingDoacoes(ordem);
+  renderRankingDoacoes();
 }
-function renderRankingDoacoes(ordem){
-  const d = _rankingDoacoesCache[_rankingAnoAtual];
-  const cand = ordem==="valor" ? d.candidatos_por_valor : d.candidatos_por_quantidade;
-  const emp = ordem==="valor" ? d.empresas_por_valor : d.empresas_por_quantidade;
-  // Botões de ano: um por ano disponível (vem do backend, nunca hardcoded
-  // aqui — se um ano novo for processado no futuro, aparece sozinho) mais
-  // "Todos os anos" (soma tudo, ano="" no fetch/backend).
-  const botaoAno = (valor,label)=>`<span class="badge pill${_rankingAnoAtual===valor?' status-ok':''}" style="cursor:pointer" onclick="trocarAnoRanking('${valor}','${ordem}')">${esc(label)}</span>`;
-  const botoesAno = (d.anos_disponiveis||[]).map(a=>botaoAno(a,a)).join("") + botaoAno("", "Todos os anos (soma)");
-  const tagsFontes = (fontes)=>(fontes||[]).map(f=>`<span class="tag default" style="font-size:10px">${esc((_FONTE_VINCULO[f]||f).replace(/^\S+\s/,''))}</span>`).join(" ");
-  // Cada candidato vira um <details> (não <tr>) pra caber o perfil rico
-  // (foto, redes sociais, bens) expandido — mesmo padrão de accordion
-  // usado no resto do site (renderVinculos, renderProcessos etc.).
-  const cardCand = (c,i)=>{
-    const p = c.perfil_candidato;
-    const fotoMini = (p&&p.foto_url)
-      ? `<img src="${esc(p.foto_url)}" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:8px;border:1px solid var(--line)" loading="lazy">`
-      : `<span style="display:inline-flex;width:28px;height:28px;border-radius:50%;background:var(--bg2);align-items:center;justify-content:center;vertical-align:middle;margin-right:8px;font-size:13px">👤</span>`;
-    return `<details class="divida">
-      <summary>#${i+1} ${fotoMini}<b>${esc(c.candidato)}</b>
-        <span style="color:var(--muted)">${esc(c.cargo)} · ${esc(c.municipio)}/${esc(c.uf)} · ${esc(c.ano)}</span>
-        <b>${fmtBRL(c.valor_total)}</b>
-        <span style="color:var(--muted)">(${c.qtd_doacoes.toLocaleString('pt-BR')})</span></summary>
-      <div class="divida-det">
-        <div style="grid-column:1/-1">${tagsFontes(c.fontes)}</div>
-        ${renderCandidaturas(c.candidaturas)}
-        ${renderPerfilCandidato(p)}
-        ${!p?'<div style="grid-column:1/-1;color:var(--muted);font-size:12px">Perfil do candidato (foto/redes/bens) ainda não disponível pra este vínculo.</div>':''}
-      </div>
-    </details>`;
-  };
-  const linhaEmp = (e,i)=>`<tr>
+function trocarOrdemRanking(ordem){
+  _rankingOrdemAtual = ordem;
+  $("btnOrdemQtd").classList.toggle("status-ok", ordem!=="valor");
+  $("btnOrdemValor").classList.toggle("status-ok", ordem==="valor");
+  _renderConteudoRanking();
+}
+const _tagsFontesRanking = (fontes)=>(fontes||[]).map(f=>`<span class="tag default" style="font-size:10px">${esc((_FONTE_VINCULO[f]||f).replace(/^\S+\s/,''))}</span>`).join(" ");
+// Cada candidato vira um <details> (não <tr>) pra caber o perfil rico
+// (foto, redes sociais, bens) expandido — mesmo padrão de accordion
+// usado no resto do site (renderVinculos, renderProcessos etc.).
+function _cardCandRanking(c,i){
+  const p = c.perfil_candidato;
+  const fotoMini = (p&&p.foto_url)
+    ? `<img src="${esc(p.foto_url)}" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:8px;border:1px solid var(--line)" loading="lazy">`
+    : `<span style="display:inline-flex;width:28px;height:28px;border-radius:50%;background:var(--bg2);align-items:center;justify-content:center;vertical-align:middle;margin-right:8px;font-size:13px">👤</span>`;
+  return `<details class="divida">
+    <summary>#${i+1} ${fotoMini}<b>${esc(c.candidato)}</b>
+      <span style="color:var(--muted)">${esc(c.cargo)}${c.partido?` · ${esc(c.partido)}`:""} · ${esc(c.municipio)}/${esc(c.uf)} · ${esc(c.ano)}</span>
+      <b>${fmtBRL(c.valor_total)}</b>
+      <span style="color:var(--muted)">(${c.qtd_doacoes.toLocaleString('pt-BR')})</span></summary>
+    <div class="divida-det">
+      <div style="grid-column:1/-1">${_tagsFontesRanking(c.fontes)}</div>
+      ${renderCandidaturas(c.candidaturas)}
+      ${renderPerfilCandidato(p)}
+      ${!p?'<div style="grid-column:1/-1;color:var(--muted);font-size:12px">Perfil do candidato (foto/redes/bens) ainda não disponível pra este vínculo.</div>':''}
+    </div>
+  </details>`;
+}
+function _linhaEmpRanking(e,i){
+  return `<tr>
     <td>${i+1}</td>
     <td><b>${esc(e.razao_social||"—")}</b><br><span class="mono" style="color:var(--muted);font-size:11px">${formatarCnpj(e.cnpj)}</span></td>
-    <td style="font-size:11px">${tagsFontes(e.fontes)}</td>
+    <td style="font-size:11px">${_tagsFontesRanking(e.fontes)}</td>
     <td>${e.qtd_doacoes.toLocaleString('pt-BR')}</td><td>${fmtBRL(e.valor_total)}</td>
     <td style="font-size:11px;color:var(--muted)">${(e.socios||[]).map(esc).join(", ")}</td>
   </tr>`;
+}
+// Cabeçalho (ano/ordem/filtros) é montado 1x por abertura/troca de ano --
+// só o conteúdo (gráfico+listas) é refeito a cada filtro digitado, pra não
+// perder o foco/cursor do campo de texto a cada tecla.
+function renderRankingDoacoes(){
+  const d = _rankingDoacoesCache[_rankingAnoAtual];
+  const ordem = _rankingOrdemAtual;
+  const cand = ordem==="valor" ? d.candidatos_por_valor : d.candidatos_por_quantidade;
+  // Botões de ano: um por ano disponível (vem do backend, nunca hardcoded
+  // aqui — se um ano novo for processado no futuro, aparece sozinho) mais
+  // "Todos os anos" (soma tudo, ano="" no fetch/backend).
+  const botaoAno = (valor,label)=>`<span class="badge pill${_rankingAnoAtual===valor?' status-ok':''}" style="cursor:pointer" onclick="trocarAnoRanking('${valor}')">${esc(label)}</span>`;
+  const botoesAno = (d.anos_disponiveis||[]).map(a=>botaoAno(a,a)).join("") + botaoAno("", "Todos os anos (soma)");
+  // Opções de cargo/partido vêm do conjunto COMPLETO do ano atual (não do
+  // filtrado) -- senão as opções encolheriam conforme o usuário filtra.
+  const cargos = [...new Set(cand.map(c=>c.cargo).filter(Boolean))].sort();
+  const partidos = [...new Set(cand.map(c=>c.partido).filter(Boolean))].sort();
+  const optCargo = (v)=>`<option value="${esc(v)}">${esc(v)}</option>`;
+  $("modal").innerHTML = `
+    <div class="top">
+      <span class="close" onclick="fechar()">&times;</span>
+      <h2>🗳️ Ranking de apoio financeiro eleitoral (TSE)</h2>
+      <div class="sub">doação por sócio, fonte original de doação e fornecedor de campanha</div>
+      <div class="badges" style="margin-top:10px">${botoesAno}</div>
+      <div class="badges" style="margin-top:8px">
+        <span id="btnOrdemQtd" class="badge pill${ordem!=="valor"?" status-ok":""}" style="cursor:pointer" onclick="trocarOrdemRanking('quantidade')">Por quantidade</span>
+        <span id="btnOrdemValor" class="badge pill${ordem==="valor"?" status-ok":""}" style="cursor:pointer" onclick="trocarOrdemRanking('valor')">Por valor</span>
+      </div>
+      <div class="badges" style="margin-top:8px;gap:8px">
+        <input type="text" id="filtroCandNome" placeholder="🔎 Buscar candidato..." oninput="_renderConteudoRanking()" style="width:160px">
+        <select id="filtroCandCargo" onchange="_renderConteudoRanking()" style="width:150px">
+          <option value="">Todos os cargos</option>${cargos.map(optCargo).join("")}
+        </select>
+        <select id="filtroCandPartido" onchange="_renderConteudoRanking()" style="width:130px">
+          <option value="">Todos os partidos</option>${partidos.map(optCargo).join("")}
+        </select>
+        <input type="text" id="filtroEmpNome" placeholder="🔎 Buscar empresa/CNPJ..." oninput="_renderConteudoRanking()" style="width:170px">
+      </div>
+    </div>
+    <div class="body" id="rankingConteudo"></div>`;
+  _renderConteudoRanking();
+}
+function _renderConteudoRanking(){
+  const d = _rankingDoacoesCache[_rankingAnoAtual];
+  const ordem = _rankingOrdemAtual;
+  let cand = ordem==="valor" ? d.candidatos_por_valor : d.candidatos_por_quantidade;
+  let emp = ordem==="valor" ? d.empresas_por_valor : d.empresas_por_quantidade;
+  const totalCand = cand.length, totalEmp = emp.length;
+  const nomeCand = ($("filtroCandNome")?.value||"").trim().toLowerCase();
+  const cargoSel = $("filtroCandCargo")?.value||"";
+  const partidoSel = $("filtroCandPartido")?.value||"";
+  const nomeEmp = ($("filtroEmpNome")?.value||"").trim().toLowerCase();
+  if(nomeCand) cand = cand.filter(c=>c.candidato.toLowerCase().includes(nomeCand));
+  if(cargoSel) cand = cand.filter(c=>c.cargo===cargoSel);
+  if(partidoSel) cand = cand.filter(c=>c.partido===partidoSel);
+  if(nomeEmp) emp = emp.filter(e=>(e.razao_social||"").toLowerCase().includes(nomeEmp) || (e.cnpj||"").includes(nomeEmp.replace(/\D/g,"")));
   const rotuloAno = _rankingAnoAtual ? `eleição ${esc(_rankingAnoAtual)}` : "todos os anos (soma)";
   const graficoCandidatos = renderBarChartSVG(cand, {
     getLabel: c => c.candidato, getValue: c => c.valor_total, formatarValor: v => fmtBRL(v),
@@ -1700,32 +1756,22 @@ function renderRankingDoacoes(ordem){
     getLabel: e => e.ano, getValue: e => e.valor_total, cor: "var(--green-dim)",
     formatarValor: v => fmtBRL(v), maxItems: 20,
   });
-  $("modal").innerHTML = `
-    <div class="top">
-      <span class="close" onclick="fechar()">&times;</span>
-      <h2>🗳️ Ranking de apoio financeiro eleitoral (TSE)</h2>
-      <div class="sub">${cand.length.toLocaleString('pt-BR')} candidato(s) — ${ordem==="valor"?"por valor total":"por nº de vínculos"} · ${rotuloAno} · doação por sócio, fonte original de doação e fornecedor de campanha</div>
-      <div class="badges" style="margin-top:10px">${botoesAno}</div>
-      <div class="badges" style="margin-top:8px">
-        <span class="badge pill${ordem!=="valor"?" status-ok":""}" style="cursor:pointer" onclick="renderRankingDoacoes('quantidade')">Por quantidade</span>
-        <span class="badge pill${ordem==="valor"?" status-ok":""}" style="cursor:pointer" onclick="renderRankingDoacoes('valor')">Por valor</span>
-      </div>
-    </div>
-    <div class="body">
-      <div class="sec">📈 Evolução do apoio financeiro por ano (2018+)</div>
-      <p style="color:var(--muted);font-size:12px;margin:-4px 0 10px">Soma de todos os anos disponíveis — independe do filtro de ano acima.</p>
-      ${graficoEvolucao}
-      <div class="sec" style="margin-top:22px">🏅 Candidatos que mais receberam apoio</div>
-      <p style="color:var(--muted);font-size:12px;margin:-4px 0 10px">Top 15 do filtro atual (${rotuloAno}) — a lista completa (${cand.length.toLocaleString('pt-BR')}) está logo abaixo do gráfico. Clique num candidato pra ver foto, redes sociais e bens declarados (quando disponíveis).</p>
-      ${graficoCandidatos}
-      ${_limitarCards(cand.map(cardCand), 20)}
-      <div class="sec" style="margin-top:22px">🏢 Empresas que mais aparecem apoiando (${emp.length.toLocaleString('pt-BR')})</div>
-      <p style="color:var(--muted);font-size:12px;margin:-4px 0 10px">Doação por sócio é por PESSOA, não por empresa — se a mesma pessoa é sócia de várias empresas, aparece em todas elas (não são vínculos distintos). Fornecedor de campanha e fonte original já são pelo CNPJ direto.</p>
-      <div style="overflow-x:auto"><table>
-        <thead><tr><th>#</th><th>Empresa</th><th>Tipo</th><th>Vínculos</th><th>Valor total</th><th>Sócio(s) doador(es)</th></tr></thead>
-        ${_limitarLinhasTabela(emp.map(linhaEmp), 20, 6)}
-      </table></div>
-    </div>`;
+  const notaFiltroCand = (cand.length!==totalCand) ? ` <span style="color:var(--muted);font-weight:normal">(${cand.length.toLocaleString('pt-BR')} de ${totalCand.toLocaleString('pt-BR')} com o filtro atual)</span>` : "";
+  const notaFiltroEmp = (emp.length!==totalEmp) ? ` <span style="color:var(--muted);font-weight:normal">(${emp.length.toLocaleString('pt-BR')} de ${totalEmp.toLocaleString('pt-BR')} com o filtro atual)</span>` : "";
+  $("rankingConteudo").innerHTML = `
+    <div class="sec">📈 Evolução do apoio financeiro por ano (2018+)</div>
+    <p style="color:var(--muted);font-size:12px;margin:-4px 0 10px">Soma de todos os anos disponíveis — independe do filtro de ano acima.</p>
+    ${graficoEvolucao}
+    <div class="sec" style="margin-top:22px">🏅 Candidatos que mais receberam apoio (${cand.length.toLocaleString('pt-BR')})${notaFiltroCand}</div>
+    <p style="color:var(--muted);font-size:12px;margin:-4px 0 10px">Top 15 do filtro atual (${rotuloAno}) — a lista completa está logo abaixo do gráfico. Clique num candidato pra ver foto, redes sociais e bens declarados (quando disponíveis).</p>
+    ${graficoCandidatos}
+    ${cand.length?_limitarCards(cand.map(_cardCandRanking), 20):'<p style="color:var(--muted);font-size:13px">Nenhum candidato bate com esse filtro.</p>'}
+    <div class="sec" style="margin-top:22px">🏢 Empresas que mais aparecem apoiando (${emp.length.toLocaleString('pt-BR')})${notaFiltroEmp}</div>
+    <p style="color:var(--muted);font-size:12px;margin:-4px 0 10px">Doação por sócio é por PESSOA, não por empresa — se a mesma pessoa é sócia de várias empresas, aparece em todas elas (não são vínculos distintos). Fornecedor de campanha e fonte original já são pelo CNPJ direto.</p>
+    <div style="overflow-x:auto"><table>
+      <thead><tr><th>#</th><th>Empresa</th><th>Tipo</th><th>Vínculos</th><th>Valor total</th><th>Sócio(s) doador(es)</th></tr></thead>
+      ${emp.length?_limitarLinhasTabela(emp.map(_linhaEmpRanking), 20, 6):'<tbody><tr><td colspan="6" style="text-align:center;color:var(--muted)">Nenhuma empresa bate com esse filtro.</td></tr></tbody>'}
+    </table></div>`;
 }
 function abrirSobre(){
   $("overlay").classList.add("open");

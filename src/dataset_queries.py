@@ -1560,7 +1560,7 @@ def ranking_doacoes_eleitorais(limite: int | None = None, ano: str | None = "202
             f"SELECT DISTINCT ano FROM vinculos_politicos WHERE fonte IN ({ph}) ORDER BY ano DESC",
             _FONTES_APOIO_FINANCEIRO
         )]
-        sql = (f"SELECT cnpj_empresa, nome_socio_vinculado, detalhe, fonte, sq_candidato, ano "
+        sql = (f"SELECT cnpj_empresa, nome_socio_vinculado, detalhe, fonte, sq_candidato, ano, orgao_ou_partido "
                f"FROM vinculos_politicos WHERE fonte IN ({ph})")
         params = list(_FONTES_APOIO_FINANCEIRO)
         if ano:
@@ -1604,17 +1604,20 @@ def ranking_doacoes_eleitorais(limite: int | None = None, ano: str | None = "202
                 agg_c = candidatos.setdefault(
                     chave_cand, {"qtd": 0, "valor": 0.0, "candidato": candidato, "cargo": cargo,
                                  "municipio": municipio, "uf": uf, "sq_candidato": r["sq_candidato"],
-                                 "ano": r["ano"], "fontes": set(), "candidaturas": {}})
+                                 "ano": r["ano"], "fontes": set(), "candidaturas": {},
+                                 "partido": r["orgao_ou_partido"]})
                 agg_c["qtd"] += 1
                 agg_c["valor"] += valor
                 agg_c["fontes"].add(r["fonte"])
                 # No "Todos os anos", os dados de EXIBIÇÃO (cargo, município,
-                # sq_candidato -> foto/redes/bens) vêm sempre da candidatura
-                # mais RECENTE já vista pra essa pessoa -- o valor somado é
-                # histórico, mas a foto/perfil mostrado é sempre o mais atual.
+                # partido, sq_candidato -> foto/redes/bens) vêm sempre da
+                # candidatura mais RECENTE já vista pra essa pessoa -- o valor
+                # somado é histórico, mas a foto/perfil mostrado é sempre o
+                # mais atual (partido muda de legenda com frequência real).
                 if not ano and r["ano"] and (not agg_c["ano"] or r["ano"] > agg_c["ano"]):
                     agg_c.update(cargo=cargo, municipio=municipio, uf=uf,
-                                 sq_candidato=r["sq_candidato"], ano=r["ano"])
+                                 sq_candidato=r["sq_candidato"], ano=r["ano"],
+                                 partido=r["orgao_ou_partido"])
                 elif ano and not agg_c["sq_candidato"] and r["sq_candidato"]:
                     agg_c["sq_candidato"] = r["sq_candidato"]
                 # Cada candidatura distinta (cargo+ano) que compõe essa linha
@@ -1643,7 +1646,7 @@ def ranking_doacoes_eleitorais(limite: int | None = None, ano: str | None = "202
 
     lista_candidatos = [
         {"candidato": v["candidato"], "cargo": v["cargo"], "municipio": v["municipio"], "uf": v["uf"],
-         "ano": v["ano"], "qtd_doacoes": v["qtd"], "valor_total": round(v["valor"], 2),
+         "ano": v["ano"], "partido": v["partido"], "qtd_doacoes": v["qtd"], "valor_total": round(v["valor"], 2),
          "fontes": sorted(v["fontes"]), "perfil_candidato": perfis.get((v["sq_candidato"], v["ano"])),
          "candidaturas": sorted(
              ({"cargo": c["cargo"], "ano": c["ano"], "qtd": c["qtd"], "valor_total": round(c["valor"], 2)}
