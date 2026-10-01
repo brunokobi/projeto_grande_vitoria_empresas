@@ -91,7 +91,9 @@
   .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:18px}
   .stat{background:linear-gradient(160deg,var(--panel),var(--bg2));border:1px solid var(--line);
     border-radius:12px;padding:16px 18px;position:relative;overflow:hidden;
-    display:flex;align-items:center;gap:14px}
+    display:flex;align-items:center;gap:14px;
+    transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
+  .stat:hover{transform:translateY(-5px);border-color:var(--green);box-shadow:0 10px 24px rgba(0,255,136,.2)}
   .stat::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--green)}
   .stat.primary{border-color:var(--green-dim);box-shadow:0 0 20px rgba(0,255,136,.12)}
   .stat .ic{width:38px;height:38px;border-radius:9px;flex:none;background:var(--green-deep);
@@ -577,6 +579,20 @@ function query(){
   return p;
 }
 
+// Anima um número de 0 até `alvo` (ease-out), formatado pt-BR -- usado nos
+// cards de estatística do topo ao abrir a tela.
+function animarContagem(el, alvo, duracaoMs = 900){
+  if(!alvo){ el.textContent = "0"; return; }
+  const inicio = performance.now();
+  function passo(agora){
+    const t = Math.min((agora - inicio) / duracaoMs, 1);
+    const facil = 1 - Math.pow(1 - t, 3);
+    el.textContent = Math.round(alvo * facil).toLocaleString('pt-BR');
+    if(t < 1) requestAnimationFrame(passo);
+    else el.textContent = alvo.toLocaleString('pt-BR');
+  }
+  requestAnimationFrame(passo);
+}
 async function initEstat(){
   const s = await (await fetch("/estatisticas")).json();
   const total = s.total_empresas || 1;
@@ -588,7 +604,11 @@ async function initEstat(){
     ["⚠️","Com pendência", s.empresas_com_pendencia, false, `${pct(s.empresas_com_pendencia)}% do total`],
   ];
   $("stats").innerHTML = cards.map(([ic,l,n,primary,sub])=>
-    `<div class="stat${primary?' primary':''}"><div class="ic">${ic}</div><div><div class="n">${Number(n).toLocaleString('pt-BR')}</div><div class="l">${l}</div><div class="sub">${sub}</div></div></div>`).join("");
+    `<div class="stat${primary?' primary':''}"><div class="ic">${ic}</div><div><div class="n" data-alvo="${Number(n)||0}">0</div><div class="l">${l}</div><div class="sub">${sub}</div></div></div>`).join("");
+  // Efeito de contagem (0 até o valor real) nos cards de estatística --
+  // roda toda vez que initEstat() é chamado (abertura da tela e também no
+  // botão "Atualizar", que recarrega as estatísticas).
+  document.querySelectorAll('#stats .stat .n').forEach(el=>animarContagem(el, Number(el.dataset.alvo)));
   const mun = $("f_municipio_group");
   mun.innerHTML = Object.keys(s.por_municipio).map(m=>
     `<label class="chk"><input type="checkbox" class="mun-chk" value="${esc(m)}" onchange="onMunicipioChange(this,'${esc(m)}')"> ${esc(m)}<span class="spacer"></span><span class="cnt">${Number(s.por_municipio[m]).toLocaleString('pt-BR')}</span></label>`).join("");
