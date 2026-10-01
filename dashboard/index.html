@@ -1674,8 +1674,7 @@ function _cardCandRanking(c,i){
   return `<details class="divida">
     <summary>#${i+1} ${fotoMini}<b>${esc(c.candidato)}</b>
       <span style="color:var(--muted)">${esc(c.cargo)}${c.partido?` · ${esc(c.partido)}`:""} · ${esc(c.municipio)}/${esc(c.uf)} · ${esc(c.ano)}</span>
-      <b>${fmtBRL(c.valor_total)}</b>
-      <span style="color:var(--muted)">(${c.qtd_doacoes.toLocaleString('pt-BR')})</span></summary>
+      <span class="tag ok" style="margin-left:auto;white-space:nowrap;flex:none;font-size:12.5px">${fmtBRL(c.valor_total)} <span style="opacity:.75">· ${c.qtd_doacoes.toLocaleString('pt-BR')}</span></span></summary>
     <div class="divida-det">
       <div style="grid-column:1/-1">${_tagsFontesRanking(c.fontes)}</div>
       ${renderCandidaturas(c.candidaturas)}
