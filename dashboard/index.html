@@ -1666,6 +1666,28 @@ const _tagsFontesRanking = (fontes)=>(fontes||[]).map(f=>`<span class="tag defau
 // Cada candidato vira um <details> (não <tr>) pra caber o perfil rico
 // (foto, redes sociais, bens) expandido — mesmo padrão de accordion
 // usado no resto do site (renderVinculos, renderProcessos etc.).
+// Quem contribuiu pro total somado do candidato (clicar no valor abre o
+// card, que já mostra isso) -- pedido explícito (01/10/2026): o valor
+// sozinho não diz quem doou, só o total. Cada linha é uma empresa (ou
+// mais de um vínculo com ela, ex.: doou E forneceu, somado).
+function renderDoadoresRanking(doadores){
+  if(!doadores || !doadores.length) return "";
+  const linhas = doadores.map(d=>{
+    const fontesTxt = (d.fontes||[]).map(f=>(_FONTE_VINCULO[f]||f).replace(/^\S+\s/,"")).join(", ");
+    const socios = (d.socios||[]).length ? ` · sócio: ${d.socios.map(esc).join(", ")}` : "";
+    return `<div style="display:flex;justify-content:space-between;gap:10px;font-size:12px;padding:5px 0;border-bottom:1px solid var(--line)">
+      <div style="min-width:0">
+        <a href="#" onclick="abrir('${esc(d.cnpj)}');return false;"><b>${esc(d.razao_social||formatarCnpj(d.cnpj))}</b></a>
+        <div style="color:var(--muted);font-size:11px">${formatarCnpj(d.cnpj)} · ${esc(fontesTxt)}${socios}</div>
+      </div>
+      <b style="white-space:nowrap;flex:none">${fmtBRL(d.valor_total)}</b>
+    </div>`;
+  });
+  return `<div style="grid-column:1/-1;margin-top:8px">
+    <div class="k" style="margin-bottom:4px">💰 Quem apoiou (${doadores.length} empresa${doadores.length!==1?'s':''})</div>
+    ${_limitarCards(linhas, 10)}
+  </div>`;
+}
 function _cardCandRanking(c,i){
   const p = c.perfil_candidato;
   const fotoMini = (p&&p.foto_url)
@@ -1680,6 +1702,7 @@ function _cardCandRanking(c,i){
       ${renderCandidaturas(c.candidaturas)}
       ${renderPerfilCandidato(p)}
       ${!p?'<div style="grid-column:1/-1;color:var(--muted);font-size:12px">Perfil do candidato (foto/redes/bens) ainda não disponível pra este vínculo.</div>':''}
+      ${renderDoadoresRanking(c.doadores)}
     </div>
   </details>`;
 }

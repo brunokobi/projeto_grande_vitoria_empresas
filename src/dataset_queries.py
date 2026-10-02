@@ -1604,7 +1604,7 @@ def ranking_doacoes_eleitorais(limite: int | None = None, ano: str | None = "202
                 agg_c = candidatos.setdefault(
                     chave_cand, {"qtd": 0, "valor": 0.0, "candidato": candidato, "cargo": cargo,
                                  "municipio": municipio, "uf": uf, "sq_candidato": r["sq_candidato"],
-                                 "ano": r["ano"], "fontes": set(), "candidaturas": {},
+                                 "ano": r["ano"], "fontes": set(), "candidaturas": {}, "doadores": {},
                                  "partido": r["orgao_ou_partido"]})
                 agg_c["qtd"] += 1
                 agg_c["valor"] += valor
@@ -1628,6 +1628,18 @@ def ranking_doacoes_eleitorais(limite: int | None = None, ano: str | None = "202
                     (cargo, r["ano"]), {"cargo": cargo, "ano": r["ano"], "qtd": 0, "valor": 0.0})
                 info_candidatura["qtd"] += 1
                 info_candidatura["valor"] += valor
+                # Quem apoiou essa candidatura -- "Quem doou" no front,
+                # transparência pedida (01/10/2026): clicar no valor do
+                # candidato deve mostrar quem contribuiu e quanto, não só o
+                # total. Agrupado por empresa (uma empresa pode ter 2+
+                # vínculos com o mesmo candidato -- ex.: doou E forneceu).
+                info_doador = agg_c["doadores"].setdefault(
+                    r["cnpj_empresa"], {"valor": 0.0, "qtd": 0, "fontes": set(), "socios": set()})
+                info_doador["valor"] += valor
+                info_doador["qtd"] += 1
+                info_doador["fontes"].add(r["fonte"])
+                if r["nome_socio_vinculado"]:
+                    info_doador["socios"].add(r["nome_socio_vinculado"])
 
             # A EMPRESA continua contando o vínculo mesmo quando o nome do
             # candidato veio corrompido na fonte (bug do TSE, ver acima) --
@@ -1651,7 +1663,12 @@ def ranking_doacoes_eleitorais(limite: int | None = None, ano: str | None = "202
          "candidaturas": sorted(
              ({"cargo": c["cargo"], "ano": c["ano"], "qtd": c["qtd"], "valor_total": round(c["valor"], 2)}
               for c in v["candidaturas"].values()),
-             key=lambda c: c["ano"] or "", reverse=True)}
+             key=lambda c: c["ano"] or "", reverse=True),
+         "doadores": sorted(
+             ({"cnpj": cnpj, "razao_social": razoes.get(cnpj), "valor_total": round(info["valor"], 2),
+               "qtd": info["qtd"], "fontes": sorted(info["fontes"]), "socios": sorted(info["socios"])}
+              for cnpj, info in v["doadores"].items()),
+             key=lambda x: -x["valor_total"])}
         for v in candidatos.values()
     ]
     lista_empresas = [
