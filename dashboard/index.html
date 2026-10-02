@@ -154,6 +154,14 @@
   td{padding:10px;border-bottom:1px solid #0c1a12}
   tbody tr{cursor:pointer;transition:.1s}
   tbody tr:hover{background:rgba(0,255,136,.06)}
+  /* Razão social + fantasia + CNPJ eram 3 linhas de altura variável (fantasia
+     só aparece às vezes) -- deixava a tabela com ritmo visual "pulando" entre
+     linhas. Fixo em 2 linhas sempre, truncando com reticências (nome
+     completo via title=... no hover). */
+  th.col-nome,td.col-nome{max-width:300px}
+  td.col-nome .nome-principal,td.col-nome .nome-sub{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  td.col-nome .nome-sub{color:var(--muted);font-size:11px;margin-top:2px}
+  th.col-atividade,td.col-atividade{max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
   .tag.ok{background:rgba(0,255,136,.12);color:var(--green);border:1px solid var(--green-dim)}
   .tag.warn{background:rgba(255,207,77,.12);color:var(--amber);border:1px solid var(--amber)}
@@ -166,6 +174,19 @@
   .divida-det .k{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.5px;display:block}
   .divida-det .val{color:var(--text)}
   .tag.pend{background:rgba(255,84,112,.12);color:var(--danger);border:1px solid var(--danger)}
+  /* Grupos colapsáveis do painel de filtros -- a lista de ~15 checkboxes
+     "chapada" (sanções, ambiental, vínculo político, PNCP etc.) ficava longa
+     demais pra escanear; agrupada e fechada por padrão, só a busca/segmento/
+     município/porte ficam sempre visíveis. */
+  details.fgroup{margin:14px 0 0;border-top:1px solid var(--line)}
+  details.fgroup summary{cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;
+    font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:10px 0}
+  details.fgroup summary:hover{color:var(--green)}
+  details.fgroup summary::-webkit-details-marker{display:none}
+  details.fgroup summary::after{content:'▸';color:var(--green)}
+  details.fgroup[open] summary::after{content:'▾'}
+  details.fgroup .fgroup-body{padding-bottom:4px}
+  details.fgroup .fgroup-body label.f:first-child{margin-top:0}
   .pager{display:flex;justify-content:space-between;gap:10px;margin:18px 0;align-items:center;flex-wrap:wrap}
   .empty{text-align:center;color:var(--muted);padding:40px}
   /* modal */
@@ -359,7 +380,9 @@
         <option value="false">Sem pendência (mais "limpas")</option>
         <option value="true">Com pendência (qualquer)</option>
       </select>
-      <label class="f">Situação cadastral</label>
+      <details class="fgroup">
+        <summary>Situação cadastral (detalhado)</summary>
+        <div class="fgroup-body">
       <label class="chk" id="row_proc"><input type="checkbox" id="f_proc" onchange="toggleSubmenuProc()"> Em processo judicial</label>
       <div id="proc_submenu" style="display:none;margin:-4px 0 8px 22px">
         <div class="msdica">nada marcado = Réu (padrão); marcar mais de um exige processo de CADA um (E, não OU)</div>
@@ -442,6 +465,11 @@
           <option value="Muito Alto">Muito Alto</option>
         </select>
       </div>
+        </div>
+      </details>
+      <details class="fgroup">
+        <summary>Capital e contato</summary>
+        <div class="fgroup-body">
       <div class="row2">
         <div><label class="f">Capital mín. (R$)</label><input id="f_capmin" type="number" min="0"></div>
         <div><label class="f">Capital máx. (R$)</label><input id="f_capmax" type="number" min="0"></div>
@@ -451,6 +479,8 @@
       <label class="chk"><input type="checkbox" id="f_email"> Com e-mail</label>
       <label class="chk"><input type="checkbox" id="f_wpp"> Com WhatsApp</label>
       <label class="chk"><input type="checkbox" id="f_rede"> Com rede social</label>
+        </div>
+      </details>
       <label class="f">Ordenar por</label>
       <select id="f_ordem">
         <option value="razao_social">Razão social</option>
@@ -474,7 +504,7 @@
         <table>
           <thead><tr>
             <th class="col-chk" style="width:30px"><input type="checkbox" id="chk_all" onchange="toggleSelecionarTodos(this)"></th>
-            <th class="sortable active" data-ord="razao_social" onclick="ordenarPor('razao_social')">Razão social <span class="arrow">⇅</span></th>
+            <th class="sortable active col-nome" data-ord="razao_social" onclick="ordenarPor('razao_social')">Razão social <span class="arrow">⇅</span></th>
             <th class="sortable" data-ord="municipio" onclick="ordenarPor('municipio')">Município <span class="arrow">⇅</span></th>
             <th class="col-atividade">Atividade</th>
             <th class="sortable" data-ord="porte" onclick="ordenarPor('porte')">Porte <span class="arrow">⇅</span></th>
@@ -689,10 +719,11 @@ async function buscar(reset){
     const porteCls = e.porte==="01"?"ok":e.porte==="03"?"warn":"default";
     const porte = `<span class="tag ${porteCls}">${esc(PORTE[e.porte]||e.porte||"—")}</span>`;
     const nome = esc(e.razao_social||e.nome_fantasia||"(sem nome)");
+    const subpartes = [e.nome_fantasia&&e.nome_fantasia!==e.razao_social?esc(e.nome_fantasia):null, formatarCnpj(e.cnpj)].filter(Boolean);
     return `<tr onclick="abrir('${e.cnpj}')">
       <td class="col-chk" onclick="event.stopPropagation()"><input type="checkbox" class="rowchk" onchange="onLinhaChk(this)"></td>
-      <td><b>${nome}</b>${e.nome_fantasia&&e.nome_fantasia!==e.razao_social?`<br><span style="color:var(--muted);font-size:12px">${esc(e.nome_fantasia)}</span>`:""}<br><span class="mono" style="color:var(--muted);font-size:11px">${formatarCnpj(e.cnpj)}</span></td>
-      <td>${esc(e.municipio||"—")}</td><td class="col-atividade">${esc(e.cnae_desc||e.cnae_principal||"—")}</td>
+      <td class="col-nome"><div class="nome-principal" title="${nome}"><b>${nome}</b></div><div class="nome-sub mono" title="${subpartes.join(" · ")}">${subpartes.join(" &middot; ")}</div></td>
+      <td>${esc(e.municipio||"—")}</td><td class="col-atividade" title="${esc(e.cnae_desc||e.cnae_principal||"—")}">${esc(e.cnae_desc||e.cnae_principal||"—")}</td>
       <td>${porte}</td><td>${contato}</td><td>${sit}</td>
       <td class="col-chk" onclick="event.stopPropagation();abrir('${e.cnpj}')"><span class="iconbtn" title="Abrir">↗</span></td></tr>`;
   }).join("");
