@@ -218,8 +218,11 @@ _ORDENAR_POR = {"razao_social", "capital_social", "municipio", "porte", "cnpj"}
 _PENDENCIA_EXPR = (
     # Processo judicial só conta como pendência quando a empresa é RÉ — sendo
     # autora (ex.: cobrando uma dívida) não é um passivo/risco para quem
-    # avalia a empresa como prospect.
-    "(EXISTS (SELECT 1 FROM processos_judiciais p WHERE p.cnpj_empresa = e.cnpj AND p.polo = 'Réu') "
+    # avalia a empresa como prospect. match_confianca='socio' exclui processo
+    # achado só pelo nome do sócio (ação pessoal dele, não da empresa) -- sem
+    # esse filtro a listagem divergia do detalhe (obter_empresa), que já
+    # filtrava isso (achado real: NAZCA LTDA, CNPJ 66.240.957/0001-13).
+    "(EXISTS (SELECT 1 FROM processos_judiciais p WHERE p.cnpj_empresa = e.cnpj AND p.polo = 'Réu' AND p.match_confianca != 'socio') "
     "OR EXISTS (SELECT 1 FROM sancoes_administrativas s WHERE s.cnpj_empresa = e.cnpj) "
     "OR EXISTS (SELECT 1 FROM infracoes_ambientais i WHERE i.cnpj_empresa = e.cnpj) "
     "OR EXISTS (SELECT 1 FROM dividas_ativas d WHERE d.cnpj_empresa = e.cnpj))"
