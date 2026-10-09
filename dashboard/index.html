@@ -180,11 +180,15 @@
      município/porte ficam sempre visíveis. */
   details.fgroup{margin:14px 0 0;border-top:1px solid var(--line)}
   details.fgroup summary{cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;
-    font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:10px 0}
-  details.fgroup summary:hover{color:var(--green)}
+    font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:10px 2px;
+    border-radius:6px;transition:background .15s ease,color .15s ease}
+  details.fgroup summary:hover{color:var(--green);background:rgba(0,255,136,.06)}
   details.fgroup summary::-webkit-details-marker{display:none}
-  details.fgroup summary::after{content:'▸';color:var(--green)}
-  details.fgroup[open] summary::after{content:'▾'}
+  details.fgroup summary::after{content:'▸';flex:none;display:inline-flex;align-items:center;justify-content:center;
+    width:20px;height:20px;border-radius:50%;background:rgba(0,255,136,.1);border:1px solid var(--green-dim);
+    color:var(--green);font-size:11px;transition:transform .18s ease,background .18s ease}
+  details.fgroup[open] summary{color:var(--green)}
+  details.fgroup[open] summary::after{transform:rotate(90deg);background:rgba(0,255,136,.28)}
   details.fgroup .fgroup-body{padding-bottom:4px}
   details.fgroup .fgroup-body label.f:first-child{margin-top:0}
   .pager{display:flex;justify-content:space-between;gap:10px;margin:18px 0;align-items:center;flex-wrap:wrap}
