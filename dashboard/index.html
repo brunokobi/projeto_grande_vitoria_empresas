@@ -870,7 +870,7 @@ async function verificarDossieCache(cnpj){
   const area = document.getElementById("dossie_ia_area");
   if(!area || area.dataset.cnpj !== cnpj) return; // modal já trocou de empresa
   try{
-    const resp = await fetch(`https://n8n-brunokobi.duckdns.org/webhook/kobi-dossie-cache?cnpj=${encodeURIComponent(cnpj)}`);
+    const resp = await fetch(`https://empresas.brunokobi.tech/kobi-api/dossie/${encodeURIComponent(cnpj)}/cache`);
     if(!resp.ok) return; // sem dossiê salvo ainda ou erro — mantém o botão padrão de gerar
     const d = await resp.json();
     if(!d.cache || !d.html) return;
@@ -927,9 +927,9 @@ async function gerarDossieIA(btn, forcar){
   if(btn) btn.disabled = true;
   area.innerHTML = `<div class="body loading" style="padding:10px 0">${forcar?"regerando":"gerando"} dossiê (~30-90s)...</div>`;
   try{
-    const resp = await fetch("https://n8n-brunokobi.duckdns.org/webhook/kobi-dossie", {
+    const resp = await fetch(`https://empresas.brunokobi.tech/kobi-api/dossie/${encodeURIComponent(cnpj)}/gerar`, {
       method: "POST", headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({cnpj, forcar: !!forcar})
+      body: JSON.stringify({forcar: !!forcar})
     });
     if(!resp.ok) throw new Error("HTTP "+resp.status);
     const d = await resp.json();
