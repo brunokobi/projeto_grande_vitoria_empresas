@@ -103,6 +103,9 @@
   .stat .sub{color:var(--muted);font-size:11px;margin-top:4px;opacity:.8}
   /* layout */
   .grid{display:grid;grid-template-columns:290px 1fr;gap:18px;align-items:start}
+  /* Sem isso, a largura mínima da tabela (nomes em nowrap) estica a coluna
+     única no celular e o painel de filtros sai da tela. */
+  .grid>*{min-width:0}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
   .filtercard{position:sticky;top:80px}
   .card h3{margin:0 0 12px;font-size:13px;letter-spacing:1px;text-transform:uppercase;color:var(--green);
@@ -549,11 +552,15 @@ const _reqCache = new Map();
 const CACHE_MAX = 100;
 async function fetchJSONCached(url){
   if(_reqCache.has(url)) return _reqCache.get(url);
-  const data = await (await fetch(url)).json();
+  const resp = await fetch(url);
+  if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  const data = await resp.json();
   if(_reqCache.size >= CACHE_MAX) _reqCache.delete(_reqCache.keys().next().value);
   _reqCache.set(url, data);
   return data;
 }
+// Mesmo critério de _tel_valido() no backend: lixo tipo "(nan) nan" / "(27) 0".
+const telValido = t => /^\d{8,}$/.test(String(t||"").replace(/[()\s.\-]/g,""));
 const esc = s => (s==null?"":String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 function query(){
@@ -703,7 +710,12 @@ async function initSegmentos(){
   const sel = $("f_segmento");
   segs.forEach(s=> sel.innerHTML += `<option value="${s.prefixo}">${esc(s.nome)} (${s.total.toLocaleString('pt-BR')})</option>`);
 }
+let _classesProcessosCarregadas = false;
 async function initClassesProcessos(){
+  // Só quando o submenu de processo é aberto -- a consulta leva de 5 a 18s
+  // e atrasava o carregamento inicial da página.
+  if(_classesProcessosCarregadas) return;
+  _classesProcessosCarregadas = true;
   const classes = await (await fetch("/processos/classes?limite=100")).json();
   const sel = $("f_proc_classe");
   classes.forEach(c=> sel.innerHTML += `<option value="${esc(c.classe)}">${esc(c.classe)} (${c.total.toLocaleString('pt-BR')})</option>`);
@@ -713,14 +725,22 @@ async function buscar(reset){
   const p = query();
   p.set("limite",PP); p.set("offset",pagina*PP);
   $("rows").innerHTML = `<tr><td colspan="8" class="loading">carregando…</td></tr>`;
-  const r = await fetchJSONCached("/empresas?"+p.toString());
+  $("vazio").style.display = "none";
+  let r;
+  try {
+    r = await fetchJSONCached("/empresas?"+p.toString());
+  } catch(err) {
+    $("rows").innerHTML = `<tr><td colspan="8" class="empty">Não foi possível carregar as empresas (${esc(err.message)}).<br><button class="btn ghost" style="margin-top:10px" onclick="buscar()">Tentar de novo</button></td></tr>`;
+    $("pager").innerHTML = "";
+    return;
+  }
   ultTotal = r.total;
   $("total").textContent = r.total.toLocaleString('pt-BR');
   $("vazio").style.display = r.itens.length? "none":"block";
   $("rows").innerHTML = r.itens.map(e=>{
     const contato = `<span style="display:inline-flex;gap:6px;white-space:nowrap">` + [
       e.email?`<a class="iconbtn" href="mailto:${esc(e.email)}" onclick="event.stopPropagation()" title="${esc(e.email)}">✉</a>`:`<span class="iconbtn off" title="Sem e-mail">✉</span>`,
-      e.telefone?`<a class="iconbtn" href="tel:${esc(e.telefone)}" onclick="event.stopPropagation()" title="${esc(e.telefone)}">☎</a>`:`<span class="iconbtn off" title="Sem telefone">☎</span>`,
+      telValido(e.telefone)?`<a class="iconbtn" href="tel:${esc(e.telefone)}" onclick="event.stopPropagation()" title="${esc(e.telefone)}">☎</a>`:`<span class="iconbtn off" title="Sem telefone">☎</span>`,
       `<span class="iconbtn" onclick="event.stopPropagation();copiarCnpj('${e.cnpj}',this)" title="Copiar CNPJ">⧉</span>`,
     ].join("") + `</span>`;
     const sit = e.tem_pendencia? `<span class="tag pend">Pendência</span>`:`<span class="tag ok">Ativo</span>`;
@@ -762,6 +782,7 @@ function onLinhaChk(cb){
 }
 function toggleSubmenuProc(){
   $("proc_submenu").style.display = $("f_proc").checked ? "" : "none";
+  if($("f_proc").checked) initClassesProcessos().catch(()=>{ _classesProcessosCarregadas = false; });
 }
 function toggleSubmenuSanc(){
   $("sanc_submenu").style.display = $("f_sanc").checked ? "" : "none";
@@ -2302,7 +2323,11 @@ window.addEventListener("popstate", ()=>{
   if(cnpj) abrir(cnpj, true); else fechar(true);
 });
 (async ()=>{
-  await initEstat(); await initSegmentos(); initClassesProcessos(); initMapa(); buscar(true);
+  // Tabela e mapa não dependem das estatísticas/segmentos -- tudo em
+  // paralelo, em vez de a tabela esperar as outras requisições em série.
+  initMapa(); buscar(true);
+  initEstat().catch(()=>{ $("stats").innerHTML = `<div class="empty">Não foi possível carregar as estatísticas. <button class="btn ghost" onclick="atualizar()">Tentar de novo</button></div>`; });
+  initSegmentos().catch(()=>{});
   const cnpjInicial = new URLSearchParams(location.search).get("empresa");
   if(cnpjInicial) abrir(cnpjInicial, true);
 })();

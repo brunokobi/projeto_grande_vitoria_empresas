@@ -213,6 +213,15 @@ def _fts_query(texto: str) -> str:
 # Colunas de ordenação permitidas (whitelist — nunca vem direto do usuário).
 _ORDENAR_POR = {"razao_social", "capital_social", "municipio", "porte", "cnpj"}
 
+def _tel_valido(col="e.telefone"):
+    """Telefone com pelo menos 8 dígitos e nada além de dígitos depois de
+    tirar a formatação. A base tem lixo como "(nan) nan" (NaN do pandas
+    formatado na ingestão) e "(27) 0", que contavam como "com telefone"."""
+    limpo = (f"replace(replace(replace(replace(replace({col},'(',''),')',''),"
+             f"' ',''),'-',''),'.','')")
+    return f"(length({limpo}) >= 8 AND {limpo} NOT GLOB '*[^0-9]*')"
+
+
 # Expressão de pendência jurídico-fiscal (empresa tem registro em qualquer
 # tabela satélite). Usada tanto como filtro quanto como coluna calculada.
 _PENDENCIA_EXPR = (
@@ -291,7 +300,7 @@ def _filtros_sql(*, tem_contato=False, tem_fts=False, tem_contratos=False,
                      "AND so.nome_socio LIKE ?)")
         params.append(f"%{socio}%")
     if com_telefone:
-        where.append("e.telefone IS NOT NULL AND e.telefone != ''")
+        where.append(_tel_valido())
     if com_email:
         where.append("e.email IS NOT NULL AND e.email != ''")
     if capital_min is not None:
@@ -577,7 +586,7 @@ def estatisticas() -> dict:
         por_regime = {(r["regime_tributario"] or "(n/d)"): r["n"] for r in conn.execute(
             "SELECT regime_tributario, COUNT(*) n FROM empresas GROUP BY regime_tributario ORDER BY n DESC")}
         com_telefone = conn.execute(
-            "SELECT COUNT(*) FROM empresas WHERE telefone IS NOT NULL AND telefone != ''").fetchone()[0]
+            f"SELECT COUNT(*) FROM empresas WHERE {_tel_valido('telefone')}").fetchone()[0]
         com_email = conn.execute(
             "SELECT COUNT(*) FROM empresas WHERE email IS NOT NULL AND email != ''").fetchone()[0]
         com_pendencia = conn.execute(
@@ -999,7 +1008,7 @@ def classificar_empresas(objetivo="generico", pref_telefone=None, pref_email=Non
         tem_contato = _tabela_existe(conn, "enriquecimento_contato")
         tem_fts = _tabela_existe(conn, "empresas_fts")
         divida = "EXISTS (SELECT 1 FROM dividas_ativas d WHERE d.cnpj_empresa = e.cnpj)"
-        tel = "(e.telefone IS NOT NULL AND e.telefone != '')"
+        tel = _tel_valido()
         eml = "(e.email IS NOT NULL AND e.email != '')"
         if tem_contato:
             site = ("EXISTS (SELECT 1 FROM enriquecimento_contato ec WHERE ec.cnpj_empresa = e.cnpj "
