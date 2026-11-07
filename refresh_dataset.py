@@ -62,6 +62,32 @@ if versao and "--force" not in sys.argv and os.path.exists(db_final):
     except FileNotFoundError:
         pass
 
+def _remover_auxiliares(caminho):
+    """-wal/-shm/-journal de uma execução anterior seriam aplicados pelo SQLite
+    ao arquivo NOVO com o mesmo nome — e corrompem a leitura dele."""
+    for suf in ("-wal", "-shm", "-journal"):
+        try:
+            os.remove(caminho + suf)
+        except FileNotFoundError:
+            pass
+
+
+def _banco_integro(caminho) -> bool:
+    import sqlite3
+    try:
+        c = sqlite3.connect(f"file:{caminho}?mode=ro", uri=True)
+        try:
+            ok = c.execute("PRAGMA quick_check").fetchone()[0] == "ok"
+            ok = ok and c.execute("SELECT COUNT(*) FROM empresas").fetchone()[0] > 0
+        finally:
+            c.close()
+        return ok
+    except sqlite3.Error as e:
+        print("[refresh_dataset] Erro ao conferir o banco novo:", repr(e))
+        return False
+
+
+_remover_auxiliares(db_tmp)
 urllib.request.urlretrieve(RELEASE_URL, gz_tmp)
 with gzip.open(gz_tmp, "rb") as fi, open(db_tmp, "wb") as fo:
     shutil.copyfileobj(fi, fo)
@@ -77,6 +103,14 @@ try:
 except Exception as e:
     print("[refresh_dataset] Pré-cálculo da nota de integridade NÃO gravado:", repr(e))
 
+# Nunca troca o banco do site por um arquivo que não passe na conferência do
+# SQLite: mantém o atual e sai com erro (o cron tenta de novo na próxima rodada).
+if not _banco_integro(db_tmp):
+    print("[refresh_dataset] Banco novo REPROVADO no quick_check — mantido o banco atual.")
+    os.remove(db_tmp)
+    _remover_auxiliares(db_tmp)
+    sys.exit(1)
+_remover_auxiliares(db_tmp)
 os.replace(db_tmp, db_final)
 os.remove(gz_tmp)
 if versao:

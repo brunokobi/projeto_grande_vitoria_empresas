@@ -22,6 +22,7 @@ Uso manual:  python -m src.integridade_lote caminho/do/banco.db
 """
 from __future__ import annotations
 
+import contextlib
 import random
 import sqlite3
 import sys
@@ -49,7 +50,9 @@ def gerar(db_path: str | Path, log=print) -> dict:
 
     nivel_zero = avaliacao_integridade.NIVEIS[-1][1]
     t0 = time.time()
-    with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True) as c:
+    # contextlib.closing: o `with sqlite3.connect()` sozinho NÃO fecha a conexão,
+    # e uma conexão de leitura aberta impede o checkpoint do WAL no fim.
+    with contextlib.closing(sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)) as c:
         existentes = {r[0] for r in c.execute("SELECT name FROM sqlite_master WHERE type='table'")}
         tabelas = [t for t in _TABELAS_QUE_PONTUAM if t in existentes]
         uniao = " UNION ".join(f"SELECT cnpj_empresa FROM {t}" for t in tabelas)
@@ -106,9 +109,15 @@ def gerar(db_path: str | Path, log=print) -> dict:
         c.execute("COMMIT")
     except BaseException:
         c.execute("ROLLBACK")
-        raise
-    finally:
         c.close()
+        raise
+    # O banco publicado vem em modo WAL: sem isto as tabelas novas podem ficar só
+    # no arquivo -wal (que não acompanha o os.replace do refresh). DELETE força o
+    # checkpoint e grava tudo no arquivo principal.
+    modo = c.execute("PRAGMA journal_mode=DELETE").fetchone()[0]
+    c.close()
+    if modo.lower() != "delete":
+        raise IntegridadeInconsistente(f"não consegui tirar o banco do modo WAL (ficou {modo}).")
     log(f"[integridade] OK em {time.time() - t0:.0f}s — {por_nivel}")
     return por_nivel
 
