@@ -1431,6 +1431,18 @@ const _FONTE_DD = {
   CEAF: ["⛔", "Expulsão da administração federal (CEAF)"],
   BOLSA_FAMILIA: ["🧾", "Favorecido(a) de programa social"],
   IBAMA_EMBARGO: ["🌳", "Embargo ambiental (IBAMA)"],
+  BCB_INABILITADO: ["🏦", "Inabilitado(a) pelo Banco Central"],
+  CVM_SANCIONADOR: ["📈", "Processo sancionador na CVM"],
+  TCU_INABILITADO: ["⚖️", "Inabilitado(a) pelo TCU"],
+  OFAC: ["🌐", "Sanção internacional — OFAC (EUA)"],
+  ONU: ["🌐", "Sanção internacional — ONU"],
+  UK_SANCOES: ["🌐", "Sanção internacional — Reino Unido"],
+};
+const _CRITERIO_DD = {
+  cnpj: "CNPJ da empresa",
+  razao_social: "razão social idêntica",
+  nome_completo: "só nome completo (a fonte não publica CPF)",
+  "nome_completo+faixa_etaria": "nome completo + ano de nascimento compatível com a faixa etária do sócio",
 };
 function renderOcorrenciasSocios(arr){
   if(!arr||!arr.length) return "";
@@ -1441,9 +1453,8 @@ function renderOcorrenciasSocios(arr){
     const quem = x.nome_socio_vinculado
       ? `sócio(a) ${esc(x.nome_socio_vinculado)}`
       : `a própria empresa`;
-    const criterio = x.criterio === "cnpj"
-      ? "CNPJ da empresa"
-      : `nome completo + dígitos do CPF mascarado (${esc(x.cpf_parcial||"")})`;
+    const criterio = _CRITERIO_DD[x.criterio]
+      || `nome completo + dígitos do CPF mascarado (${esc(x.cpf_parcial||"")})`;
     return `<details class="divida">
       <summary>${ico} <b>${esc(rotulo)}</b> <span style="color:var(--muted)">— ${quem}</span>
         ${x.criterio==="cnpj"?"":'<span class="tag warn">possível correspondência</span>'}</summary>
