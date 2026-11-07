@@ -183,7 +183,7 @@ Lógica de consulta compartilhada (`src/dataset_queries.py`) entre dashboard, AP
 
 > A **classificação de leads** (questionário → score 0–100) segue disponível via API (`GET /classificar`) e MCP (`classificar_empresas`) — só foi tirada temporariamente da interface do dashboard.
 
-> **Importante (deploy na VPS)**: `/app/data` é um **bind mount persistente** do Coolify — `start.sh` só baixa o dataset na PRIMEIRA vez que o diretório está vazio; um **redeploy sozinho não atualiza o dataset**, ele só reconstrói a imagem/código. Quem mantém o dataset em dia é a **Scheduled Task do Coolify** rodando `refresh_dataset.py` a cada 2h (troca o arquivo atomicamente via `os.replace`, sem downtime). Se precisar do dado mais recente ANTES do próximo ciclo de 2h (ex.: pra validar uma fonte nova recém-publicada), rode manualmente dentro do container: `docker exec <container> python3 refresh_dataset.py`.
+> **Importante (deploy na VPS)**: `/app/data` é um **bind mount persistente** do Coolify — `start.sh` só baixa o dataset na PRIMEIRA vez que o diretório está vazio; um **redeploy sozinho não atualiza o dataset**, ele só reconstrói a imagem/código. Quem mantém o dataset em dia é o **cron do usuário `ubuntu` na vpsrafa** (`30 */2 * * *`, meia hora depois da publicação do pipeline de extração) rodando `refresh_dataset.py`: só baixa se o asset do Release mudou e troca o arquivo atomicamente via `os.replace`, sem downtime nem restart. Para forçar antes do próximo ciclo: `python3 refresh_dataset.py --force` na pasta do app.
 
 ### API REST (FastAPI) — docs em `/docs`
 - `GET /estatisticas` · `GET /segmentos`
