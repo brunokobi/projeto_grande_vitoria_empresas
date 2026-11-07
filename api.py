@@ -39,7 +39,18 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Empresas da Grande Vitória — API + Dashboard",
-    description="Dataset consolidado de empresas ativas da Grande Vitória (ES).",
+    description=(
+        "Dataset consolidado de ~367 mil empresas ativas da Grande Vitória (ES): cadastro "
+        "(Receita Federal), sócios, dívida ativa (PGFN), sanções (CEIS/CNEP/CEPIM/TCEES/Lista "
+        "Suja), infrações e embargos ambientais (IBAMA), processos judiciais (DJEN), vínculos "
+        "políticos (TSE/PEP), contratos públicos (PNCP/Portal da Transparência), marcas (INPI) "
+        "e benefícios fiscais. `GET /empresas/{cnpj}` traz também `processos_socios` (processos "
+        "achados pelo nome do sócio, só tribunais do ES) e `ocorrencias_socios` (due diligence "
+        "dos sócios: PGFN pessoa física, servidor federal, CEAF, Bolsa Família, embargo IBAMA, "
+        "Banco Central, CVM, TCU, OFAC/ONU/Reino Unido e ICIJ Offshore Leaks — possível "
+        "correspondência por CPF mascarado + nome). Atualizado a cada 2h a partir do Release "
+        "público do dataset."
+    ),
     version="2.0.0",
     lifespan=lifespan,
 )

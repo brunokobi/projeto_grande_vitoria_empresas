@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Empresas · Grande Vitória — Dashboard</title>
-<meta name="description" content="Dataset público com 351 mil empresas ativas da Grande Vitória (ES) — Vitória, Vila Velha, Serra, Cariacica, Viana, Guarapari e Fundão. Cruza dados cadastrais (Receita Federal), sócios, sanções administrativas, dívida ativa, processos judiciais, infrações ambientais, vínculos políticos e contratos públicos. Busca com filtros, mapa interativo, API REST e servidor MCP pra prospecção de clientes.">
+<meta name="description" content="Dataset público com 367 mil empresas ativas da Grande Vitória (ES) — Vitória, Vila Velha, Serra, Cariacica, Viana, Guarapari e Fundão. Cruza dados cadastrais (Receita Federal), sócios, sanções administrativas, dívida ativa, processos judiciais, infrações ambientais, vínculos políticos e contratos públicos. Busca com filtros, mapa interativo, API REST e servidor MCP pra prospecção de clientes.">
 <meta name="keywords" content="empresas Grande Vitória, CNPJ Espírito Santo, prospecção de clientes, dataset empresas, sanções administrativas, dívida ativa, processos judiciais, API empresas, MCP, Vitória, Vila Velha, Serra, Cariacica, Guarapari">
 <meta name="author" content="Bruno Kobi">
 <meta name="robots" content="index, follow">
@@ -13,14 +13,14 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Empresas · Grande Vitória">
 <meta property="og:title" content="Empresas · Grande Vitória — Dashboard">
-<meta property="og:description" content="351 mil empresas ativas da Grande Vitória (ES) com sanções, dívida ativa, processos judiciais, infrações ambientais e vínculos políticos cruzados. Busca, mapa, API e MCP pra prospecção.">
+<meta property="og:description" content="367 mil empresas ativas da Grande Vitória (ES) com sanções, dívida ativa, processos judiciais, infrações ambientais e vínculos políticos cruzados. Busca, mapa, API e MCP pra prospecção.">
 <meta property="og:url" content="https://empresas.brunokobi.duckdns.org/">
 <meta property="og:image" content="https://empresas.brunokobi.duckdns.org/og-image.png">
 <meta property="og:locale" content="pt_BR">
 <!-- Twitter/X Card -->
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Empresas · Grande Vitória — Dashboard">
-<meta name="twitter:description" content="351 mil empresas ativas da Grande Vitória (ES) com sanções, dívida ativa, processos judiciais, infrações ambientais e vínculos políticos cruzados.">
+<meta name="twitter:description" content="367 mil empresas ativas da Grande Vitória (ES) com sanções, dívida ativa, processos judiciais, infrações ambientais e vínculos políticos cruzados.">
 <meta name="twitter:image" content="https://empresas.brunokobi.duckdns.org/og-image.png">
 <!-- Dataset estruturado (schema.org) -- é o que alimenta o Google Dataset Search -->
 <script type="application/ld+json">
@@ -28,7 +28,7 @@
   "@context": "https://schema.org",
   "@type": "Dataset",
   "name": "Empresas Ativas da Grande Vitória (ES)",
-  "description": "Dataset consolidado de 351 mil empresas ativas da Grande Vitória (ES) — cruza dados cadastrais (Receita Federal), sócios (JUCEES), sanções administrativas (CEIS/CNEP/CEPIM/TCEES), dívida ativa (PGFN), infrações ambientais (IBAMA), processos judiciais (DJEN/CNJ), vínculos políticos e doações eleitorais (TSE) e contratos públicos (Portal da Transparência/PNCP).",
+  "description": "Dataset consolidado de 367 mil empresas ativas da Grande Vitória (ES) — cruza dados cadastrais (Receita Federal), sócios (JUCEES), sanções administrativas (CEIS/CNEP/CEPIM/TCEES), dívida ativa (PGFN), infrações ambientais (IBAMA), processos judiciais (DJEN/CNJ), vínculos políticos e doações eleitorais (TSE) e contratos públicos (Portal da Transparência/PNCP).",
   "url": "https://empresas.brunokobi.duckdns.org/",
   "sameAs": "https://github.com/brunokobi/projeto_grande_vitoria_empresas",
   "creator": {"@type": "Person", "name": "Bruno Kobi"},
@@ -1927,7 +1927,7 @@ function abrirSobre(){
         <div class="item"><b>CEIS/CNEP</b> (CGU) — sanções federais, incluindo Lista Suja do trabalho escravo (MTE), CEPIM e acordos de leniência</div>
         <div class="item"><b>TCEES</b> — sanções do Tribunal de Contas do Espírito Santo</div>
         <div class="item"><b>IBAMA</b> — infrações ambientais</div>
-        <div class="item"><b>DJEN/CNJ</b> (Comunica API do PJe) — processos judiciais, localizados pelo nome da empresa (a API pública do DataJud não expõe as partes por CNPJ). Só conta como pendência quando a empresa aparece como <b>ré</b> — sendo autora (ex.: cobrando uma dívida) não é tratado como risco</div>
+        <div class="item"><b>DJEN/CNJ</b> (Comunica API do PJe) — processos judiciais, localizados pelo nome da empresa (a API pública do DataJud não expõe as partes por CNPJ). Só conta como pendência quando a empresa aparece como <b>ré</b> — sendo autora (ex.: cobrando uma dívida) não é tratado como risco. Processos achados pelo <b>nome do sócio</b> aparecem numa seção separada, só de tribunais do ES (TJES, TRT17, TRF2, TRE-ES), e não contam como pendência da empresa — a fonte só confirma o nome, então pode haver homônimo</div>
       </div>
       <div class="sec">Contratos públicos e propriedade intelectual</div>
       <div class="lista">
@@ -1939,7 +1939,20 @@ function abrirSobre(){
       </div>
       <div class="sec">Vínculos políticos</div>
       <div class="lista">
-        <div class="item"><b>TSE</b> — candidaturas e doações eleitorais declaradas por sócios (pessoa exposta politicamente)</div>
+        <div class="item"><b>TSE</b> — candidaturas e doações eleitorais declaradas por sócios</div>
+        <div class="item"><b>Portal da Transparência (CGU)</b> — PEP: sócios que são pessoa exposta politicamente</div>
+      </div>
+      <div class="sec">Due diligence dos sócios</div>
+      <p style="font-size:13px">Cada sócio pessoa física é cruzado com fontes públicas pelos <b>6 dígitos do meio do CPF mascarado</b> (a mesma máscara da Receita) + <b>nome completo</b>; nas fontes que não publicam CPF, só pelo nome completo — e, quando a lista traz data de nascimento, ela precisa ser compatível com a faixa etária do sócio. Sem o CPF completo pode haver homônimo, por isso tudo aparece como <b>possível correspondência</b>, com o critério usado.</p>
+      <div class="lista">
+        <div class="item"><b>PGFN</b> — dívida ativa da União em nome do próprio sócio</div>
+        <div class="item"><b>Portal da Transparência (CGU)</b> — servidor público federal (SIAPE), expulsões da administração federal (CEAF) e favorecidos do Novo Bolsa Família</div>
+        <div class="item"><b>IBAMA</b> — termos de embargo em nome do sócio (CPF) ou da própria empresa (CNPJ)</div>
+        <div class="item"><b>Banco Central</b> — inabilitados para cargo em instituição financeira</div>
+        <div class="item"><b>CVM</b> — acusados em processo administrativo sancionador</div>
+        <div class="item"><b>TCU</b> — inabilitados para cargo público</div>
+        <div class="item"><b>OFAC</b> (EUA), <b>ONU</b> (inclui as difusões especiais Interpol–ONU) e <b>Reino Unido</b> — listas de sanções internacionais</div>
+        <div class="item"><b>ICIJ Offshore Leaks</b> (Panama, Pandora, Paradise Papers…) — dirigente, beneficiário ou intermediário de offshore, só registros ligados ao Brasil. Aparecer no vazamento não significa irregularidade. Dados sob licença ODbL</div>
       </div>
       <div class="sec">Localização e contato</div>
       <div class="lista">
@@ -1958,7 +1971,7 @@ function abrirSobre(){
       <p>Cada empresa tem um botão <b>"Gerar dossiê com IA"</b> no modal — monta um relatório de due diligence sob demanda, combinando 3 fontes: (1) os dados factuais já listados acima (cadastro, sanções, dívida ativa, processos judiciais, infrações ambientais); (2) a <b>rede societária</b> em grafo (Neo4j — sócio em comum entre empresas, endereço compartilhado); (3) um <b>score de risco preditivo</b> (0-100), calculado por um modelo de machine learning (XGBoost) treinado sobre esse mesmo dataset. Um LLM local (Ollama, <code>llama3.1:8b</code>) redige o parecer técnico final a partir desses dados — nenhum dado é inventado, só interpretado. O dossiê gerado fica salvo (mostra a data da última geração e um botão para regerar a qualquer momento).</p>
       <p>O score preditivo vem de um <b>projeto de pesquisa de mestrado</b> do autor (<code>experimento2026</code>), que investiga se uma empresa conectada a uma já sancionada — via sócio em comum, mesmo endereço, ou vínculo político — tem risco maior de também estar envolvida em irregularidade, comparando modelos tabulares contra modelos de grafo (GNN/HAN) com validação estatística (30 folds, teste de Wilcoxon). <b>Por vir de um modelo de pesquisa</b> (treinado numa base com &lt;0,1% de empresas sancionadas), todo dossiê que exibe o score traz uma nota metodológica explícita: interpretar como sinal de priorização para investigação manual, nunca como veredito. Preprint publicado em acesso aberto (Zenodo, CC BY 4.0): <a href="https://doi.org/10.5281/zenodo.21961062" target="_blank" rel="noopener">10.5281/zenodo.21961062</a>.</p>
       <div class="sec">Como o cruzamento é feito</div>
-      <p>A maioria das fontes é combinada pelo <b>CNPJ</b> (chave única). Exceções: processos judiciais são localizados por <b>nome</b> da empresa (a API pública não expõe CNPJ das partes); Unidade de Conservação e setor de risco geológico/inundação são por <b>geolocalização</b> (a empresa cai dentro do polígono); fiscalização ambiental/barragem/outorga hídrica são por <b>proximidade geográfica</b> (a fonte não traz CNPJ/nome, exceto barragem, também cruzada por nome do sócio); ocorrências criminais são agregadas por <b>bairro</b> (a fonte não traz coordenada exata). Nenhuma fonte é editada ou reinterpretada — os campos exibidos vêm direto das bases públicas oficiais. CPFs de sócios são sempre mascarados, conforme a LGPD.</p>
+      <p>A maioria das fontes é combinada pelo <b>CNPJ</b> (chave única). Exceções: processos judiciais são localizados por <b>nome</b> da empresa (a API pública não expõe CNPJ das partes); a due diligence dos sócios usa <b>CPF mascarado + nome</b> (ou só nome, nas fontes sem CPF); Unidade de Conservação e setor de risco geológico/inundação são por <b>geolocalização</b> (a empresa cai dentro do polígono); fiscalização ambiental/barragem/outorga hídrica são por <b>proximidade geográfica</b> (a fonte não traz CNPJ/nome, exceto barragem, também cruzada por nome do sócio); ocorrências criminais são agregadas por <b>bairro</b> (a fonte não traz coordenada exata). Nenhuma fonte é editada ou reinterpretada — os campos exibidos vêm direto das bases públicas oficiais. CPFs de sócios são sempre mascarados, conforme a LGPD.</p>
       <p style="color:var(--muted);font-size:12px;margin-top:16px">Código aberto: <a href="https://github.com/brunokobi/projeto_grande_vitoria_empresas" target="_blank" rel="noopener">github.com/brunokobi/projeto_grande_vitoria_empresas</a></p>
     </div>`;
 }

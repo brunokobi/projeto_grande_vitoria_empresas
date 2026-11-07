@@ -4,12 +4,12 @@
 
 ### A base aberta mais completa de empresas ativas do Espírito Santo — pronta para prospecção, pesquisa e análise de mercado.
 
-**351 mil empresas ativas** de **7 municípios**, cruzando dados cadastrais, **sócios**, jurídicos, sanções, dívida ativa, infrações ambientais e **flags de risco** (trabalho escravo, CEPIM, leniência) — tudo de **fontes públicas oficiais**. Com **mapa interativo**, **dashboard**, **API REST**, **MCP** (Claude) e **classificação de leads**.
+**367 mil empresas ativas** de **7 municípios**, cruzando dados cadastrais, **sócios**, jurídicos, sanções, dívida ativa, infrações ambientais, **flags de risco** (trabalho escravo, CEPIM, leniência) e **due diligence dos sócios** (dívida ativa pessoal, sanções nacionais e internacionais, offshores) — tudo de **fontes públicas oficiais**. Com **mapa interativo**, **dashboard**, **API REST**, **MCP** (Claude) e **classificação de leads**.
 
 <br>
 
-[![Empresas](https://img.shields.io/badge/empresas%20ativas-351k%2B-2563eb?style=flat-square)](#)
-[![Sócios](https://img.shields.io/badge/s%C3%B3cios-231k%2B-2563eb?style=flat-square)](#)
+[![Empresas](https://img.shields.io/badge/empresas%20ativas-367k%2B-2563eb?style=flat-square)](#)
+[![Sócios](https://img.shields.io/badge/s%C3%B3cios-242k%2B-2563eb?style=flat-square)](#)
 [![Municípios](https://img.shields.io/badge/munic%C3%ADpios-7-16a34a?style=flat-square)](#)
 [![API](https://img.shields.io/badge/API-FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)](#-consumir-o-dataset)
 [![MCP](https://img.shields.io/badge/MCP-compat%C3%ADvel-8A2BE2?style=flat-square)](#-consumir-o-dataset)
@@ -93,27 +93,29 @@ Em desenvolvimento ativo. Estado atual:
 
 | Componente | Status |
 |---|---|
-| Cadastro (Receita) · **Sócios** · JUCEES | ✅ pronto (**351.824 empresas ativas** em produção — snapshot 08/09/2026, cresceu de 344k após a Receita atualizar o universo via cron mensal na VPS) |
-| Dívida ativa **PGFN** (detalhada) | ✅ pronto |
+| Cadastro (Receita) · **Sócios** · JUCEES | ✅ pronto (**366.995 empresas ativas** e **242.897 sócios** em produção — base de outubro/2026 da Receita, atualizada em 07/11/2026) |
+| Dívida ativa **PGFN** (detalhada) | ✅ pronto — 3º trimestre/2026: **201.098 inscrições** em **39.586 empresas** (R$ 41,7 bi) |
 | Sanções federais **CEIS/CNEP** + estaduais **TCEES** | ✅ pronto |
 | Infrações **IBAMA** (detalhadas) | ✅ pronto |
 | **CEPIM** (impedidas de verba federal) · **Acordos de Leniência** (CGU) | ✅ pronto |
 | **Lista Suja do trabalho escravo** (MTE) | ✅ pronto |
 | **Mapa interativo** (MapLibre) + **satélite** na visão 360º | ✅ pronto |
-| Geocodificação (coordenadas de todas as empresas) | ✅ **100% concluído em produção** (351.824/351.824 — conferido ao vivo em 05/09/2026) |
-| Processos judiciais (**DJEN/CNJ**, por nome da parte) | ✅ **3,51 milhões de processos publicados em produção**, **109.762 empresas** com algum processo encontrado (qualquer polo) — a consulta roda numa máquina local (ver nota), **99,99% do universo atual já consultado** (351.804/351.824 — praticamente concluído; conferido ao vivo em 08/09/2026) |
+| Geocodificação (coordenadas de todas as empresas) | ✅ **100% concluído em produção** (366.995/366.995 — empresas novas do mês são geocodificadas pelo cron mensal) |
+| Processos judiciais (**DJEN/CNJ**, por nome da parte) | ✅ **4,61 milhões de registros** em produção, **todo o universo atual consultado** (empresas e sócios, 07/11/2026); **96.403 empresas** aparecem como **ré** em processo próprio. Processos achados pelo **nome do sócio** ficam numa seção separada do modal, só de tribunais do ES (TJES, TRT17, TRF2, TRE-ES), e não contam como pendência da empresa |
+| **🔎 Due diligence dos sócios** (dívida ativa pessoal, servidor federal, expulsões, Bolsa Família, embargos IBAMA, Banco Central, CVM, OFAC/ONU/Reino Unido, Offshore Leaks) | ✅ **novo** — seção no modal da empresa; sócios cruzados pelo **CPF mascarado + nome** (ou só nome, nas fontes sem CPF), sempre marcados como *possível correspondência*. Ex.: dívida ativa da União do próprio sócio em **24 mil empresas** |
 | **🔍 Dossiê de Due Diligence via IA** (score preditivo + grafo societário + parecer redigido) | ✅ **novo** — botão no modal da empresa gera um relatório completo em Markdown (score de risco de um modelo estatístico treinado sobre o dataset, rede de sócios em comum via grafo Neo4j, e um parecer técnico redigido por LLM em cima só dos dados factuais) — ver seção própria abaixo |
 | Contato & redes sociais (WhatsApp, site, Instagram…) | 🧪 implementado |
 | Dashboard · API · MCP · export Excel/PDF | ✅ funcionais |
 | **Classificação de leads** (via API/MCP) | ✅ funciona — 🚧 removida temporariamente da UI do dashboard |
-| **Mapa: Unidades de Conservação/Zona de Amortecimento** (MMA/CNUC + IEMA-ES) | ✅ pronto — camada no mapa + filtro/badge: **10.194 empresas** dentro de UC/zona de amortecimento (rodado contra o universo atual, 351.824 empresas) — entrou no cron mensal, atualiza sozinho todo mês |
-| **Mapa: proximidade ambiental** (fiscalização IDAF/IEMA, barragem IDAF, outorga AGERH) | ✅ pronto — camada no mapa + filtro/badge: **83.052 empresas** a até 500m de um ponto ambiental — mesma cobertura/atualização automática acima |
-| **Mapa: risco geológico/inundação** (Defesa Civil-ES, CPRM, PMRR Serra/Viana) | ✅ pronto — camada no mapa + filtro/badge: **17.421 empresas** dentro de algum setor de risco mapeado (767 setores, cobertura desigual entre os 7 municípios) — entrou no cron mensal, atualiza sozinho todo mês |
+| **Mapa: Unidades de Conservação/Zona de Amortecimento** (MMA/CNUC + IEMA-ES) | ✅ pronto — camada no mapa + filtro/badge: **10.771 empresas** dentro de UC/zona de amortecimento (universo atual, 366.995 empresas) — entrou no cron mensal, atualiza sozinho todo mês |
+| **Mapa: proximidade ambiental** (fiscalização IDAF/IEMA, barragem IDAF, outorga AGERH) | ✅ pronto — camada no mapa + filtro/badge: **86.572 empresas** a até 500m de um ponto ambiental — mesma cobertura/atualização automática acima |
+| **Mapa: risco geológico/inundação** (Defesa Civil-ES, CPRM, PMRR Serra/Viana) | ✅ pronto — camada no mapa + filtro/badge: **18.277 empresas** dentro de algum setor de risco mapeado (767 setores, cobertura desigual entre os 7 municípios) — entrou no cron mensal, atualiza sozinho todo mês |
 
 > 🔄 **Atualização automática:** o dataset publicado (Release) é atualizado
 > **a cada 2 horas** — o dashboard/API baixam a versão nova sozinhos, sem
 > precisar de reinstalação. O cadastro base (Receita Federal) e as demais
-> fontes rodam mensalmente numa VPS; **processos judiciais (DJEN)** roda à
+> fontes rodam mensalmente numa VPS, sempre baixando os arquivos novos de
+> cada fonte (Receita, PGFN do trimestre mais recente, IBAMA, INPI, TSE...); **processos judiciais (DJEN)** roda à
 > parte, continuamente, numa máquina local (rate limit externo — não dá
 > pra paralelizar numa VPS sem violar o limite da API pública do CNJ).
 >
@@ -134,9 +136,10 @@ Em desenvolvimento ativo. Estado atual:
 |---|---|
 | 🏢 **Cadastro** | CNPJ, razão social, CNAE (por nome), porte, regime, capital, endereço, situação |
 | 👥 **Sócios + rede** | Quadro societário (nome, qualificação, faixa etária) e **em quais outras empresas o mesmo sócio aparece** |
-| ⚖️ **Situação jurídico-fiscal detalhada** | Dívida ativa (tipo de tributo, ajuizamento, risco), sanções federais/estaduais (fundamentação, valor da multa), infrações IBAMA (valor, gravidade), processos (DJEN, com **link direto pro Jusbrasil**), contratos públicos e renúncia fiscal — **cards com total em R$ de cada categoria**, só exibidos quando a empresa tem algum resultado |
+| ⚖️ **Situação jurídico-fiscal detalhada** | Dívida ativa (tipo de tributo, ajuizamento, risco), sanções federais/estaduais (fundamentação, valor da multa), infrações IBAMA (valor, gravidade), processos (DJEN, com **link direto pro Jusbrasil**; os achados pelo nome do sócio aparecem à parte), contratos públicos e renúncia fiscal — **cards com total em R$ de cada categoria**, só exibidos quando a empresa tem algum resultado |
+| 🔎 **Due diligence dos sócios** | Por sócio: dívida ativa da União em nome próprio, servidor público federal, expulsão do serviço público (CEAF), Bolsa Família, embargo do IBAMA, inabilitação pelo Banco Central, processo sancionador da CVM, sanções OFAC/ONU/Reino Unido e Offshore Leaks (ICIJ) — sempre como *possível correspondência*, com o critério do cruzamento |
 | 🚩 **Flags de risco** | **Lista Suja do trabalho escravo** (MTE), **CEPIM** (impedidas de verba federal), **acordos de leniência** — filtráveis |
-| 📄 **Contratos públicos** | Contratos federais (Portal da Transparência): órgão, objeto, valor, vigência |
+| 📄 **Contratos públicos** | PNCP (municipais, estaduais e federais) e Portal da Transparência (federais): órgão, objeto, valor, vigência |
 | 🗺️ **Mapa interativo** | Mapa geral da Grande Vitória com todos os pontos (clique → empresa) e **satélite** na visão 360º; filtros recortam o mapa |
 | 🧭 **Enriquecimento** | Geolocalização e contato/redes sociais |
 | 🎯 **Classificação de leads** | Questionário por objetivo comercial → score 0–100 (🔥 Quente / 🙂 Morno / ❄️ Frio) |
@@ -147,7 +150,7 @@ Em desenvolvimento ativo. Estado atual:
 
 ## 🔗 Fontes de dados cruzadas
 
-Tudo cruzado pelo **CNPJ**, exclusivamente de **fontes públicas oficiais**:
+Empresas cruzadas pelo **CNPJ**; sócios pelos **6 dígitos do meio do CPF mascarado + nome completo** (ou só nome, nas fontes que não publicam CPF) — exclusivamente de **fontes públicas oficiais**:
 
 | Fonte | O que agrega | Status |
 |---|---|:--:|
@@ -159,15 +162,24 @@ Tudo cruzado pelo **CNPJ**, exclusivamente de **fontes públicas oficiais**:
 | **IBAMA** | Infrações ambientais (valor da multa, gravidade, situação) | ✅ |
 | **MTE** — Cadastro de Empregadores | **Lista Suja** do trabalho escravo | ✅ |
 | **OpenStreetMap / Nominatim** | Geolocalização (mapa; fallback por endereço) | ✅ |
-| **DJEN / CNJ** (Comunica API) | Processos judiciais (por nome da parte) | 🚧 |
+| **DJEN / CNJ** (Comunica API) | Processos judiciais (por nome da parte — empresa e sócios) | ✅ |
 | **CGU** — Portal da Transparência | **Contratos com órgãos públicos federais** (objeto, valor, vigência) | ✅ |
 | **PNCP** (Portal Nacional de Contratações Públicas) | **Contratos municipais, estaduais e federais** (unificados desde 2023 — cobertura bem maior que o Portal da Transparência) | ✅ |
 | **CGU** — Portal da Transparência | **Renúncias/Benefícios Fiscais federais** (valor por ano, imunidade/isenção IRPJ, habilitação) | ✅ |
 | **SEDES-ES** — Programa COMPETE-ES | **Incentivo fiscal de ICMS estadual** (portaria de habilitação, vigência, exclusão) | ✅ |
 | **INPI** | **Marcas registradas** (sinal indireto de atividade/inovação) | ✅ |
-| **TSE** | **Vínculo político do sócio** — candidaturas e doações eleitorais declaradas em 2016/2018/2020/2022/2024 (municipal e geral, cruzado por nome+CPF mascarado) | ✅ |
+| **TSE** | **Vínculo político do sócio** — candidaturas e doações eleitorais declaradas em 2016/2018/2020/2022/2024/2026 (municipal e geral, cruzado por nome+CPF mascarado) | ✅ |
+| **CGU** — Portal da Transparência (PEP) | **Pessoa exposta politicamente** entre os sócios | ✅ |
 | **MMA/CNUC + IEMA-ES** (WFS GeoBases-ES) | **Unidade de Conservação/Zona de Amortecimento** — empresa geolocalizada dentro do polígono (identidade, point-in-polygon) | ✅ |
 | **IDAF/IEMA + AGERH/ANA** (WFS GeoBases-ES) | **Proximidade ambiental** — fiscalização grave, barragem e outorga hídrica a até 500m (proximidade; barragem também por nome do interessado quando bate com sócio) | ✅ |
+| **PGFN** (pessoa física) | **Dívida ativa da União do próprio sócio** (nº de inscrições, valor total, ajuizamento) | ✅ |
+| **CGU** — Portal da Transparência | **Servidor público federal** (SIAPE), **expulsões** (CEAF) e **Novo Bolsa Família** entre os sócios | ✅ |
+| **IBAMA** — Termos de embargo | **Embargo ambiental** do sócio (CPF) ou da própria empresa (CNPJ) | ✅ |
+| **Banco Central** | **Inabilitados** para cargo em instituição financeira | ✅ |
+| **CVM** | Acusados em **processo administrativo sancionador** | ✅ |
+| **TCU** | **Inabilitados** para cargo público | 🚧 (serviço do TCU fora do ar na implantação) |
+| **OFAC (EUA) · ONU · Reino Unido** | **Sanções internacionais** (nome + ano de nascimento × faixa etária do sócio); a lista da ONU inclui as difusões especiais Interpol–ONU | ✅ |
+| **ICIJ Offshore Leaks** (licença ODbL) | Sócio/empresa como **dirigente, beneficiário ou intermediário de offshore** (Panama/Pandora/Paradise Papers…), só registros ligados ao Brasil | ✅ |
 | **Defesa Civil-ES + CPRM + PMRR Serra/Viana** (WFS GeoBases-ES) | **Setor de risco geológico/inundação** — empresa geolocalizada dentro do polígono do setor mapeado (identidade, point-in-polygon; cobertura desigual entre os 7 municípios) | ✅ |
 
 > A construção/atualização do dataset é feita por um pipeline de extração mantido em repositório separado. Este é o **produto de consumo** — o histórico completo de fontes já testadas (implementadas e descartadas, com o motivo de cada descarte) fica documentado lá, não aqui.
