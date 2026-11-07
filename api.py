@@ -12,12 +12,13 @@ Docs da API: http://localhost:8000/docs
 import contextlib
 import io
 import json
+import re
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, Request, Depends
 from fastapi.responses import FileResponse, StreamingResponse, JSONResponse, Response
 
 import config
-from src import dataset_queries, geocode as geocode_lib, midia, notificar_telegram
+from src import dataset_queries, geocode as geocode_lib, midia, notificar_telegram, processo_detalhes
 from mcp_server import mcp
 
 # Expõe o mesmo servidor MCP (mcp_server.py) por HTTP em /mcp, além do uso
@@ -495,6 +496,23 @@ def get_midia_empresa(cnpj: str, forcar: bool = Query(False, description="Ignora
     if e is None:
         raise HTTPException(status_code=404, detail=f"CNPJ {cnpj} não encontrado.")
     return midia.mencoes(cnpj, e["razao_social"], e["nome_fantasia"], e["municipio"], forcar=forcar)
+
+
+@app.get("/processos/{numero}/detalhes", summary="Detalhes de um processo pelo número (DataJud ou DJEN, CNJ), sob demanda com cache de 7 dias")
+def get_processo_detalhes(
+    numero: str,
+    tribunal: str = Query(..., description="Sigla do tribunal (ex.: TJES, TRT17, TRF2)"),
+    fonte: str = Query(..., pattern="^(datajud|djen)$", description="datajud = metadados e movimentações por instância; djen = intimações publicadas (texto, partes, advogados)"),
+    forcar: bool = Query(False),
+):
+    """Consulta pelo NÚMERO do processo — sem cruzamento por nome. Os campos são
+    repassados como a fonte oficial entrega."""
+    numero = "".join(ch for ch in numero if ch.isdigit())
+    if len(numero) != 20:
+        raise HTTPException(status_code=400, detail="Número de processo deve ter 20 dígitos (padrão CNJ).")
+    if not re.fullmatch(r"[A-Za-z0-9-]{2,12}", tribunal):
+        raise HTTPException(status_code=400, detail="Sigla de tribunal inválida.")
+    return processo_detalhes.detalhes(numero, tribunal, fonte, forcar=forcar)
 
 
 @app.get("/classificar", summary="Classifica/pontua empresas por objetivo de prospecção")

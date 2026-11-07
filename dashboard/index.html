@@ -1206,6 +1206,88 @@ function renderInfracoes(arr){
   return `<div class="sec">🌱 Infrações ambientais (${arr.length})</div>${cards}`;
 }
 const _POLO_LABEL = {"Réu":"Réu/Ré", "Autor":"Autor(a)", "Terceiro":"Terceiro"};
+// Detalhes do processo (DataJud + DJEN, CNJ) — consultados pelo NÚMERO quando o
+// card abre pela 1ª vez. As duas fontes chegam separadas: o DJEN em ~1 s, o
+// DataJud pode levar ~30 s.
+function carregarDetalhesProcesso(el){
+  if(!el.open || el.dataset.carregado) return;
+  const num = (el.dataset.num||"").replace(/\D/g,""), trib = el.dataset.trib||"";
+  const box = el.querySelector(".proc-extra");
+  if(num.length!==20 || !trib || !box) return;
+  el.dataset.carregado = "1";
+  box.innerHTML = `<div class="proc-dj"><div style="color:var(--muted);font-size:12px">&#8987; Andamentos e assuntos (DataJud/CNJ)… pode levar ~30s</div></div>
+    <div class="proc-dn" style="margin-top:8px"><div style="color:var(--muted);font-size:12px">&#8987; Intimações publicadas (DJEN/CNJ)…</div></div>`;
+  const q = f => `/processos/${num}/detalhes?tribunal=${encodeURIComponent(trib)}&fonte=${f}`;
+  const falha = (alvo, nome) => { alvo.innerHTML = `<div style="color:var(--muted);font-size:12px">${nome}: fonte indisponível agora — feche e abra o card de novo pra tentar.</div>`; delete el.dataset.carregado; };
+  fetch(q("datajud")).then(r=>r.ok?r.json():null).then(d=>{
+    const alvo = box.querySelector(".proc-dj");
+    if(!d||!d.disponivel) return falha(alvo, "DataJud");
+    alvo.innerHTML = _renderDataJud(d.dados);
+  }).catch(()=>falha(box.querySelector(".proc-dj"), "DataJud"));
+  fetch(q("djen")).then(r=>r.ok?r.json():null).then(d=>{
+    const alvo = box.querySelector(".proc-dn");
+    if(!d||!d.disponivel) return falha(alvo, "DJEN");
+    alvo.innerHTML = _renderDjen(d.dados, el.dataset.socio);
+  }).catch(()=>falha(box.querySelector(".proc-dn"), "DJEN"));
+}
+let _empresaModal = null;
+const _normNome = s => (s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().replace(/[^A-Z0-9 ]/g," ").replace(/\s+/g," ").trim();
+// Confere, nas intimações oficiais, se a razão social da empresa aparece entre os
+// destinatários — é o que confirma (ou não) o vínculo feito por nome no DJEN.
+function _conferenciaPartes(itens, socio){
+  const e = _empresaModal; if((!e&&!socio)||!itens.length) return "";
+  const alvo = _normNome(socio || e.razao_social);
+  const quem = socio ? "o nome do sócio" : "a razão social da empresa";
+  let polo = null;
+  for(const x of itens){
+    if((x.polo_passivo||[]).some(n=>_normNome(n)===alvo)){ polo="passivo"; break; }
+    if((x.polo_ativo||[]).some(n=>_normNome(n)===alvo)) polo = polo||"ativo";
+  }
+  return polo
+    ? `<div style="font-size:12px;margin:2px 0 6px"><span class="tag ok">&#10003; conferido</span> ${quem} consta como destinatária no polo ${polo} das intimações oficiais</div>`
+    : `<div style="font-size:12px;margin:2px 0 6px"><span class="tag warn">não conferido</span> ${quem} (grafia exata) não aparece entre os destinatários das intimações listadas — confira as partes</div>`;
+}
+const _tituloProc = t => `<div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--green);margin:10px 0 4px">${t}</div>`;
+function _renderDataJud(inst){
+  if(!inst||!inst.length) return `<div style="color:var(--muted);font-size:12px">DataJud: processo não encontrado na base do CNJ.</div>`;
+  return inst.map(i=>{
+    const kv=(k,v)=>v?`<div><span class="k">${k}</span><span class="val">${v}</span></div>`:"";
+    const movs = (i.movimentos||[]).map(m=>`<li><span style="color:var(--muted)">${fmtDataHoraMov(m.data)}</span> — ${esc(m.nome||"")}${m.complementos&&m.complementos.length?` <span style="color:var(--muted)">(${m.complementos.map(esc).join("; ")})</span>`:""}</li>`).join("");
+    const resto = i.qtd_movimentos > (i.movimentos||[]).length ? `<li style="color:var(--muted)">… e mais ${i.qtd_movimentos-(i.movimentos||[]).length} movimentação(ões) anteriores</li>` : "";
+    return `${_tituloProc(`&#9878;&#65039; ${esc(i.grau||"Instância")} — DataJud/CNJ`)}
+      <div class="divida-det" style="padding:0">
+        ${kv("Órgão julgador", esc(i.orgao_julgador))}
+        ${kv("Ajuizamento", fmtData(i.data_ajuizamento))}
+        ${kv("Classe", esc(i.classe))}
+        ${kv("Sistema", esc([i.sistema,i.formato].filter(Boolean).join(" · ")))}
+        ${i.assuntos&&i.assuntos.length?`<div style="grid-column:1/-1"><span class="k">Assuntos</span><span class="val">${i.assuntos.map(esc).join(" · ")}</span></div>`:""}
+      </div>
+      ${movs?`<details style="margin-top:6px"><summary style="cursor:pointer;font-size:12px">Movimentações (${i.qtd_movimentos}) — mais recentes primeiro</summary><ul style="font-size:12px;margin:6px 0 0 16px;padding:0">${movs}${resto}</ul></details>`:""}`;
+  }).join("");
+}
+function fmtDataHoraMov(v){ if(!v) return ""; const d=fmtData(v); const h=String(v).slice(11,16); return h&&h!=="00:00"?`${d} ${h}`:d; }
+function _renderDjen(d, socio){
+  const itens = (d&&d.itens)||[];
+  if(!itens.length) return `${_tituloProc("&#128240; Intimações publicadas — DJEN/CNJ")}<div style="color:var(--muted);font-size:12px">Nenhuma comunicação publicada no DJEN para este número.</div>`;
+  const cards = itens.map(x=>{
+    const texto = x.texto||"";
+    const curto = texto.length>420 ? esc(texto.slice(0,420))+"…" : esc(texto);
+    return `<div style="border-top:1px solid var(--line,#1f2a2a);padding:6px 0;font-size:12px">
+      <div><b>${fmtData(x.data)}</b> · ${esc(x.tipo||"")}${x.documento?" ("+esc(x.documento)+")":""} · <span style="color:var(--muted)">${esc(x.orgao||"")}</span>
+        ${x.link?` · <a href="${esc(x.link)}" target="_blank" rel="noopener noreferrer">documento no tribunal &#8599;</a>`:""}</div>
+      ${x.polo_ativo&&x.polo_ativo.length?`<div><span style="color:var(--muted)">Polo ativo:</span> ${x.polo_ativo.map(esc).join(", ")}</div>`:""}
+      ${x.polo_passivo&&x.polo_passivo.length?`<div><span style="color:var(--muted)">Polo passivo:</span> ${x.polo_passivo.map(esc).join(", ")}</div>`:""}
+      ${x.advogados&&x.advogados.length?`<div><span style="color:var(--muted)">Advogados:</span> ${x.advogados.map(esc).join(", ")}</div>`:""}
+      ${texto.length>420
+        ? `<details><summary style="cursor:pointer;color:var(--muted)">Texto (trecho): ${curto} <u>ver completo</u></summary><div style="white-space:pre-wrap;margin-top:4px">${esc(texto)}</div></details>`
+        : (texto?`<div style="color:var(--muted)">${curto}</div>`:"")}
+    </div>`;
+  }).join("");
+  const lidas = d.qtd_lidas||itens.length;
+  const tot = (d.total && d.total>lidas ? ` — ${d.total} no total, lidas as ${lidas} mais recentes` : ` — ${lidas}`)
+    + (itens.length<lidas ? ` (${itens.length} atos distintos; o DJEN repete o ato por destinatário)` : "");
+  return `${_tituloProc("&#128240; Intimações publicadas — DJEN/CNJ"+tot)}${_conferenciaPartes(itens, socio)}${cards}`;
+}
 function renderProcessos(arr, filtrado, deSocios){
   const titulo = deSocios ? "👤 Processos pessoais de sócios (tribunais do ES)" : "📂 Processos judiciais";
   if(!arr||!arr.length){
@@ -1226,7 +1308,7 @@ function renderProcessos(arr, filtrado, deSocios){
     const viaSocio = x.nome_socio_vinculado
       ? ` <span class="tag pend" title="Processo pessoal encontrado pelo nome do sócio, não da empresa">via sócio: ${esc(x.nome_socio_vinculado)}</span>`
       : "";
-    return `<details class="divida">
+    return `<details class="divida" ontoggle="carregarDetalhesProcesso(this)" data-num="${esc(x.numero_processo||"")}" data-trib="${esc(x.tribunal||"")}" data-socio="${esc(x.nome_socio_vinculado||"")}">
       <summary><b>${esc(x.numero_processo||"—")}</b> <span style="color:var(--muted)">${esc(x.tribunal||"")}</span>
         ${poloTag}
         ${fuzzy?'<span class="tag warn">correspondência aproximada</span>':""}${viaSocio}
@@ -1241,6 +1323,7 @@ function renderProcessos(arr, filtrado, deSocios){
         ${x.nome_socio_vinculado?`<div style="grid-column:1/-1;color:var(--amber);font-size:12px">&#9888;&#65039; Correspondência feita só pelo nome do sócio (a fonte pública não expõe o CPF completo) — pode haver erro em caso de homônimos ou de duas pessoas com o CPF mascarado idêntico.</div>`:""}
         ${x.url_jusbrasil?`<a class="maplink" href="${esc(x.url_jusbrasil)}" target="_blank" rel="noopener noreferrer">Ver Processo &#8599;</a>`:""}
       </div>
+      <div class="proc-extra" style="padding:0 12px 10px"></div>
     </details>`;
   }));
   return `<div class="sec">${titulo} (${arr.length}) <span style="font-size:11px;color:var(--muted);font-weight:normal;text-transform:none;letter-spacing:0">${nota}</span></div>${cards}`;
@@ -1684,6 +1767,7 @@ async function abrir(cnpj, viaPopstate){
   const qs = qp.toString() ? "?"+qp.toString() : "";
   const d = await fetchJSONCached("/empresas/"+cnpj+qs);
   const e = d.empresa, c = d.contato||{}, j = d.jucees, rz = d.resumo;
+  _empresaModal = e;
   const kv = (icon,k,v)=> `<div><div class="k">${icon} ${k}</div><div class="v">${esc(v)||"-"}</div></div>`;
   const kvRaw = (icon,k,v)=> `<div><div class="k">${icon} ${k}</div><div class="v">${v||"-"}</div></div>`;
   // `bruto` é o valor numérico cru pra decidir se esconde o card (zerado);
