@@ -142,6 +142,16 @@ def _conn():
         conn.close()
 
 
+def dados_basicos_empresa(cnpj: str) -> dict | None:
+    """Razão social, nome fantasia e município — pra busca de mídia."""
+    with _conn() as c:
+        row = c.execute("SELECT razao_social, nome_fantasia, municipio FROM empresas "
+                        "WHERE cnpj = ?", (cnpj,)).fetchone()
+    if row is None:
+        return None
+    return {"razao_social": row[0], "nome_fantasia": row[1], "municipio": row[2]}
+
+
 def _tabela_existe(conn, nome: str) -> bool:
     return conn.execute(
         "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (nome,)

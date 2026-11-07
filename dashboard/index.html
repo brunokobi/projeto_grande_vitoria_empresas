@@ -1478,6 +1478,42 @@ const _CRITERIO_DD = {
   nome_completo: "só nome completo (a fonte não publica CPF)",
   "nome_completo+faixa_etaria": "nome completo + ano de nascimento compatível com a faixa etária do sócio",
 };
+// Menções na mídia (Google Notícias + GDELT) — sob demanda, porque cada
+// abertura de modal não deve disparar busca externa; cache de 7 dias no servidor.
+async function buscarMidia(btn, forcar){
+  const area = btn.closest("#midia_area"); const cnpj = area.dataset.cnpj;
+  area.innerHTML = `<div style="color:var(--muted);font-size:13px">&#8987; Buscando notícias… (até ~30s)</div>`;
+  try{
+    const r = await fetch(`/empresas/${cnpj}/midia${forcar?"?forcar=true":""}`);
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    area.innerHTML = renderMidia(await r.json());
+  }catch(err){
+    area.innerHTML = `<div style="color:var(--danger);font-size:13px">Não foi possível buscar agora (${esc(err.message)}).</div>
+      <button class="btn" onclick="buscarMidia(this,${!!forcar})" style="margin-top:8px">Tentar de novo</button>`;
+  }
+}
+function renderMidia(d){
+  const fontes = Object.entries(d.fontes||{}).map(([f,n])=>`${esc(f)}: ${typeof n==="number"?n:esc(n)}`).join(" · ");
+  const rodape = `<div style="font-size:11px;color:var(--muted);margin-top:8px">
+      Busca por: ${(d.termos||[]).map(t=>`"${esc(t)}"`).join(", ")||"—"} · ${fontes}
+      · consultado em ${fmtData(d.consultado_em)}${d.cache?" (cache)":""}
+      · <a href="#" onclick="buscarMidia(this,true);return false">buscar de novo</a></div>`;
+  if(d.aviso) return `<p style="color:var(--muted);font-size:13px">${esc(d.aviso)}</p>${rodape}`;
+  if(!d.itens||!d.itens.length) return `<p style="color:var(--muted);font-size:13px">Nenhuma notícia encontrada com o nome da empresa.</p>${rodape}`;
+  const linkOk = u => /^https?:\/\//i.test(u||"") ? u : "#";
+  const cards = _limitarCards(d.itens.map(x=>{
+    const riscos = (x.riscos||[]).map(r=>`<span class="tag pend" title="Termo de mídia adversa na manchete — confira a notícia">${esc(r)}</span>`).join(" ");
+    const homon = x.cita_nome ? "" : `<span class="tag warn" title="A manchete não traz o nome exato — pode ser outra empresa">conferir</span>`;
+    return `<div class="divida" style="padding:8px 10px">
+      <a href="${esc(linkOk(x.link))}" target="_blank" rel="noopener noreferrer"><b>${esc(x.titulo)}</b> &#8599;</a>
+      <div style="font-size:12px;color:var(--muted);margin-top:3px">${esc(x.veiculo||"")}${x.data?" · "+fmtData(x.data):""} · ${esc(x.fonte)} ${riscos} ${homon}</div>
+    </div>`;
+  }));
+  const resumo = d.qtd_possivel_risco
+    ? `<p style="font-size:13px;margin:4px 0 8px"><span class="tag pend">${d.qtd_possivel_risco} possível(is) menção(ões) negativa(s)</span> — triagem automática por termos; leia a notícia antes de concluir.</p>`
+    : "";
+  return resumo + cards + rodape;
+}
 function renderOcorrenciasSocios(arr){
   if(!arr||!arr.length) return "";
   const fmtRef = d => d && d.length===7 ? `${d.slice(5)}/${d.slice(0,4)}` : fmtData(d);
@@ -1732,6 +1768,11 @@ async function abrir(cnpj, viaPopstate){
       ${renderContratosPncp(d.contratos_pncp, qsPncp)}
       ${renderMarcas(d.marcas_inpi)}
       ${renderOcorrenciasSocios(d.ocorrencias_socios)}
+
+      <div class="sec">&#128240; Menções na mídia <span style="font-size:11px;color:var(--muted);font-weight:normal;text-transform:none;letter-spacing:0">— Google Notícias + GDELT; pode haver homônimos</span></div>
+      <div id="midia_area" data-cnpj="${e.cnpj}">
+        <button class="btn" onclick="buscarMidia(this)">&#128240; Buscar notícias sobre a empresa</button>
+      </div>
       ${renderUnidadesConservacao(d.unidades_conservacao)}
       ${renderAmbientalProximidade(d.ambiental_proximidade, qsAmbProx)}
       ${renderRiscoGeologico(d.risco_geologico)}

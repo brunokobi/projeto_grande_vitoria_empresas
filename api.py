@@ -17,7 +17,7 @@ from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, Request, Dep
 from fastapi.responses import FileResponse, StreamingResponse, JSONResponse, Response
 
 import config
-from src import dataset_queries, geocode as geocode_lib, notificar_telegram
+from src import dataset_queries, geocode as geocode_lib, midia, notificar_telegram
 from mcp_server import mcp
 
 # Expõe o mesmo servidor MCP (mcp_server.py) por HTTP em /mcp, além do uso
@@ -475,6 +475,20 @@ def get_empresa(
     if resultado is None:
         raise HTTPException(status_code=404, detail=f"CNPJ {cnpj} não encontrado.")
     return resultado
+
+
+@app.get("/empresas/{cnpj}/midia", summary="Menções da empresa na mídia (Google Notícias + GDELT), sob demanda com cache de 7 dias")
+def get_midia_empresa(cnpj: str, forcar: bool = Query(False, description="Ignora o cache e busca de novo")):
+    """Busca a razão social (sem sufixo societário) e o nome fantasia entre aspas
+    no Google Notícias e no GDELT. Termos como "fraude"/"operação"/"lavagem" só
+    destacam a manchete como *possível* menção negativa (triagem de mídia
+    adversa) — pode ser homônimo ou a empresa citada como vítima. Não entra na
+    nota de integridade."""
+    cnpj = "".join(ch for ch in cnpj if ch.isdigit())
+    e = dataset_queries.dados_basicos_empresa(cnpj)
+    if e is None:
+        raise HTTPException(status_code=404, detail=f"CNPJ {cnpj} não encontrado.")
+    return midia.mencoes(cnpj, e["razao_social"], e["nome_fantasia"], e["municipio"], forcar=forcar)
 
 
 @app.get("/classificar", summary="Classifica/pontua empresas por objetivo de prospecção")
