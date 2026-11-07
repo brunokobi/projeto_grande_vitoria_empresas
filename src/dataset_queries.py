@@ -142,6 +142,18 @@ def _conn():
         conn.close()
 
 
+CRITERIOS_FORTES_DD = ("cnpj", "razao_social", "cpf_mascarado+nome")
+
+
+def _integridade_ok(conn) -> bool:
+    """O pré-cálculo de nota (integridade_empresas) existe nesta cópia do banco
+    E foi gerado com a mesma versão da metodologia que está rodando?"""
+    if not _tabela_existe(conn, "integridade_meta"):
+        return False
+    row = conn.execute("SELECT versao FROM integridade_meta").fetchone()
+    return bool(row) and row[0] == avaliacao_integridade.VERSAO
+
+
 def dados_basicos_empresa(cnpj: str) -> dict | None:
     """Razão social, nome fantasia e município — pra busca de mídia."""
     with _conn() as c:
@@ -262,6 +274,8 @@ _PENDENCIA_EXPR = (
 def _filtros_sql(*, tem_contato=False, tem_fts=False, tem_contratos=False,
                  tem_beneficios=False, tem_vinculos=False, tem_pncp=False, tem_marcas=False,
                  tem_uc=False, tem_ambiental_prox=False, tem_risco_geologico=False,
+                 tem_dd=False, integ_ok=False,
+                 com_ocorrencia_socio=None, ocorrencia_fonte=None, ocorrencia_criterio_forte=None, nivel_integridade=None,
                  municipio=None, cnae=None, cnae_prefix=None,
                  porte=None, regime_tributario=None, texto=None, tem_pendencia=None,
                  com_telefone=None, com_email=None, com_whatsapp=None,
@@ -582,6 +596,34 @@ def _filtros_sql(*, tem_contato=False, tem_fts=False, tem_contratos=False,
                 cond_risco += ")"
                 where.append(cond_risco)
                 params.extend(p)
+    if com_ocorrencia_socio:
+        # Due diligence dos sócios (ocorrencias_socios, gerada no repo de ETL).
+        # Várias fontes marcadas = "OU" (qualquer uma delas) — cada linha já
+        # traz o critério do cruzamento; `ocorrencia_criterio_forte` deixa só
+        # os cruzamentos por CNPJ, razão social ou CPF mascarado + nome
+        # (descarta os feitos só por nome, sujeitos a homônimo).
+        if not tem_dd:
+            where.append("0")  # tabela ainda não existe nesta cópia do dataset → sem resultados
+        else:
+            cond_dd = "EXISTS (SELECT 1 FROM ocorrencias_socios o WHERE o.cnpj_empresa = e.cnpj"
+            fontes_dd = _lista_valores(ocorrencia_fonte)
+            if fontes_dd:
+                cond_dd += f" AND o.fonte IN ({','.join('?' for _ in fontes_dd)})"
+                params.extend(fontes_dd)
+            if ocorrencia_criterio_forte:
+                cond_dd += f" AND o.criterio IN ({','.join('?' for _ in CRITERIOS_FORTES_DD)})"
+                params.extend(CRITERIOS_FORTES_DD)
+            where.append(cond_dd + ")")
+    niveis_integ = _lista_valores(nivel_integridade)
+    if niveis_integ:
+        # Pré-calculado por src/integridade_lote.py com a MESMA função do modal;
+        # só vale se a versão da metodologia bater (ver _integridade_ok).
+        if not integ_ok:
+            where.append("0")
+        else:
+            where.append("EXISTS (SELECT 1 FROM integridade_empresas ie WHERE ie.cnpj = e.cnpj "
+                         f"AND ie.nivel IN ({','.join('?' for _ in niveis_integ)}))")
+            params.extend(niveis_integ)
     if com_whatsapp or com_rede_social:
         if not tem_contato:
             where.append("0")  # etapa `contato` ainda não rodou → sem resultados
@@ -680,6 +722,24 @@ def estatisticas() -> dict:
         if _tabela_existe(conn, "risco_geologico_empresas"):
             empresas_por_flag["risco_geologico"] = conn.execute(
                 "SELECT COUNT(DISTINCT cnpj_empresa) FROM risco_geologico_empresas").fetchone()[0]
+        ocorrencias_por_fonte = {}
+        if _tabela_existe(conn, "ocorrencias_socios"):
+            empresas_por_flag["ocorrencias_socios"] = conn.execute(
+                "SELECT COUNT(DISTINCT cnpj_empresa) FROM ocorrencias_socios").fetchone()[0]
+            empresas_por_flag["ocorrencias_socios_forte"] = conn.execute(
+                "SELECT COUNT(DISTINCT cnpj_empresa) FROM ocorrencias_socios WHERE criterio IN "
+                f"({','.join('?' for _ in CRITERIOS_FORTES_DD)})", CRITERIOS_FORTES_DD).fetchone()[0]
+            ocorrencias_por_fonte = dict(conn.execute(
+                "SELECT fonte, COUNT(DISTINCT cnpj_empresa) FROM ocorrencias_socios GROUP BY fonte"))
+        integridade = {"disponivel": False, "versao_metodologia": avaliacao_integridade.VERSAO}
+        if _integridade_ok(conn):
+            meta = conn.execute("SELECT gerado_em, qtd_empresas, qtd_avaliadas, amostra_conferida "
+                                "FROM integridade_meta").fetchone()
+            integridade.update(
+                disponivel=True, gerado_em=meta[0], qtd_empresas=meta[1],
+                qtd_com_algum_registro=meta[2], amostra_conferida=meta[3],
+                por_nivel=dict(conn.execute(
+                    "SELECT nivel, COUNT(*) FROM integridade_empresas GROUP BY nivel")))
         if _tabela_existe(conn, "beneficios_fiscais"):
             # Total consolidado (qualquer tipo) — usado pro checkbox único
             # "Com benefício fiscal" do dashboard (substituiu os 4 checkboxes
@@ -706,6 +766,8 @@ def estatisticas() -> dict:
         "empresas_com_pendencia": com_pendencia,
         "registros_por_tabela": satelites,
         "empresas_por_flag": empresas_por_flag,
+        "ocorrencias_socios_por_fonte": ocorrencias_por_fonte,
+        "integridade": integridade,
     }
 
 
@@ -769,6 +831,7 @@ def buscar_empresas(municipio=None, cnae=None, cnae_prefix=None, porte=None,
                     com_unidade_conservacao=None,
                     com_ambiental_proximidade=None, ambiental_proximidade_tipo=None,
                     com_risco_geologico=None, risco_geologico_grau=None,
+                    com_ocorrencia_socio=None, ocorrencia_fonte=None, ocorrencia_criterio_forte=None, nivel_integridade=None,
                     socio=None, cnpj=None, ordenar_por="razao_social",
                     limite=50, offset=0) -> dict:
     """Busca empresas com filtros combináveis. Retorna {'total','itens',...}."""
@@ -786,11 +849,13 @@ def buscar_empresas(municipio=None, cnae=None, cnae_prefix=None, porte=None,
         tem_uc = _tabela_existe(conn, "unidades_conservacao_empresas")
         tem_ambiental_prox = _tabela_existe(conn, "ambiental_proximidade")
         tem_risco_geologico = _tabela_existe(conn, "risco_geologico_empresas")
+        tem_dd = _tabela_existe(conn, "ocorrencias_socios")
+        integ_ok = _integridade_ok(conn)
         where_sql, params = _filtros_sql(
             tem_contato=tem_contato, tem_fts=tem_fts, tem_contratos=tem_contratos,
             tem_beneficios=tem_beneficios, tem_vinculos=tem_vinculos,
             tem_pncp=tem_pncp, tem_marcas=tem_marcas, tem_uc=tem_uc,
-            tem_ambiental_prox=tem_ambiental_prox, tem_risco_geologico=tem_risco_geologico,
+            tem_ambiental_prox=tem_ambiental_prox, tem_risco_geologico=tem_risco_geologico, tem_dd=tem_dd, integ_ok=integ_ok,
             municipio=municipio, cnae=cnae,
             cnae_prefix=cnae_prefix, porte=porte, regime_tributario=regime_tributario,
             texto=texto, tem_pendencia=tem_pendencia, com_telefone=com_telefone,
@@ -814,6 +879,8 @@ def buscar_empresas(municipio=None, cnae=None, cnae_prefix=None, porte=None,
             ambiental_proximidade_tipo=ambiental_proximidade_tipo,
             com_risco_geologico=com_risco_geologico,
             risco_geologico_grau=risco_geologico_grau,
+            com_ocorrencia_socio=com_ocorrencia_socio, ocorrencia_fonte=ocorrencia_fonte,
+            ocorrencia_criterio_forte=ocorrencia_criterio_forte, nivel_integridade=nivel_integridade,
             socio=socio, cnpj=cnpj)
         total = conn.execute(f"SELECT COUNT(*) FROM empresas e{where_sql}", params).fetchone()[0]
         rows = conn.execute(
@@ -880,12 +947,14 @@ def _pontos_mapa_sem_cache(limite, filtros):
         tem_uc = _tabela_existe(conn, "unidades_conservacao_empresas")
         tem_ambiental_prox = _tabela_existe(conn, "ambiental_proximidade")
         tem_risco_geologico = _tabela_existe(conn, "risco_geologico_empresas")
+        tem_dd = _tabela_existe(conn, "ocorrencias_socios")
+        integ_ok = _integridade_ok(conn)
         where_sql, params = _filtros_sql(tem_contato=tem_contato, tem_fts=tem_fts,
                                           tem_contratos=tem_contratos,
                                           tem_beneficios=tem_beneficios,
                                           tem_vinculos=tem_vinculos, tem_pncp=tem_pncp,
                                           tem_marcas=tem_marcas, tem_uc=tem_uc,
-                                          tem_ambiental_prox=tem_ambiental_prox, tem_risco_geologico=tem_risco_geologico, **filtros)
+                                          tem_ambiental_prox=tem_ambiental_prox, tem_risco_geologico=tem_risco_geologico, tem_dd=tem_dd, integ_ok=integ_ok, **filtros)
         cond = "ep.latitude IS NOT NULL"
         if where_sql:
             cond += " AND " + where_sql[len(" WHERE "):]
@@ -927,12 +996,14 @@ def risco_por_municipio(**filtros) -> list:
         tem_uc = _tabela_existe(conn, "unidades_conservacao_empresas")
         tem_ambiental_prox = _tabela_existe(conn, "ambiental_proximidade")
         tem_risco_geologico = _tabela_existe(conn, "risco_geologico_empresas")
+        tem_dd = _tabela_existe(conn, "ocorrencias_socios")
+        integ_ok = _integridade_ok(conn)
         where_sql, params = _filtros_sql(tem_contato=tem_contato, tem_fts=tem_fts,
                                           tem_contratos=tem_contratos,
                                           tem_beneficios=tem_beneficios,
                                           tem_vinculos=tem_vinculos, tem_pncp=tem_pncp,
                                           tem_marcas=tem_marcas, tem_uc=tem_uc,
-                                          tem_ambiental_prox=tem_ambiental_prox, tem_risco_geologico=tem_risco_geologico, **filtros)
+                                          tem_ambiental_prox=tem_ambiental_prox, tem_risco_geologico=tem_risco_geologico, tem_dd=tem_dd, integ_ok=integ_ok, **filtros)
         cond = where_sql[len(" WHERE "):] if where_sql else "1=1"
         rows = conn.execute(
             f"SELECT e.municipio AS municipio, COUNT(*) AS total, "
@@ -985,12 +1056,14 @@ def buscar_por_raio(lat: float, lon: float, raio_km: float = 5, limite=50, offse
         tem_uc = _tabela_existe(conn, "unidades_conservacao_empresas")
         tem_ambiental_prox = _tabela_existe(conn, "ambiental_proximidade")
         tem_risco_geologico = _tabela_existe(conn, "risco_geologico_empresas")
+        tem_dd = _tabela_existe(conn, "ocorrencias_socios")
+        integ_ok = _integridade_ok(conn)
         where_sql, params = _filtros_sql(tem_contato=tem_contato, tem_fts=tem_fts,
                                           tem_contratos=tem_contratos,
                                           tem_beneficios=tem_beneficios,
                                           tem_vinculos=tem_vinculos, tem_pncp=tem_pncp,
                                           tem_marcas=tem_marcas, tem_uc=tem_uc,
-                                          tem_ambiental_prox=tem_ambiental_prox, tem_risco_geologico=tem_risco_geologico, **filtros)
+                                          tem_ambiental_prox=tem_ambiental_prox, tem_risco_geologico=tem_risco_geologico, tem_dd=tem_dd, integ_ok=integ_ok, **filtros)
         cond = ("ep.latitude BETWEEN ? AND ? AND ep.longitude BETWEEN ? AND ? "
                 "AND distancia_km(?, ?, ep.latitude, ep.longitude) <= ?")
         cond_params = [lat - lat_delta, lat + lat_delta, lon - lon_delta, lon + lon_delta,
@@ -1175,12 +1248,14 @@ def exportar_empresas(max_linhas=20000, colunas=None, **filtros) -> list:
         tem_uc = _tabela_existe(conn, "unidades_conservacao_empresas")
         tem_ambiental_prox = _tabela_existe(conn, "ambiental_proximidade")
         tem_risco_geologico = _tabela_existe(conn, "risco_geologico_empresas")
+        tem_dd = _tabela_existe(conn, "ocorrencias_socios")
+        integ_ok = _integridade_ok(conn)
         where_sql, params = _filtros_sql(tem_contato=tem_contato, tem_fts=tem_fts,
                                           tem_contratos=tem_contratos,
                                           tem_beneficios=tem_beneficios,
                                           tem_vinculos=tem_vinculos, tem_pncp=tem_pncp,
                                           tem_marcas=tem_marcas, tem_uc=tem_uc,
-                                          tem_ambiental_prox=tem_ambiental_prox, tem_risco_geologico=tem_risco_geologico, **filtros)
+                                          tem_ambiental_prox=tem_ambiental_prox, tem_risco_geologico=tem_risco_geologico, tem_dd=tem_dd, integ_ok=integ_ok, **filtros)
 
         precisa_contato = bool(_COLS_CONTATO & set(colunas)) and tem_contato
         precisa_geo = bool(_COLS_GEO & set(colunas))

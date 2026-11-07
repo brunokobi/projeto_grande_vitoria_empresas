@@ -114,6 +114,10 @@ def filtros_comuns(
     ambiental_proximidade_tipo: list[str] = Query(None, description="Restringe o(s) tipo(s) de ponto ambiental: fiscalizacao/barragem/outorga. Repita o parâmetro pra exigir MAIS DE UM (AND)"),
     com_risco_geologico: bool = Query(None, description="Só empresas geolocalizadas DENTRO de algum setor de risco geológico/inundação mapeado (Defesa Civil/CPRM/PMRR Serra-Viana) — cobertura desigual entre municípios, reflete onde há setor mapeado"),
     risco_geologico_grau: list[str] = Query(None, description="Restringe o grau de risco: Baixo/Médio/Alto/Muito Alto. Repita o parâmetro pra exigir MAIS DE UM (AND)"),
+    com_ocorrencia_socio: bool = Query(None, description="Só empresas com ocorrência na due diligence dos sócios (PGFN PF, servidor federal, CEAF, Bolsa Família, IBAMA, BCB, CVM, TCU, OFAC/ONU/Reino Unido, ICIJ) — POSSÍVEL correspondência, sem o CPF completo"),
+    ocorrencia_fonte: list[str] = Query(None, description="Restringe a(s) fonte(s): PGFN_PF, SERVIDOR_FEDERAL, CEAF, BOLSA_FAMILIA, IBAMA_EMBARGO, BCB_INABILITADO, CVM_SANCIONADOR, TCU_INABILITADO, OFAC, ONU, UK_SANCOES, ICIJ_OFFSHORE. Repita o parâmetro pra aceitar QUALQUER UMA delas (OU)"),
+    ocorrencia_criterio_forte: bool = Query(None, description="Só cruzamentos por CNPJ, razão social ou CPF mascarado + nome (descarta os feitos só pelo nome, sujeitos a homônimo)"),
+    nivel_integridade: list[str] = Query(None, description="Nível da nota de integridade: Baixo/Moderado/Alto/Crítico (repita pra aceitar mais de um — OU). Pré-calculado com a mesma função do modal; indisponível se a versão da metodologia não bater (ver /estatisticas → integridade)"),
     capital_min: float = Query(None),
     capital_max: float = Query(None),
     ordenar_por: str = Query("razao_social"),
@@ -140,6 +144,8 @@ def filtros_comuns(
         ambiental_proximidade_tipo=ambiental_proximidade_tipo,
         com_risco_geologico=com_risco_geologico,
         risco_geologico_grau=risco_geologico_grau,
+        com_ocorrencia_socio=com_ocorrencia_socio, ocorrencia_fonte=ocorrencia_fonte,
+        ocorrencia_criterio_forte=ocorrencia_criterio_forte, nivel_integridade=nivel_integridade,
         capital_min=capital_min, capital_max=capital_max, ordenar_por=ordenar_por,
     )
 

@@ -6,6 +6,8 @@ parcialmente escrito.
 
 Chamado pelo cron do usuário ubuntu na vpsrafa a cada 2h (minuto 30, depois
 do vps-publicar-2h.sh do pipeline de extração, que publica no minuto 0).
+Antes da troca, grava no arquivo novo a nota de integridade de todas as
+empresas (src/integridade_lote.py), pro filtro por nível do dashboard.
 Só baixa quando o asset do Release mudou (data de atualização do asset
 guardada em data/.dataset_release); `--force` baixa de qualquer jeito.
 """
@@ -40,6 +42,16 @@ def _versao_publicada():
         return None
 
 
+# Duas execuções ao mesmo tempo (cron + --force manual) escreveriam no mesmo
+# .new — a segunda sai sem fazer nada.
+import fcntl
+_trava = open(os.path.join(base, "data", ".refresh_dataset.lock"), "w")
+try:
+    fcntl.flock(_trava, fcntl.LOCK_EX | fcntl.LOCK_NB)
+except BlockingIOError:
+    print("[refresh_dataset] Outra atualização já está rodando — saindo.")
+    sys.exit(0)
+
 versao = _versao_publicada()
 if versao and "--force" not in sys.argv and os.path.exists(db_final):
     try:
@@ -53,6 +65,18 @@ if versao and "--force" not in sys.argv and os.path.exists(db_final):
 urllib.request.urlretrieve(RELEASE_URL, gz_tmp)
 with gzip.open(gz_tmp, "rb") as fi, open(db_tmp, "wb") as fo:
     shutil.copyfileobj(fi, fo)
+
+# Nota de integridade pré-calculada (filtro por nível no dashboard), gravada no
+# arquivo NOVO antes da troca — banco e notas sempre da mesma versão. Se falhar
+# ou a conferência não bater, publica o banco sem a tabela: o filtro some, mas
+# nenhuma nota inconsistente aparece.
+sys.path.insert(0, base)
+try:
+    from src import integridade_lote
+    integridade_lote.gerar(db_tmp, log=lambda m: print(m, flush=True))
+except Exception as e:
+    print("[refresh_dataset] Pré-cálculo da nota de integridade NÃO gravado:", repr(e))
+
 os.replace(db_tmp, db_final)
 os.remove(gz_tmp)
 if versao:

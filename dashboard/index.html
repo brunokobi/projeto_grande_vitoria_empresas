@@ -391,6 +391,12 @@
         <option value="false">Sem pendência (mais "limpas")</option>
         <option value="true">Com pendência (qualquer)</option>
       </select>
+      <div id="row_integ" style="display:none">
+        <label class="f" title="Mesma nota do modal (0-100, regras explícitas), pré-calculada para todas as empresas a cada atualização do banco">Nota de integridade (nível)</label>
+        <select id="f_integ">
+          <option value="">Todos os níveis</option>
+        </select>
+      </div>
       <details class="fgroup">
         <summary>Situação cadastral (detalhado)</summary>
         <div class="fgroup-body">
@@ -454,6 +460,12 @@
           <option value="Cessão">Cessão</option>
           <option value="Internacional">Internacional</option>
         </select>
+      </div>
+      <label class="chk" id="row_dd" style="display:none"><input type="checkbox" id="f_dd" onchange="toggleSubmenuDD()"> Sócio com ocorrência (due diligence)</label>
+      <div id="dd_submenu" style="display:none;margin:-4px 0 8px 22px">
+        <div class="msdica">nada marcado = qualquer fonte; marcar mais de uma aceita QUALQUER uma delas (OU). Sem o CPF completo, é possível correspondência</div>
+        <select id="f_dd_fonte" multiple size="6"></select>
+        <label class="chk" style="margin-top:4px" title="Descarta os cruzamentos feitos só pelo nome (sujeitos a homônimo): fica só CNPJ, razão social ou CPF mascarado + nome"><input type="checkbox" id="f_dd_forte"> Só cruzamento por CPF mascarado/CNPJ</label>
       </div>
       <label class="chk" id="row_marca"><input type="checkbox" id="f_marca"> Marca registrada (INPI)</label>
       <label class="chk" id="row_uc"><input type="checkbox" id="f_uc"> Dentro de Unidade de Conservação</label>
@@ -610,6 +622,12 @@ function query(){
     p.set("com_contrato_pncp","true");
     addMulti("pncp_categoria","f_pncp_cat");
   }
+  if($("f_dd").checked){
+    p.set("com_ocorrencia_socio","true");
+    addMulti("ocorrencia_fonte","f_dd_fonte");
+    if($("f_dd_forte").checked) p.set("ocorrencia_criterio_forte","true");
+  }
+  if($("f_integ").value) $("f_integ").value.split(",").forEach(v=>p.append("nivel_integridade",v));
   if($("f_marca").checked) p.set("com_marca_registrada","true");
   if($("f_uc").checked) p.set("com_unidade_conservacao","true");
   if($("f_ambiental_prox").checked){
@@ -677,6 +695,24 @@ async function initEstat(){
   setCnt("row_vinculo", pf.vinculos_politicos);
   setCnt("row_pncp", pf.contratos_pncp);
   setCnt("row_marca", pf.marcas_inpi);
+  setCnt("row_dd", pf.ocorrencias_socios);
+  const fmtN = n => Number(n||0).toLocaleString("pt-BR");
+  const porFonte = s.ocorrencias_socios_por_fonte||{};
+  $("f_dd_fonte").innerHTML = Object.keys(_FONTE_DD).filter(f=>porFonte[f]>0).map(f=>
+    `<option value="${f}">${_FONTE_DD[f][0]} ${esc(_FONTE_DD[f][1])} (${fmtN(porFonte[f])})</option>`).join("");
+  // Filtro por nível só aparece se o pré-cálculo existe E é da mesma versão
+  // da metodologia do modal (o servidor confere) — nunca nota de outra versão.
+  const integ = s.integridade||{};
+  if(integ.disponivel){
+    const pn = integ.por_nivel||{};
+    const opc = [["Crítico","Crítico"],["Alto,Crítico","Alto ou Crítico"],["Alto","Alto"],
+                 ["Moderado","Moderado"],["Baixo","Baixo"]];
+    $("f_integ").innerHTML = `<option value="">Todos os níveis</option>` + opc.map(([v,r])=>{
+      const n = v.split(",").reduce((a,k)=>a+(pn[k]||0),0);
+      return `<option value="${v}">${r} (${fmtN(n)})</option>`;
+    }).join("");
+    $("row_integ").style.display = "";
+  }
   setCnt("row_uc", pf.unidade_conservacao);
   setCnt("row_ambiental_prox", pf.ambiental_proximidade);
   const chips = $("citychips");
@@ -792,6 +828,9 @@ function toggleSubmenuBen(){
 }
 function toggleSubmenuVinculo(){
   $("vinculo_submenu").style.display = $("f_vinculo").checked ? "" : "none";
+}
+function toggleSubmenuDD(){
+  $("dd_submenu").style.display = $("f_dd").checked ? "" : "none";
 }
 function toggleSubmenuPncp(){
   $("pncp_submenu").style.display = $("f_pncp").checked ? "" : "none";
@@ -2095,13 +2134,13 @@ function gerarExport(fmt){
 }
 function limpar(){
   ["f_texto","f_cnpj","f_socio","f_capmin","f_capmax"].forEach(id=>$(id).value="");
-  ["f_segmento","f_porte","f_regime","f_pendencia"].forEach(id=>$(id).value="");
+  ["f_segmento","f_porte","f_regime","f_pendencia","f_integ"].forEach(id=>$(id).value="");
   // Selects multi (submenus de refinamento) não limpam com .value="" — precisa
   // desmarcar cada <option> individualmente.
-  ["f_proc_polo","f_proc_classe","f_sanc_tipo","f_ben_tipo","f_vinc_fonte","f_pncp_cat","f_ambiental_prox_tipo","f_risco_geo_grau"].forEach(id=>
+  ["f_proc_polo","f_proc_classe","f_sanc_tipo","f_ben_tipo","f_vinc_fonte","f_pncp_cat","f_dd_fonte","f_ambiental_prox_tipo","f_risco_geo_grau"].forEach(id=>
     Array.from($(id).options).forEach(o=>o.selected=false));
-  ["f_tel","f_email","f_wpp","f_rede","f_proc","f_sanc","f_amb","f_div","f_lenienc","f_contratos","f_ben","f_vinculo","f_pncp","f_marca","f_uc","f_ambiental_prox","f_risco_geo"].forEach(id=>$(id).checked=false);
-  toggleSubmenuProc(); toggleSubmenuSanc(); toggleSubmenuBen(); toggleSubmenuVinculo(); toggleSubmenuPncp(); toggleSubmenuAmbientalProx(); toggleSubmenuRiscoGeo();
+  ["f_tel","f_email","f_wpp","f_rede","f_proc","f_sanc","f_amb","f_div","f_lenienc","f_contratos","f_ben","f_vinculo","f_pncp","f_dd","f_dd_forte","f_marca","f_uc","f_ambiental_prox","f_risco_geo"].forEach(id=>$(id).checked=false);
+  toggleSubmenuProc(); toggleSubmenuSanc(); toggleSubmenuBen(); toggleSubmenuVinculo(); toggleSubmenuPncp(); toggleSubmenuDD(); toggleSubmenuAmbientalProx(); toggleSubmenuRiscoGeo();
   document.querySelectorAll("#f_municipio_group input").forEach(cb=>cb.checked=false);
   document.querySelectorAll(".citychip").forEach(c=>c.classList.remove("active"));
   $("f_ordem").value="razao_social"; buscar(true);
