@@ -1167,13 +1167,16 @@ function renderInfracoes(arr){
   return `<div class="sec">🌱 Infrações ambientais (${arr.length})</div>${cards}`;
 }
 const _POLO_LABEL = {"Réu":"Réu/Ré", "Autor":"Autor(a)", "Terceiro":"Terceiro"};
-function renderProcessos(arr, filtrado){
+function renderProcessos(arr, filtrado, deSocios){
+  const titulo = deSocios ? "👤 Processos pessoais de sócios (tribunais do ES)" : "📂 Processos judiciais";
   if(!arr||!arr.length){
-    return filtrado
-      ? `<div class="sec">📂 Processos judiciais</div><p style="color:var(--muted);font-size:13px">Nenhum processo bate com o filtro de polo/classe da busca atual.</p>`
+    return filtrado && !deSocios
+      ? `<div class="sec">${titulo}</div><p style="color:var(--muted);font-size:13px">Nenhum processo bate com o filtro de polo/classe da busca atual.</p>`
       : "";
   }
-  const nota = filtrado
+  const nota = deSocios
+    ? `— achados pelo nome do sócio; não contam como pendência da empresa e podem ser de homônimos`
+    : filtrado
     ? `— filtrado pelo polo/classe da busca atual`
     : `— só conta como pendência quando a empresa é ré`;
   const cards = _limitarCards(arr.map(x=>{
@@ -1201,7 +1204,7 @@ function renderProcessos(arr, filtrado){
       </div>
     </details>`;
   }));
-  return `<div class="sec">📂 Processos judiciais (${arr.length}) <span style="font-size:11px;color:var(--muted);font-weight:normal;text-transform:none;letter-spacing:0">${nota}</span></div>${cards}`;
+  return `<div class="sec">${titulo} (${arr.length}) <span style="font-size:11px;color:var(--muted);font-weight:normal;text-transform:none;letter-spacing:0">${nota}</span></div>${cards}`;
 }
 function renderSancoes(arr, filtrado){
   if(!arr||!arr.length){
@@ -1638,6 +1641,7 @@ async function abrir(cnpj, viaPopstate){
         statTile("&#127956;&#65039;", rz.qtd_risco_geologico, "Setor de risco geológico/inundação", false),
       )}
       ${renderProcessos(d.processos_judiciais, qsProc)}
+      ${renderProcessos(d.processos_socios, qsProc, true)}
       ${renderDividas(d.dividas_ativas, e.capital_social)}
       ${renderSancoes(d.sancoes_administrativas, qsSanc)}
       ${renderInfracoes(d.infracoes_ambientais)}

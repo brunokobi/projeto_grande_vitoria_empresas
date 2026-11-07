@@ -222,6 +222,16 @@ def _tel_valido(col="e.telefone"):
     return f"(length({limpo}) >= 8 AND {limpo} NOT GLOB '*[^0-9]*')"
 
 
+# Processo achado pelo NOME DO SÓCIO no DJEN (match_confianca='socio'): a API
+# só confirma pelo nome, sem CPF, então homônimo de qualquer lugar do país
+# entra. Em nov/2026 81% dessas linhas eram de tribunais fora do ES (TJSP,
+# TJMG, TJBA...). Mostramos só os de tribunais com jurisdição no ES, numa
+# seção separada do modal, e eles não contam em filtro, contagem nem
+# pendência da empresa. TRF2 cobre RJ+ES (não dá pra separar pela sigla).
+TRIBUNAIS_ES = ("TJES", "TRT17", "TRF2", "TRE-ES")
+_TRIBUNAIS_ES_SQL = ",".join(f"'{t}'" for t in TRIBUNAIS_ES)
+
+
 # Expressão de pendência jurídico-fiscal (empresa tem registro em qualquer
 # tabela satélite). Usada tanto como filtro quanto como coluna calculada.
 _PENDENCIA_EXPR = (
@@ -333,7 +343,8 @@ def _filtros_sql(*, tem_contato=False, tem_fts=False, tem_contratos=False,
         def _cond_processo(polo_fixo, classe_fixo):
             """EXISTS de UMA linha que satisfaz polo_fixo (ou o default Réu,
             se None e nada foi marcado) e classe_fixo (se informado)."""
-            sql = "EXISTS (SELECT 1 FROM processos_judiciais pr WHERE pr.cnpj_empresa = e.cnpj"
+            sql = ("EXISTS (SELECT 1 FROM processos_judiciais pr WHERE pr.cnpj_empresa = e.cnpj"
+                   " AND pr.match_confianca != 'socio'")
             p = []
             if polo_fixo is not None:
                 sql += " AND pr.polo = ?"
@@ -620,7 +631,7 @@ def estatisticas() -> dict:
         # (ver _PENDENCIA_EXPR) — sendo autora não é um risco/passivo.
         empresas_por_flag["processos_judiciais"] = conn.execute(
             "SELECT COUNT(DISTINCT cnpj_empresa) FROM processos_judiciais "
-            "WHERE polo = 'Réu'").fetchone()[0]
+            "WHERE polo = 'Réu' AND match_confianca != 'socio'").fetchone()[0]
         for chave, tabela in (
             ("sancoes_administrativas", "sancoes_administrativas"),
             ("infracoes_ambientais", "infracoes_ambientais"),
@@ -697,7 +708,7 @@ def classes_processos(limite: int = 100) -> list:
             return []
         rows = conn.execute(
             "SELECT classe, COUNT(*) n FROM processos_judiciais "
-            "WHERE classe IS NOT NULL AND classe != '' "
+            "WHERE classe IS NOT NULL AND classe != '' AND match_confianca != 'socio' "
             "GROUP BY classe ORDER BY n DESC LIMIT ?", (limite,)
         ).fetchall()
     return [{"classe": r["classe"], "total": r["n"]} for r in rows]
@@ -1245,28 +1256,36 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
             socios.append(s)
         jucees = conn.execute(
             "SELECT * FROM registros_jucees WHERE cnpj_empresa = ?", (cnpj,)).fetchone()
-        sql_proc = ("SELECT numero_processo, tribunal, classe, assunto, polo, status, "
-                    "data_ultima_movimentacao, match_confianca, nome_socio_vinculado "
-                    "FROM processos_judiciais WHERE cnpj_empresa = ?")
-        params_proc = [cnpj]
+        filtro_proc = ""
+        params_filtro_proc = []
         polos = _lista_valores(processo_polo)
         if polos:
-            ph = ",".join("?" for _ in polos)
-            sql_proc += f" AND polo IN ({ph})"
-            params_proc.extend(polos)
+            filtro_proc += f" AND polo IN ({','.join('?' for _ in polos)})"
+            params_filtro_proc.extend(polos)
         classes = _lista_valores(processo_classe)
         if classes:
-            ph = ",".join("?" for _ in classes)
-            sql_proc += f" AND classe IN ({ph})"
-            params_proc.extend(classes)
-        sql_proc += " ORDER BY data_ultima_movimentacao DESC LIMIT 100"
-        processos = [dict(r) for r in conn.execute(sql_proc, params_proc)]
-        for p in processos:
+            filtro_proc += f" AND classe IN ({','.join('?' for _ in classes)})"
+            params_filtro_proc.extend(classes)
+        sql_proc_base = ("SELECT numero_processo, tribunal, classe, assunto, polo, status, "
+                         "data_ultima_movimentacao, match_confianca, nome_socio_vinculado "
+                         "FROM processos_judiciais WHERE cnpj_empresa = ?")
+        # Processos da própria empresa (achados pela razão social).
+        processos = [dict(r) for r in conn.execute(
+            sql_proc_base + " AND match_confianca != 'socio'" + filtro_proc
+            + " ORDER BY data_ultima_movimentacao DESC LIMIT 100",
+            [cnpj, *params_filtro_proc])]
+        # Processos pessoais de sócios, só tribunais do ES (ver TRIBUNAIS_ES).
+        processos_socios = [dict(r) for r in conn.execute(
+            sql_proc_base + f" AND match_confianca = 'socio' AND tribunal IN ({_TRIBUNAIS_ES_SQL})"
+            + filtro_proc + " ORDER BY data_ultima_movimentacao DESC LIMIT 50",
+            [cnpj, *params_filtro_proc])]
+        for p in processos + processos_socios:
             p["url_jusbrasil"] = url_jusbrasil(p.get("numero_processo"))
         if processo_polo or processo_classe:
             # Resumo sempre com o total real, sem o filtro de exibição acima.
             processos_resumo = [dict(r) for r in conn.execute(
                 "SELECT polo, match_confianca FROM processos_judiciais WHERE cnpj_empresa = ? "
+                "AND match_confianca != 'socio' "
                 "ORDER BY data_ultima_movimentacao DESC LIMIT 100", (cnpj,))]
         else:
             processos_resumo = processos
@@ -1450,6 +1469,7 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
         "geolocalizacao": dict(geo) if geo else None,
         "contato": dict(contato) if contato else None,
         "processos_judiciais": processos,
+        "processos_socios": processos_socios,
         "sancoes_administrativas": sancoes,
         "infracoes_ambientais": ambiental,
         "dividas_ativas": dividas,
@@ -1465,6 +1485,7 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
             "qtd_socios": len(socios),
             "qtd_processos": len(processos_resumo),
             "qtd_processos_re": len(processos_re),
+            "qtd_processos_socios_es": len(processos_socios),
             "qtd_sancoes": qtd_sancoes_real,
             "qtd_infracoes_ambientais": len(ambiental),
             "qtd_dividas_ativas": len(dividas),
