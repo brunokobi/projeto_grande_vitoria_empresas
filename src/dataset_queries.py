@@ -13,6 +13,7 @@ import unicodedata
 from contextlib import contextmanager
 
 import config
+from src import avaliacao_integridade
 
 # Tabela CNAE (código de 7 dígitos -> descrição), extraída da base oficial
 # da Receita Federal e versionada em reference/cnaes.json.
@@ -1471,7 +1472,7 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
     emp = dict(empresa)
     emp["cnae_principal_desc"] = cnae_desc(emp.get("cnae_principal"))
     emp["situacao_cadastral_desc"] = situacao_desc(emp.get("situacao_cadastral"))
-    return {
+    resultado = {
         "empresa": emp,
         "socios": socios,
         "jucees": dict(jucees) if jucees else None,
@@ -1520,6 +1521,15 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
             "tem_pendencia_juridica_ou_fiscal": bool(processos_re or qtd_sancoes_real or ambiental or dividas),
         },
     }
+    # Nota de risco de integridade (regras explícitas, ver avaliacao_integridade.py).
+    # Sempre sobre os dados SEM os filtros de exibição do modal (polo/classe/tipo):
+    # a nota da empresa não pode mudar conforme o filtro da busca.
+    filtrado = any((processo_polo, processo_classe, sancao_tipo, sancao_orgao, beneficio_tipo,
+                    vinculo_fonte, pncp_categoria, ambiental_proximidade_tipo))
+    base = obter_empresa(cnpj) if filtrado else resultado
+    resultado["avaliacao_integridade"] = (base or {}).get("avaliacao_integridade") if filtrado \
+        else avaliacao_integridade.avaliar(resultado)
+    return resultado
 
 
 # Candidato/cargo/município/UF do beneficiário -- comum às 3 fontes que

@@ -1425,6 +1425,39 @@ function renderMarcas(arr){
   }));
   return `<div class="sec">™️ Marcas registradas — INPI (${arr.length})</div>${cards}`;
 }
+function renderAvaliacaoIntegridade(av){
+  if(!av) return "";
+  const cor = {"Crítico":"var(--red,#ef4444)","Alto":"var(--amber,#f59e0b)","Moderado":"#eab308","Baixo":"var(--green,#22c55e)"}[av.nivel] || "var(--muted)";
+  const barras = (av.dimensoes||[]).map(d=>`
+    <div style="display:flex;align-items:center;gap:8px;font-size:12px;margin:3px 0">
+      <span style="flex:0 0 46%;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(d.nome)}</span>
+      <span style="flex:1;height:8px;background:rgba(127,127,127,.2);border-radius:4px;overflow:hidden">
+        <span style="display:block;height:100%;width:${Math.min(100,100*d.pontos/d.teto)}%;background:${cor}"></span></span>
+      <span style="flex:0 0 52px;text-align:right" class="mono">${d.pontos}/${d.teto}</span>
+    </div>`).join("");
+  const fatores = (av.fatores||[]).map(f=>`
+    <div style="font-size:12px;padding:6px 0;border-top:1px solid rgba(127,127,127,.15)">
+      <b class="mono">+${f.pontos}</b> ${esc(f.fator)} <span style="color:var(--muted)">— ${esc(f.fonte)}</span>
+      ${f.detalhe?`<div style="color:var(--muted)">${esc(f.detalhe)}</div>`:""}
+      ${f.forca_evidencia<1?`<div style="color:var(--muted);font-size:11px">evidência ${Math.round(f.forca_evidencia*100)}% (${esc(f.criterio)}) · base ${f.pontos_base}</div>`:""}
+    </div>`).join("");
+  const imped = (av.impeditivos||[]).length
+    ? `<div style="margin-top:8px;font-size:12px;color:${cor}">⛔ Impeditivo: ${av.impeditivos.map(esc).join("; ")}</div>` : "";
+  return `<div class="sec">🧭 Nota de risco de integridade</div>
+    <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+      <div style="flex:0 0 auto;width:84px;height:84px;border-radius:50%;border:5px solid ${cor};display:flex;flex-direction:column;align-items:center;justify-content:center">
+        <b style="font-size:26px;line-height:1">${av.nota}</b><span style="font-size:10px;color:var(--muted)">de 100</span></div>
+      <div style="flex:1;min-width:200px">
+        <div style="font-size:16px"><b style="color:${cor}">${esc(av.nivel)}</b></div>
+        <div style="font-size:13px">Diligência recomendada: <b>${esc(av.diligencia_recomendada)}</b></div>
+        ${imped}
+      </div>
+    </div>
+    ${barras?`<div style="margin-top:10px">${barras}</div>`:'<p style="font-size:13px;color:var(--muted)">Nenhum apontamento nas fontes consultadas.</p>'}
+    ${fatores?`<details style="margin-top:6px"><summary style="cursor:pointer;font-size:13px">Ver os ${av.fatores.length} fator(es) que compõem a nota</summary>${fatores}</details>`:""}
+    <details style="margin-top:4px"><summary style="cursor:pointer;font-size:12px;color:var(--muted)">Como a nota é calculada (v${esc(av.versao)})</summary>
+      <p style="font-size:12px;color:var(--muted)">${esc(av.metodologia)}</p></details>`;
+}
 const _FONTE_DD = {
   PGFN_PF: ["💰", "Dívida ativa da União (pessoa física)"],
   SERVIDOR_FEDERAL: ["🏛️", "Servidor(a) público federal"],
@@ -1663,6 +1696,8 @@ async function abrir(cnpj, viaPopstate){
       </div>
 
       ${renderSocios(d.socios)}
+
+      ${renderAvaliacaoIntegridade(d.avaliacao_integridade)}
 
       <div class="sec">&#9878; Situa&ccedil;&atilde;o jur&iacute;dico-fiscal</div>
       ${statsGrid(
