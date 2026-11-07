@@ -1425,6 +1425,40 @@ function renderMarcas(arr){
   }));
   return `<div class="sec">™️ Marcas registradas — INPI (${arr.length})</div>${cards}`;
 }
+const _FONTE_DD = {
+  PGFN_PF: ["💰", "Dívida ativa da União (pessoa física)"],
+  SERVIDOR_FEDERAL: ["🏛️", "Servidor(a) público federal"],
+  CEAF: ["⛔", "Expulsão da administração federal (CEAF)"],
+  BOLSA_FAMILIA: ["🧾", "Favorecido(a) de programa social"],
+  IBAMA_EMBARGO: ["🌳", "Embargo ambiental (IBAMA)"],
+};
+function renderOcorrenciasSocios(arr){
+  if(!arr||!arr.length) return "";
+  const fmtRef = d => d && d.length===7 ? `${d.slice(5)}/${d.slice(0,4)}` : fmtData(d);
+  const cards = _limitarCards(arr.map(x=>{
+    const kv=(k,v)=>v?`<div><span class="k">${k}</span><span class="val">${v}</span></div>`:"";
+    const [ico, rotulo] = _FONTE_DD[x.fonte] || ["🔎", x.fonte];
+    const quem = x.nome_socio_vinculado
+      ? `sócio(a) ${esc(x.nome_socio_vinculado)}`
+      : `a própria empresa`;
+    const criterio = x.criterio === "cnpj"
+      ? "CNPJ da empresa"
+      : `nome completo + dígitos do CPF mascarado (${esc(x.cpf_parcial||"")})`;
+    return `<details class="divida">
+      <summary>${ico} <b>${esc(rotulo)}</b> <span style="color:var(--muted)">— ${quem}</span>
+        ${x.criterio==="cnpj"?"":'<span class="tag warn">possível correspondência</span>'}</summary>
+      <div class="divida-det">
+        ${kv("Detalhe", esc(x.descricao))}
+        ${kv("Órgão", esc(x.orgao))}
+        ${x.fonte!=="BOLSA_FAMILIA" && x.valor ? kv("Valor", fmtBRL(x.valor)) : ""}
+        ${kv("Referência", fmtRef(x.data_referencia))}
+        ${kv("Situação", esc(x.situacao))}
+        ${kv("Critério do cruzamento", criterio)}
+      </div>
+    </details>`;
+  }));
+  return `<div class="sec">🔎 Due diligence dos sócios (${arr.length}) <span style="font-size:11px;color:var(--muted);font-weight:normal;text-transform:none;letter-spacing:0">— fontes públicas; sem o CPF completo, pode haver homônimos</span></div>${cards}`;
+}
 function renderUnidadesConservacao(arr){
   if(!arr||!arr.length) return "";
   const cards = _limitarCards(arr.map(x=>{
@@ -1650,6 +1684,7 @@ async function abrir(cnpj, viaPopstate){
       ${renderVinculos(d.vinculos_politicos, qsVinc)}
       ${renderContratosPncp(d.contratos_pncp, qsPncp)}
       ${renderMarcas(d.marcas_inpi)}
+      ${renderOcorrenciasSocios(d.ocorrencias_socios)}
       ${renderUnidadesConservacao(d.unidades_conservacao)}
       ${renderAmbientalProximidade(d.ambiental_proximidade, qsAmbProx)}
       ${renderRiscoGeologico(d.risco_geologico)}

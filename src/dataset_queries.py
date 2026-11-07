@@ -1410,6 +1410,15 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
                 "SELECT numero_inpi, nome_marca, situacao, data_deposito, data_concessao, "
                 "data_vigencia FROM marcas_inpi WHERE cnpj_empresa = ? "
                 "ORDER BY data_deposito DESC LIMIT 100", (cnpj,))]
+        # Due diligence dos sócios (etapa due_diligence do pipeline): PGFN
+        # pessoa física, servidor federal, CEAF, Bolsa Família e embargo do
+        # IBAMA — "possível correspondência" por CPF mascarado + nome.
+        ocorrencias_socios = []
+        if _tabela_existe(conn, "ocorrencias_socios"):
+            ocorrencias_socios = [dict(r) for r in conn.execute(
+                "SELECT nome_socio_vinculado, cpf_parcial, fonte, descricao, orgao, valor, "
+                "data_referencia, situacao, criterio FROM ocorrencias_socios "
+                "WHERE cnpj_empresa = ? ORDER BY fonte, data_referencia DESC LIMIT 100", (cnpj,))]
         unidades_conservacao = []
         if _tabela_existe(conn, "unidades_conservacao_empresas"):
             unidades_conservacao = [dict(r) for r in conn.execute(
@@ -1478,6 +1487,7 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
         "beneficios_fiscais": beneficios_fiscais,
         "contratos_pncp": contratos_pncp,
         "marcas_inpi": marcas_inpi,
+        "ocorrencias_socios": ocorrencias_socios,
         "unidades_conservacao": unidades_conservacao,
         "ambiental_proximidade": ambiental_proximidade,
         "risco_geologico": risco_geologico,
@@ -1494,6 +1504,7 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
             "qtd_beneficios_fiscais": len(beneficios_resumo),
             "qtd_contratos_pncp": len(contratos_pncp_resumo),
             "qtd_marcas_inpi": len(marcas_inpi),
+            "qtd_ocorrencias_socios": len(ocorrencias_socios),
             "qtd_unidades_conservacao": len(unidades_conservacao),
             "qtd_ambiental_proximidade": len(ambiental_proximidade_resumo),
             "qtd_risco_geologico": len(risco_geologico),
