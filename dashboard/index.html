@@ -169,6 +169,7 @@
   td.col-nome .nome-sub{color:var(--muted);font-size:11px;margin-top:2px}
   th.col-atividade,td.col-atividade{max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
+  .tag.intl{background:rgba(90,170,255,.12);color:#7cc0ff;border:1px solid #3b7fc4}
   .tag.ok{background:rgba(0,255,136,.12);color:var(--green);border:1px solid var(--green-dim)}
   .tag.warn{background:rgba(255,207,77,.12);color:var(--amber);border:1px solid var(--amber)}
   details.divida{background:var(--bg2);border:1px solid var(--line);border-radius:8px;margin-bottom:6px;padding:8px 12px}
@@ -2275,12 +2276,17 @@ function abrirSobre(){
         <div class="item"><b>Banco Central</b> — inabilitados para cargo em instituição financeira</div>
         <div class="item"><b>CVM</b> — acusados em processo administrativo sancionador</div>
         <div class="item"><b>TCU</b> — inabilitados para cargo público</div>
-        <div class="item"><b>OFAC</b> (EUA), <b>ONU</b> (inclui as difusões especiais Interpol–ONU) e <b>Reino Unido</b> — listas de sanções internacionais</div>
-        <div class="item"><b>ICIJ Offshore Leaks</b> (Panama, Pandora, Paradise Papers…) — dirigente, beneficiário ou intermediário de offshore, só registros ligados ao Brasil. Aparecer no vazamento não significa irregularidade. Dados sob licença ODbL</div>
+        <div class="item"><span class="tag intl" title="Fonte internacional (fora do Brasil)">internacional</span> <b>OFAC</b> (EUA), <b>ONU</b> (inclui as difusões especiais Interpol–ONU) e <b>Reino Unido</b> — listas de sanções internacionais</div>
+        <div class="item"><span class="tag intl" title="Fonte internacional (fora do Brasil)">internacional</span> <b>ICIJ Offshore Leaks</b> (Panama, Pandora, Paradise Papers…) — dirigente, beneficiário ou intermediário de offshore, só registros ligados ao Brasil. Aparecer no vazamento não significa irregularidade. Dados sob licença ODbL</div>
+      </div>
+      <div class="sec">Menções na mídia</div>
+      <div class="lista">
+        <div class="item"><b>Google Notícias</b> — manchetes com a razão social ou o nome fantasia, buscadas só quando você pede no modal</div>
+        <div class="item"><span class="tag intl" title="Fonte internacional (fora do Brasil)">internacional</span> <b>GDELT</b> — notícias indexadas no mundo todo (filtradas para veículos do Brasil); complementa o Google Notícias quando a API responde</div>
       </div>
       <div class="sec">Localização e contato</div>
       <div class="lista">
-        <div class="item"><b>OpenStreetMap/Nominatim</b> — geocodificação do endereço cadastral (lat/lng do mapa)</div>
+        <div class="item"><span class="tag intl" title="Fonte internacional (fora do Brasil)">internacional</span> <b>OpenStreetMap/Nominatim</b> — geocodificação do endereço cadastral (lat/lng do mapa)</div>
         <div class="item">WhatsApp (derivado do telefone celular), site (derivado do domínio do e-mail corporativo) e redes sociais extraídas do próprio site da empresa — sem raspagem direta de redes sociais</div>
       </div>
       <div class="sec">Mapa: contexto territorial, criminal e ambiental</div>
