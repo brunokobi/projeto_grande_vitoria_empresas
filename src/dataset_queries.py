@@ -1417,6 +1417,16 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
                                 r[campo] = json.loads(r[campo] or "null")
                         r.pop("cnpj_empresa", None)
                         p["djen_resumo"] = r
+        # Grupo econômico (base NACIONAL de sócios da Receita, gerado no ETL —
+        # socios_brasil.gerar_grupo): outras empresas dos mesmos sócios no Brasil,
+        # empresas sócias desta e participações desta em outras.
+        grupo_economico = []
+        if _tabela_existe(conn, "grupo_economico"):
+            grupo_economico = [dict(r) for r in conn.execute(
+                "SELECT relacao, via_socio, qualificacao, outra_raiz, outra_razao_social, outra_uf, "
+                "outra_situacao, na_base_cnpj, qtd_total_via_socio FROM grupo_economico "
+                "WHERE cnpj_basico = ? ORDER BY relacao, via_socio, outra_situacao != 'Ativa', outra_razao_social "
+                "LIMIT 500", (cnpj[:8],))]
         processos_descartados = []
         if tem_desc:
             processos_descartados = [dict(r) for r in conn.execute(
@@ -1625,6 +1635,7 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
         "processos_judiciais": processos,
         "processos_socios": processos_socios,
         "processos_descartados": processos_descartados,
+        "grupo_economico": grupo_economico,
         "sancoes_administrativas": sancoes,
         "infracoes_ambientais": ambiental,
         "dividas_ativas": dividas,

@@ -49,8 +49,13 @@ app = FastAPI(
         "achados pelo nome do sócio, só tribunais do ES) e `ocorrencias_socios` (due diligence "
         "dos sócios: PGFN pessoa física, servidor federal, CEAF, Bolsa Família, embargo IBAMA, "
         "Banco Central, CVM, TCU, OFAC/ONU/Reino Unido e ICIJ Offshore Leaks — possível "
-        "correspondência por CPF mascarado + nome). Atualizado a cada 2h a partir do Release "
-        "público do dataset."
+        "correspondência por CPF mascarado + nome). Cada processo traz `djen_resumo`: assuntos "
+        "(DataJud), classe, ajuizamento, órgão, publicações/intimados/advogados do arquivo do "
+        "DJEN, valor da causa quando citado e a `validacao` do vínculo empresa↔processo (CNPJ no "
+        "texto + homônimos na base nacional da Receita); homônimos descartados vêm em "
+        "`processos_descartados`. `grupo_economico` lista outras empresas dos mesmos sócios no Brasil (base nacional da Receita), empresas sócias e participações. `GET /processos/{numero}/detalhes` consulta DataJud/DJEN ao "
+        "vivo e `GET /empresas/{cnpj}/midia` busca menções na imprensa. Atualizado a cada 2h a "
+        "partir do Release público do dataset."
     ),
     version="2.0.0",
     lifespan=lifespan,

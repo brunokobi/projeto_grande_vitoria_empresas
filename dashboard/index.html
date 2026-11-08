@@ -1761,6 +1761,29 @@ function renderMidia(d){
     : "";
   return resumo + cards + rodape;
 }
+// Grupo econômico — base NACIONAL de sócios da Receita (mesmo CPF mascarado +
+// mesmo nome = mesma pessoa, como a própria RFB identifica nos dados abertos).
+function renderGrupoEconomico(arr){
+  if(!arr||!arr.length) return "";
+  const fmtCnpjRaiz = r => r ? `${r.slice(0,2)}.${r.slice(2,5)}.${r.slice(5,8)}` : "";
+  const item = x => {
+    const nome = x.na_base_cnpj
+      ? `<a href="#" onclick="abrir('${esc(x.na_base_cnpj)}');return false">${esc(x.outra_razao_social||fmtCnpjRaiz(x.outra_raiz))}</a>`
+      : esc(x.outra_razao_social||x.via_socio||"(razão social não encontrada)");
+    const sit = x.outra_situacao && x.outra_situacao!=="Ativa" ? ` <span class="tag warn">${esc(x.outra_situacao)}</span>` : "";
+    return `<div style="font-size:12px;margin:3px 0">${nome} <span style="color:var(--muted)">— raiz ${fmtCnpjRaiz(x.outra_raiz)}${x.outra_uf?" · "+esc(x.outra_uf):""}</span>${sit}${x.na_base_cnpj?' <span class="tag ok" title="Também está na base da Grande Vitória">na base</span>':""}</div>`;
+  };
+  const porSocio = {};
+  arr.filter(x=>x.relacao==="socio_em_comum").forEach(x=>{ (porSocio[x.via_socio]=porSocio[x.via_socio]||{tot:x.qtd_total_via_socio,itens:[]}).itens.push(x); });
+  const blocoSocios = Object.entries(porSocio).map(([socio,g])=>`<details class="divida"><summary><b>${esc(socio)}</b> <span style="color:var(--muted)">— sócio(a) também de ${g.tot} outra(s) empresa(s)${g.tot>g.itens.length?` (mostrando ${g.itens.length})`:""}</span></summary><div style="padding:6px 12px 8px">${g.itens.map(item).join("")}</div></details>`).join("");
+  const socias = arr.filter(x=>x.relacao==="empresa_socia");
+  const partic = arr.filter(x=>x.relacao==="participacao");
+  const bloco = (titulo, lista) => lista.length ? `<details class="divida"><summary><b>${titulo}</b> <span style="color:var(--muted)">(${lista.length})</span></summary><div style="padding:6px 12px 8px">${lista.map(item).join("")}</div></details>` : "";
+  return `<div class="sec">&#128279; Grupo econômico (${arr.length}) <span style="font-size:11px;color:var(--muted);font-weight:normal;text-transform:none;letter-spacing:0">— base nacional de sócios da Receita; mesma pessoa = mesmo CPF mascarado + mesmo nome</span></div>
+    ${bloco("Empresas sócias desta", socias)}
+    ${bloco("Participações desta empresa em outras", partic)}
+    ${blocoSocios}`;
+}
 function renderOcorrenciasSocios(arr){
   if(!arr||!arr.length) return "";
   const fmtRef = d => d && d.length===7 ? `${d.slice(5)}/${d.slice(0,4)}` : fmtData(d);
@@ -2017,6 +2040,7 @@ async function abrir(cnpj, viaPopstate){
       ${renderContratosPncp(d.contratos_pncp, qsPncp)}
       ${renderMarcas(d.marcas_inpi)}
       ${renderOcorrenciasSocios(d.ocorrencias_socios)}
+      ${renderGrupoEconomico(d.grupo_economico)}
 
       <div class="sec">&#128240; Menções na mídia <span style="font-size:11px;color:var(--muted);font-weight:normal;text-transform:none;letter-spacing:0">— Google Notícias + GDELT; pode haver homônimos</span></div>
       <div id="midia_area" data-cnpj="${e.cnpj}">
@@ -2244,6 +2268,7 @@ function abrirSobre(){
       <div class="sec">Cadastral e societário</div>
       <div class="lista">
         <div class="item"><b>Receita Federal</b> — cadastro (CNPJ), sócios, capital social, CNAE, situação cadastral</div>
+        <div class="item"><b>Receita Federal — base nacional</b> (todas as empresas e sócios do Brasil) — <b>grupo econômico</b> (outras empresas dos mesmos sócios em qualquer estado, empresas sócias e participações; a mesma pessoa é identificada pelo CPF mascarado + nome completo, como a Receita publica) e o índice de <b>homônimos</b> usado para validar processos</div>
         <div class="item"><b>JUCEES</b> (Junta Comercial do ES) — registros complementares de constituição/alteração</div>
       </div>
       <div class="sec">Riscos jurídicos e fiscais</div>
@@ -2252,7 +2277,9 @@ function abrirSobre(){
         <div class="item"><b>CEIS/CNEP</b> (CGU) — sanções federais, incluindo Lista Suja do trabalho escravo (MTE), CEPIM e acordos de leniência</div>
         <div class="item"><b>TCEES</b> — sanções do Tribunal de Contas do Espírito Santo</div>
         <div class="item"><b>IBAMA</b> — infrações ambientais</div>
-        <div class="item"><b>DJEN/CNJ</b> (Comunica API do PJe) — processos judiciais, localizados pelo nome da empresa (a API pública do DataJud não expõe as partes por CNPJ). Só conta como pendência quando a empresa aparece como <b>ré</b> — sendo autora (ex.: cobrando uma dívida) não é tratado como risco. Processos achados pelo <b>nome do sócio</b> aparecem numa seção separada, só de tribunais do ES (TJES, TRT17, TRF2, TRE-ES), e não contam como pendência da empresa — a fonte só confirma o nome, então pode haver homônimo</div>
+        <div class="item"><b>DJEN/CNJ</b> (Comunica API do PJe) — publicações dos processos, localizadas pelo nome da empresa (a fonte não publica CNPJ). O projeto guarda um <b>arquivo completo</b>: todas as publicações em que a razão social é destinatária confirmada, com partes intimadas, advogados (OAB), tipo de ato e texto. Só conta como pendência quando a empresa aparece como <b>ré</b>. Processos achados pelo <b>nome do sócio</b> aparecem numa seção separada, só de tribunais do ES (TJES, TRT17, TRF2, TRE-ES), e não contam como pendência da empresa</div>
+        <div class="item"><b>DataJud/CNJ</b> (API pública) — o <b>motivo</b> do processo (assuntos da Tabela Processual Unificada do CNJ), classe, órgão julgador, instâncias, data de ajuizamento e movimentações, consultados pelo número do processo. O valor da causa não está no DataJud; quando aparece escrito numa publicação do DJEN, é mostrado com o trecho de onde saiu</div>
+        <div class="item"><b>Validação do vínculo processo ↔ empresa</b> — como o DJEN não traz CNPJ, cada processo é conferido com dado concreto: o CNPJ citado no texto da publicação (confirma ou derruba) e os <b>homônimos na base nacional da Receita</b> (quantas empresas no Brasil têm a mesma razão social e em que estado fica a sede de cada uma, comparado ao estado do tribunal). Homônimo comprovado ou provável sai da lista, da pendência, dos filtros e da nota, e aparece à parte com o motivo</div>
       </div>
       <div class="sec">Contratos públicos e propriedade intelectual</div>
       <div class="lista">
