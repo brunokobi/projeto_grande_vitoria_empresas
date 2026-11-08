@@ -1321,6 +1321,56 @@ function _renderDjen(d, socio){
     + (itens.length<lidas ? ` (${itens.length} atos distintos; o DJEN repete o ato por destinatário)` : "");
   return `${_tituloProc("&#128240; Intimações publicadas — DJEN/CNJ"+tot)}${_conferenciaPartes(itens, socio)}${cards}`;
 }
+// Resumo do processo vindo do ARQUIVO do DJEN (coletado pelo projeto e
+// publicado no banco) — aparece na hora, sem consulta externa.
+function _renderResumoDjen(r){
+  if(!r) return "";
+  const lista = (nomes, total) => {
+    if(!total) return "";
+    const extra = total > (nomes||[]).length ? ` <span style="color:var(--muted)">+${total-(nomes||[]).length}</span>` : "";
+    return (nomes||[]).map(esc).join(", ") + extra;
+  };
+  const tipos = Object.entries(r.tipos_documento||{}).sort((a,b)=>b[1]-a[1]).map(([t,n])=>`${esc(t)} ${n}`).join(" · ");
+  const marc = [r.tem_edital?'<span class="tag pend" title="Houve publicação do tipo Edital (citação por edital, leilão, praça...)">edital</span>':"",
+                r.tem_sentenca?'<span class="tag warn">sentença publicada</span>':"",
+                r.tem_acordao?'<span class="tag warn">acórdão publicado</span>':""].filter(Boolean).join(" ");
+  const linha = (k,v) => v ? `<div style="font-size:12px;margin:2px 0"><span style="color:var(--muted)">${k}:</span> ${v}</div>` : "";
+  return `<div style="padding:0 12px 4px">
+    ${_tituloProc("&#128451;&#65039; Arquivo do DJEN (coletado pelo projeto)")}
+    ${marc?`<div style="margin:2px 0 4px">${marc}</div>`:""}
+    ${linha("Órgão", esc(r.orgao))}
+    ${linha("Publicações", `${r.qtd_publicacoes} (${fmtData(r.primeira_publicacao)}${r.ultima_publicacao!==r.primeira_publicacao?" a "+fmtData(r.ultima_publicacao):""})`)}
+    ${linha("Atos", tipos)}
+    ${linha(`Intimados no polo ativo (${r.qtd_polo_ativo})`, lista(r.polo_ativo, r.qtd_polo_ativo))}
+    ${linha(`Intimados no polo passivo, além da empresa (${r.qtd_polo_passivo})`, lista(r.polo_passivo, r.qtd_polo_passivo))}
+    ${linha(`Advogados nas publicações (${r.qtd_advogados})`, lista(r.advogados, r.qtd_advogados))}
+    <div style="font-size:11px;color:var(--muted)">coletado em ${fmtData(r.coletado_em)} · contagens das publicações do DJEN em que a empresa é destinatária; o DJEN lista quem foi intimado em cada ato, não necessariamente todas as partes</div>
+  </div>`;
+}
+// Panorama da empresa no arquivo do DJEN (todas as publicações coletadas).
+function renderPanoramaDjen(pan){
+  if(!pan) return "";
+  const fmtN = n => Number(n||0).toLocaleString("pt-BR");
+  const top = (arr, rot) => (arr&&arr.length) ? `<div style="margin-top:6px"><div class="k" style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">${rot}</div>
+      <ol style="margin:2px 0 0 18px;padding:0;font-size:12px">${arr.slice(0,5).map(([n,q])=>`<li>${esc(n)} <span style="color:var(--muted)">— ${fmtN(q)} processo(s)</span></li>`).join("")}</ol></div>` : "";
+  const trib = Object.entries(pan.por_tribunal||{}).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([t,n])=>`${esc(t)} ${fmtN(n)}`).join(" · ");
+  const aviso = pan.teto_atingido
+    ? `<div style="font-size:12px;color:var(--amber);margin-top:6px">&#9888;&#65039; Parcial: a empresa tem mais publicações do que o limite da coleta (5.000) — o panorama cobre só as mais recentes, de ${fmtData(pan.primeira_publicacao)} a ${fmtData(pan.ultima_publicacao)}.</div>` : "";
+  return `<details class="divida" open style="margin-bottom:8px">
+    <summary><b>&#128451;&#65039; Panorama no DJEN</b> <span style="color:var(--muted)">— ${fmtN(pan.qtd_processos)} processo(s), ${fmtN(pan.qtd_publicacoes)} publicação(ões) de ${fmtData(pan.primeira_publicacao)} a ${fmtData(pan.ultima_publicacao)}</span></summary>
+    <div style="padding:6px 12px 10px">
+      <div style="font-size:12px">Como ré: <b>${fmtN(pan.qtd_como_reu)}</b> · como autora: <b>${fmtN(pan.qtd_como_autor)}</b> · terceira: ${fmtN(pan.qtd_como_terceiro)}
+        · com edital: <b>${fmtN(pan.qtd_com_edital)}</b> · com sentença: ${fmtN(pan.qtd_com_sentenca)} · com acórdão: ${fmtN(pan.qtd_com_acordao)}</div>
+      ${trib?`<div style="font-size:12px;margin-top:4px"><span style="color:var(--muted)">Tribunais:</span> ${trib}</div>`:""}
+      ${top(pan.principais_polo_ativo, "Mais intimados no polo ativo (lado autor)")}
+      ${top(pan.principais_polo_passivo, "Mais intimados no polo passivo junto com a empresa")}
+      ${top(pan.principais_advogados, "Advogados que mais aparecem nas publicações")}
+      ${aviso}
+      ${pan.outras_empresas_mesmo_nome?`<div style="font-size:12px;color:var(--amber);margin-top:6px">&#9888;&#65039; Há ${pan.outras_empresas_mesmo_nome} outra(s) empresa(s) na base com a mesma razão social (CNPJ diferente). O DJEN não publica CNPJ, então estas publicações podem ser de qualquer uma delas.</div>`:""}
+      <div style="font-size:11px;color:var(--muted);margin-top:6px">Arquivo do DJEN coletado pelo projeto em ${fmtData(pan.coletado_em)}. Contagens das publicações em que a razão social é destinatária confirmada. O DJEN lista quem foi intimado em cada ato (não necessariamente todas as partes); advogados podem ser de qualquer parte.</div>
+    </div>
+  </details>`;
+}
 function renderProcessos(arr, filtrado, deSocios){
   const titulo = deSocios ? "👤 Processos pessoais de sócios (tribunais do ES)" : "📂 Processos judiciais";
   if(!arr||!arr.length){
@@ -1356,6 +1406,7 @@ function renderProcessos(arr, filtrado, deSocios){
         ${x.nome_socio_vinculado?`<div style="grid-column:1/-1;color:var(--amber);font-size:12px">&#9888;&#65039; Correspondência feita só pelo nome do sócio (a fonte pública não expõe o CPF completo) — pode haver erro em caso de homônimos ou de duas pessoas com o CPF mascarado idêntico.</div>`:""}
         ${x.url_jusbrasil?`<a class="maplink" href="${esc(x.url_jusbrasil)}" target="_blank" rel="noopener noreferrer">Ver Processo &#8599;</a>`:""}
       </div>
+      ${_renderResumoDjen(x.djen_resumo)}
       <div class="proc-extra" style="padding:0 12px 10px"></div>
     </details>`;
   }));
@@ -1928,6 +1979,7 @@ async function abrir(cnpj, viaPopstate){
         statTile("&#127793;", rz.qtd_ambiental_proximidade, "Proximidade ambiental (500m)", false),
         statTile("&#127956;&#65039;", rz.qtd_risco_geologico, "Setor de risco geológico/inundação", false),
       )}
+      ${renderPanoramaDjen(d.djen_panorama)}
       ${renderProcessos(d.processos_judiciais, qsProc)}
       ${renderProcessos(d.processos_socios, qsProc, true)}
       ${renderDividas(d.dividas_ativas, e.capital_social)}

@@ -1367,6 +1367,36 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
             [cnpj, *params_filtro_proc])]
         for p in processos + processos_socios:
             p["url_jusbrasil"] = url_jusbrasil(p.get("numero_processo"))
+        # Arquivo completo do DJEN (coletado na máquina local, ver
+        # grande_vitoria_empresas_extracao/src/djen_completo.py): resumo por
+        # processo + panorama da empresa. Só fatos contados das publicações.
+        djen_panorama = None
+        if _tabela_existe(conn, "processos_djen_resumo"):
+            nums = [p["numero_processo"] for p in processos if p.get("numero_processo")]
+            if nums:
+                res = {r["numero_processo"]: dict(r) for r in conn.execute(
+                    f"SELECT * FROM processos_djen_resumo WHERE cnpj_empresa = ? AND numero_processo IN "
+                    f"({','.join('?' for _ in nums)})", [cnpj, *nums])}
+                for p in processos:
+                    r = res.get(p.get("numero_processo"))
+                    if r:
+                        for campo in ("tipos_documento", "polo_ativo", "polo_passivo", "advogados"):
+                            r[campo] = json.loads(r[campo] or "null")
+                        r.pop("cnpj_empresa", None)
+                        p["djen_resumo"] = r
+        if _tabela_existe(conn, "empresas_djen_panorama"):
+            row = conn.execute("SELECT * FROM empresas_djen_panorama WHERE cnpj_empresa = ?", (cnpj,)).fetchone()
+            if row:
+                djen_panorama = dict(row)
+                # O DJEN não publica CNPJ: outra empresa (raiz de CNPJ diferente,
+                # não filial) com a MESMA razão social recebe as mesmas publicações.
+                djen_panorama["outras_empresas_mesmo_nome"] = conn.execute(
+                    "SELECT COUNT(DISTINCT substr(cnpj, 1, 8)) FROM empresas WHERE razao_social = "
+                    "(SELECT razao_social FROM empresas WHERE cnpj = ?) AND substr(cnpj, 1, 8) != ?",
+                    (cnpj, cnpj[:8])).fetchone()[0]
+                for campo in ("principais_polo_ativo", "principais_polo_passivo", "principais_advogados",
+                              "por_tribunal"):
+                    djen_panorama[campo] = json.loads(djen_panorama[campo] or "null")
         if processo_polo or processo_classe:
             # Resumo sempre com o total real, sem o filtro de exibição acima.
             processos_resumo = [dict(r) for r in conn.execute(
@@ -1565,6 +1595,7 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
         "contato": dict(contato) if contato else None,
         "processos_judiciais": processos,
         "processos_socios": processos_socios,
+        "djen_panorama": djen_panorama,
         "sancoes_administrativas": sancoes,
         "infracoes_ambientais": ambiental,
         "dividas_ativas": dividas,
