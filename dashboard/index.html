@@ -1227,11 +1227,41 @@ function carregarDetalhesProcesso(el){
     if(!d||!d.disponivel) return falha(alvo, "DataJud");
     alvo.innerHTML = _renderDataJud(d.dados);
   }).catch(()=>falha(box.querySelector(".proc-dj"), "DataJud"));
-  fetch(q("djen")).then(r=>r.ok?r.json():null).then(d=>{
+  // DJEN direto do navegador: a API do CNJ só atende acessos do Brasil (a VPS
+  // fica na Alemanha e recebe 403), e libera CORS pra qualquer origem.
+  const urlDjen = "https://comunicaapi.pje.jus.br/api/v1/comunicacao?numeroProcesso="
+    + num + "&itensPorPagina=10&pagina=1";
+  fetch(urlDjen).then(r=>r.ok?r.json():null).then(d=>{
     const alvo = box.querySelector(".proc-dn");
-    if(!d||!d.disponivel) return falha(alvo, "DJEN");
-    alvo.innerHTML = _renderDjen(d.dados, el.dataset.socio);
-  }).catch(()=>falha(box.querySelector(".proc-dn"), "DJEN"));
+    if(!d) return falhaDjen(alvo);
+    alvo.innerHTML = _renderDjen(_djenNormalizar(d), el.dataset.socio);
+  }).catch(()=>falhaDjen(box.querySelector(".proc-dn")));
+  function falhaDjen(alvo){
+    alvo.innerHTML = `<div style="color:var(--muted);font-size:12px">DJEN: não respondeu agora. A API do CNJ só atende acessos a partir do Brasil — fora do país (ou com VPN estrangeira) ela recusa. <a href="https://comunica.pje.jus.br/consulta?numeroProcesso=${num}" target="_blank" rel="noopener noreferrer">Consultar no site do DJEN &#8599;</a></div>`;
+    delete el.dataset.carregado;
+  }
+}
+// Mesmo formato que src/processo_detalhes.py:djen() devolve — campos como a
+// fonte entrega; só junta a mesma comunicação repetida por destinatário.
+function _djenNormalizar(d){
+  const unicos = new Map();
+  for(const x of (d.items||[])){
+    const it = {
+      data: x.data_disponibilizacao, tipo: x.tipoComunicacao, documento: x.tipoDocumento,
+      orgao: x.nomeOrgao, texto: String(x.texto||"").replace(/\s+/g," ").trim(),
+      link: /^https:\/\//.test(x.link||"") ? x.link : null,
+      polo_ativo: (x.destinatarios||[]).filter(p=>p.polo==="A").map(p=>p.nome),
+      polo_passivo: (x.destinatarios||[]).filter(p=>p.polo==="P").map(p=>p.nome),
+      advogados: [...new Set((x.destinatarioadvogados||[]).map(a=>a.advogado&&a.advogado.nome).filter(Boolean))].sort(),
+    };
+    const k = [it.data,it.tipo,it.orgao,it.texto].join("\u0001");
+    const u = unicos.get(k);
+    if(!u){ unicos.set(k,it); continue; }
+    for(const c of ["polo_ativo","polo_passivo","advogados"]) u[c] = [...new Set([...u[c],...it[c]])];
+    u.link = u.link || it.link;
+  }
+  const itens = [...unicos.values()].sort((a,b)=>String(b.data||"").localeCompare(String(a.data||"")));
+  return {total: d.count, qtd_lidas: (d.items||[]).length, itens};
 }
 let _empresaModal = null;
 const _normNome = s => (s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().replace(/[^A-Z0-9 ]/g," ").replace(/\s+/g," ").trim();
