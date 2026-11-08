@@ -11,10 +11,12 @@ empresas (src/integridade_lote.py), pro filtro por nível do dashboard.
 Só baixa quando o asset do Release mudou (data de atualização do asset
 guardada em data/.dataset_release); `--force` baixa de qualquer jeito.
 """
+import contextlib
 import gzip
 import json
 import os
 import shutil
+import sqlite3
 import sys
 import urllib.request
 
@@ -91,6 +93,25 @@ _remover_auxiliares(db_tmp)
 urllib.request.urlretrieve(RELEASE_URL, gz_tmp)
 with gzip.open(gz_tmp, "rb") as fi, open(db_tmp, "wb") as fo:
     shutil.copyfileobj(fi, fo)
+
+# Índices das consultas por empresa nas tabelas geradas no ETL local. A
+# mesclagem já copia os índices do Release, mas um banco publicado antes disso
+# chegou sem eles (grupo_economico: 642 mil linhas varridas por empresa — o
+# pré-cálculo e o modal ficaram ~37x mais lentos). Idempotente.
+_INDICES = (
+    ("grupo_economico", "CREATE INDEX IF NOT EXISTS idx_grupo_raiz ON grupo_economico(cnpj_basico)"),
+    ("risco_pais_socios", "CREATE INDEX IF NOT EXISTS idx_risco_pais_raiz ON risco_pais_socios(cnpj_basico)"),
+)
+try:
+    with contextlib.closing(sqlite3.connect(db_tmp)) as c:
+        tabelas = {r[0] for r in c.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        for tabela, sql in _INDICES:
+            if tabela in tabelas:
+                c.execute(sql)
+        c.commit()
+        c.execute("PRAGMA journal_mode=DELETE")
+except sqlite3.Error as e:
+    print("[refresh_dataset] Não consegui criar os índices:", repr(e))
 
 # Nota de integridade pré-calculada (filtro por nível no dashboard), gravada no
 # arquivo NOVO antes da troca — banco e notas sempre da mesma versão. Se falhar
