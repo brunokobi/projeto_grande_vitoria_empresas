@@ -119,6 +119,9 @@
   .chk input{width:auto}
   .chk .spacer{flex:1}
   .chk .cnt{color:var(--muted);font-size:11px;font-family:'Courier New',monospace}
+  .dd-fontes{border:1px solid var(--line,#1f2a2a);border-radius:6px;padding:2px 8px}
+  .dd-fontes .chk{align-items:flex-start;margin:6px 0;font-size:12px;line-height:1.35}
+  .dd-fontes .chk input{margin-top:2px;flex:none}
   .msdica{font-size:11px;color:var(--muted);margin:2px 0 3px}
   .citychip{background:var(--bg2);border:1px solid var(--line);color:var(--text);
     padding:6px 13px;border-radius:8px;font-size:12px;cursor:pointer;transition:.15s}
@@ -464,7 +467,7 @@
       <label class="chk" id="row_dd" style="display:none"><input type="checkbox" id="f_dd" onchange="toggleSubmenuDD()"> Sócio com ocorrência (due diligence)</label>
       <div id="dd_submenu" style="display:none;margin:-4px 0 8px 22px">
         <div class="msdica">nada marcado = qualquer fonte; marcar mais de uma aceita QUALQUER uma delas (OU). Sem o CPF completo, é possível correspondência</div>
-        <select id="f_dd_fonte" multiple size="6"></select>
+        <div id="f_dd_fonte" class="dd-fontes"></div>
         <label class="chk" style="margin-top:4px" title="Descarta os cruzamentos feitos só pelo nome (sujeitos a homônimo): fica só CNPJ, razão social ou CPF mascarado + nome"><input type="checkbox" id="f_dd_forte"> Só cruzamento por CPF mascarado/CNPJ</label>
       </div>
       <label class="chk" id="row_marca"><input type="checkbox" id="f_marca"> Marca registrada (INPI)</label>
@@ -624,7 +627,7 @@ function query(){
   }
   if($("f_dd").checked){
     p.set("com_ocorrencia_socio","true");
-    addMulti("ocorrencia_fonte","f_dd_fonte");
+    document.querySelectorAll("#f_dd_fonte input:checked").forEach(cb=>p.append("ocorrencia_fonte",cb.value));
     if($("f_dd_forte").checked) p.set("ocorrencia_criterio_forte","true");
   }
   if($("f_integ").value) $("f_integ").value.split(",").forEach(v=>p.append("nivel_integridade",v));
@@ -699,7 +702,7 @@ async function initEstat(){
   const fmtN = n => Number(n||0).toLocaleString("pt-BR");
   const porFonte = s.ocorrencias_socios_por_fonte||{};
   $("f_dd_fonte").innerHTML = Object.keys(_FONTE_DD).filter(f=>porFonte[f]>0).map(f=>
-    `<option value="${f}">${_FONTE_DD[f][0]} ${esc(_FONTE_DD[f][1])} (${fmtN(porFonte[f])})</option>`).join("");
+    `<label class="chk"><input type="checkbox" value="${f}"> <span>${esc(_FONTE_DD_FILTRO[f]||_FONTE_DD[f][1])} (${fmtN(porFonte[f])})</span></label>`).join("");
   // Filtro por nível só aparece se o pré-cálculo existe E é da mesma versão
   // da metodologia do modal (o servidor confere) — nunca nota de outra versão.
   const integ = s.integridade||{};
@@ -1594,6 +1597,21 @@ const _FONTE_DD = {
   UK_SANCOES: ["🌐", "Sanção internacional — Reino Unido"],
   ICIJ_OFFSHORE: ["🏝️", "Offshore Leaks — ICIJ (Panama/Pandora Papers)"],
 };
+// Rótulos do filtro (sem ícone, texto completo — quebram linha no painel).
+const _FONTE_DD_FILTRO = {
+  PGFN_PF: "Dívida ativa da União do sócio",
+  SERVIDOR_FEDERAL: "Sócio servidor público federal",
+  CEAF: "Sócio expulso da administração federal (CEAF)",
+  BOLSA_FAMILIA: "Sócio favorecido do Bolsa Família",
+  IBAMA_EMBARGO: "Embargo ambiental do IBAMA",
+  BCB_INABILITADO: "Sócio inabilitado pelo Banco Central",
+  CVM_SANCIONADOR: "Processo sancionador na CVM",
+  TCU_INABILITADO: "Sócio inabilitado pelo TCU",
+  OFAC: "Sanção internacional (OFAC/EUA)",
+  ONU: "Sanção internacional (ONU)",
+  UK_SANCOES: "Sanção internacional (Reino Unido)",
+  ICIJ_OFFSHORE: "Offshore Leaks (ICIJ)",
+};
 const _CRITERIO_DD = {
   cnpj: "CNPJ da empresa",
   razao_social: "razão social idêntica",
@@ -2221,7 +2239,7 @@ function limpar(){
   ["f_segmento","f_porte","f_regime","f_pendencia","f_integ"].forEach(id=>$(id).value="");
   // Selects multi (submenus de refinamento) não limpam com .value="" — precisa
   // desmarcar cada <option> individualmente.
-  ["f_proc_polo","f_proc_classe","f_sanc_tipo","f_ben_tipo","f_vinc_fonte","f_pncp_cat","f_dd_fonte","f_ambiental_prox_tipo","f_risco_geo_grau"].forEach(id=>
+  ["f_proc_polo","f_proc_classe","f_sanc_tipo","f_ben_tipo","f_vinc_fonte","f_pncp_cat","f_ambiental_prox_tipo","f_risco_geo_grau"].forEach(id=>
     Array.from($(id).options).forEach(o=>o.selected=false));
   ["f_tel","f_email","f_wpp","f_rede","f_proc","f_sanc","f_amb","f_div","f_lenienc","f_contratos","f_ben","f_vinculo","f_pncp","f_dd","f_dd_forte","f_marca","f_uc","f_ambiental_prox","f_risco_geo"].forEach(id=>$(id).checked=false);
   toggleSubmenuProc(); toggleSubmenuSanc(); toggleSubmenuBen(); toggleSubmenuVinculo(); toggleSubmenuPncp(); toggleSubmenuDD(); toggleSubmenuAmbientalProx(); toggleSubmenuRiscoGeo();
