@@ -414,6 +414,10 @@
         </select>
         <div class="msdica">nada marcado = qualquer classe; marcar mais de uma exige processo de CADA classe</div>
         <select id="f_proc_classe" multiple size="6"></select>
+        <div id="proc_valid_box" style="display:none">
+          <div class="msdica" style="margin-top:6px">Vínculo conferido no arquivo do DJEN: nada marcado = qualquer; marcar mais de um aceita QUALQUER um (OU). Processo sem conferência não entra</div>
+          <div id="f_proc_valid" class="dd-fontes"></div>
+        </div>
       </div>
       <label class="chk" id="row_sanc"><input type="checkbox" id="f_sanc" onchange="toggleSubmenuSanc()"> Com sanções administrativas</label>
       <div id="sanc_submenu" style="display:none;margin:-4px 0 8px 22px">
@@ -470,6 +474,17 @@
         <div class="msdica">nada marcado = qualquer fonte; marcar mais de uma aceita QUALQUER uma delas (OU). Sem o CPF completo, é possível correspondência</div>
         <div id="f_dd_fonte" class="dd-fontes"></div>
         <label class="chk" style="margin-top:4px" title="Descarta os cruzamentos feitos só pelo nome (sujeitos a homônimo): fica só CNPJ, razão social ou CPF mascarado + nome"><input type="checkbox" id="f_dd_forte"> Só cruzamento por CPF mascarado/CNPJ</label>
+      </div>
+      <label class="chk" id="row_estrang" style="display:none" title="Sócio residente no exterior, pelo quadro societário da Receita"><input type="checkbox" id="f_estrang" onchange="toggleSubmenuEstrang()"> Sócio estrangeiro</label>
+      <div id="estrang_submenu" style="display:none;margin:-4px 0 8px 22px">
+        <label class="chk" id="row_estrang_gafi" title="País na lista do GAFI (chamada à ação ou monitoramento reforçado) com o país confirmado. Código de país ambíguo da Receita fica de fora"><input type="checkbox" id="f_estrang_gafi"> Só país da lista do GAFI</label>
+      </div>
+      <label class="chk" id="row_grupo" style="display:none" title="Pela base nacional de sócios da Receita (todas as empresas do Brasil)"><input type="checkbox" id="f_grupo" onchange="toggleSubmenuGrupo()"> Grupo econômico</label>
+      <div id="grupo_submenu" style="display:none;margin:-4px 0 8px 22px">
+        <div class="msdica">nada marcado = qualquer relação; marcar mais de uma aceita QUALQUER uma (OU)</div>
+        <div id="f_grupo_rel" class="dd-fontes"></div>
+        <label class="f" style="margin-top:6px" title="Conta outras empresas distintas nas relações marcadas (ou em todas). Até 50 por sócio">Mínimo de outras empresas ligadas</label>
+        <input type="number" id="f_grupo_min" min="1" max="50" placeholder="qualquer" style="width:110px">
       </div>
       <label class="chk" id="row_marca"><input type="checkbox" id="f_marca"> Marca registrada (INPI)</label>
       <label class="chk" id="row_uc"><input type="checkbox" id="f_uc"> Dentro de Unidade de Conservação</label>
@@ -605,6 +620,7 @@ function query(){
     p.set("com_processos","true");
     addMulti("processo_polo","f_proc_polo");
     addMulti("processo_classe","f_proc_classe");
+    document.querySelectorAll("#f_proc_valid input:checked").forEach(cb=>p.append("processo_validacao",cb.value));
   }
   if($("f_sanc").checked){
     p.set("com_sancoes","true");
@@ -630,6 +646,16 @@ function query(){
     p.set("com_ocorrencia_socio","true");
     document.querySelectorAll("#f_dd_fonte input:checked").forEach(cb=>p.append("ocorrencia_fonte",cb.value));
     if($("f_dd_forte").checked) p.set("ocorrencia_criterio_forte","true");
+  }
+  if($("f_estrang").checked){
+    p.set("com_socio_estrangeiro","true");
+    if($("f_estrang_gafi").checked) p.set("socio_estrangeiro_gafi","true");
+  }
+  if($("f_grupo").checked){
+    p.set("com_grupo_economico","true");
+    document.querySelectorAll("#f_grupo_rel input:checked").forEach(cb=>p.append("grupo_relacao",cb.value));
+    const gmin = parseInt($("f_grupo_min").value,10);
+    if(gmin>0) p.set("grupo_min_empresas", String(Math.min(gmin,50)));
   }
   if($("f_integ").value) $("f_integ").value.split(",").forEach(v=>p.append("nivel_integridade",v));
   if($("f_marca").checked) p.set("com_marca_registrada","true");
@@ -704,6 +730,22 @@ async function initEstat(){
   const porFonte = s.ocorrencias_socios_por_fonte||{};
   $("f_dd_fonte").innerHTML = Object.keys(_FONTE_DD).filter(f=>porFonte[f]>0).map(f=>
     `<label class="chk"><input type="checkbox" value="${f}"> <span>${esc(_FONTE_DD_FILTRO[f]||_FONTE_DD[f][1])} (${fmtN(porFonte[f])})</span></label>`).join("");
+  setCnt("row_estrang", pf.socio_estrangeiro);
+  setCnt("row_estrang_gafi", pf.socio_estrangeiro_gafi);
+  setCnt("row_grupo", pf.grupo_economico);
+  const porRel = s.grupo_economico_por_relacao||{};
+  const _REL_FILTRO = {socio_em_comum:"Sócio com outras empresas (mesmo CPF mascarado + nome)",
+                       empresa_socia:"Tem empresa como sócia", participacao:"É sócia de outras empresas"};
+  $("f_grupo_rel").innerHTML = Object.keys(_REL_FILTRO).filter(r=>porRel[r]>0).map(r=>
+    `<label class="chk"><input type="checkbox" value="${r}"> <span>${_REL_FILTRO[r]} (${fmtN(porRel[r])})</span></label>`).join("");
+  const porVal = s.processos_por_validacao||{};
+  const _VAL_FILTRO = {cnpj_confirmado:"CNPJ confirmado no texto da publicação",
+                       nome_unico_brasil:"Nome único no Brasil (nenhuma outra empresa com esta razão social)",
+                       nome_repetido:"Nome repetido no Brasil, processo no ES ou em tribunal superior",
+                       homonimo_mesmo_estado:"Ambíguo: homônimo no mesmo estado"};
+  $("f_proc_valid").innerHTML = Object.keys(_VAL_FILTRO).filter(v=>porVal[v]>0).map(v=>
+    `<label class="chk"><input type="checkbox" value="${v}"> <span>${_VAL_FILTRO[v]} (${fmtN(porVal[v])})</span></label>`).join("");
+  $("proc_valid_box").style.display = Object.values(porVal).some(n=>n>0) ? "" : "none";
   // Filtro por nível só aparece se o pré-cálculo existe E é da mesma versão
   // da metodologia do modal (o servidor confere) — nunca nota de outra versão.
   const integ = s.integridade||{};
@@ -832,6 +874,12 @@ function toggleSubmenuBen(){
 }
 function toggleSubmenuVinculo(){
   $("vinculo_submenu").style.display = $("f_vinculo").checked ? "" : "none";
+}
+function toggleSubmenuEstrang(){
+  $("estrang_submenu").style.display = $("f_estrang").checked ? "" : "none";
+}
+function toggleSubmenuGrupo(){
+  $("grupo_submenu").style.display = $("f_grupo").checked ? "" : "none";
 }
 function toggleSubmenuDD(){
   $("dd_submenu").style.display = $("f_dd").checked ? "" : "none";
@@ -2286,7 +2334,7 @@ function abrirSobre(){
       <div class="sec">Cadastral e societário</div>
       <div class="lista">
         <div class="item"><b>Receita Federal</b> — cadastro (CNPJ), sócios, capital social, CNAE, situação cadastral</div>
-        <div class="item"><b>Receita Federal — base nacional</b> (todas as empresas e sócios do Brasil) — <b>grupo econômico</b> (outras empresas dos mesmos sócios em qualquer estado, empresas sócias e participações; a mesma pessoa é identificada pelo CPF mascarado + nome completo, como a Receita publica) e o índice de <b>homônimos</b> usado para validar processos</div>
+        <div class="item"><b>Receita Federal — base nacional</b> (todas as empresas e sócios do Brasil) — <b>grupo econômico</b> (outras empresas dos mesmos sócios em qualquer estado, empresas sócias e participações; a mesma pessoa é identificada pelo CPF mascarado + nome completo, como a Receita publica) e o índice de <b>homônimos</b> usado para validar processos. Filtro "Grupo econômico": por relação (sócio com outras empresas, empresa sócia, participação) e mínimo de outras empresas ligadas</div>
         <div class="item"><b>JUCEES</b> (Junta Comercial do ES) — registros complementares de constituição/alteração</div>
       </div>
       <div class="sec">Riscos jurídicos e fiscais</div>
@@ -2297,7 +2345,7 @@ function abrirSobre(){
         <div class="item"><b>IBAMA</b> — infrações ambientais</div>
         <div class="item"><b>DJEN/CNJ</b> (Comunica API do PJe) — publicações dos processos, localizadas pelo nome da empresa (a fonte não publica CNPJ). O projeto guarda um <b>arquivo completo</b>: todas as publicações em que a razão social é destinatária confirmada, com partes intimadas, advogados (OAB), tipo de ato e texto. Só conta como pendência quando a empresa aparece como <b>ré</b>. Processos achados pelo <b>nome do sócio</b> aparecem numa seção separada, só de tribunais do ES (TJES, TRT17, TRF2, TRE-ES), e não contam como pendência da empresa</div>
         <div class="item"><b>DataJud/CNJ</b> (API pública) — o <b>motivo</b> do processo (assuntos da Tabela Processual Unificada do CNJ), classe, órgão julgador, instâncias, data de ajuizamento e movimentações, consultados pelo número do processo. O valor da causa não está no DataJud; quando aparece escrito numa publicação do DJEN, é mostrado com o trecho de onde saiu</div>
-        <div class="item"><b>Validação do vínculo processo ↔ empresa</b> — como o DJEN não traz CNPJ, cada processo é conferido com dado concreto: o CNPJ citado no texto da publicação (confirma ou derruba) e os <b>homônimos na base nacional da Receita</b> (quantas empresas no Brasil têm a mesma razão social e em que estado fica a sede de cada uma, comparado ao estado do tribunal). Homônimo comprovado ou provável sai da lista, da pendência, dos filtros e da nota, e aparece à parte com o motivo</div>
+        <div class="item"><b>Validação do vínculo processo ↔ empresa</b> — como o DJEN não traz CNPJ, cada processo é conferido com dado concreto: o CNPJ citado no texto da publicação (confirma ou derruba) e os <b>homônimos na base nacional da Receita</b> (quantas empresas no Brasil têm a mesma razão social e em que estado fica a sede de cada uma, comparado ao estado do tribunal). Homônimo comprovado ou provável sai da lista, da pendência, dos filtros e da nota, e aparece à parte com o motivo. No filtro "Em processo judicial" dá para exigir o tipo de vínculo conferido (CNPJ confirmado no texto, nome único no Brasil etc.)</div>
       </div>
       <div class="sec">Contratos públicos e propriedade intelectual</div>
       <div class="lista">
@@ -2322,7 +2370,7 @@ function abrirSobre(){
         <div class="item"><b>CVM</b> — acusados em processo administrativo sancionador</div>
         <div class="item"><b>TCU</b> — inabilitados para cargo público</div>
         <div class="item"><span class="tag intl" title="Fonte internacional (fora do Brasil)">internacional</span> <b>OFAC</b> (EUA), <b>ONU</b> (inclui as difusões especiais Interpol–ONU) e <b>Reino Unido</b> — listas de sanções internacionais</div>
-        <div class="item"><span class="tag intl" title="Fonte internacional (fora do Brasil)">internacional</span> <b>GAFI/FATF</b> — jurisdições de alto risco (chamado à ação) e sob monitoramento reforçado, da plenária de outubro de 2026, cruzadas com o país dos sócios estrangeiros registrado na Receita. Entra na nota de integridade (Rec. 19 do GAFI)</div>
+        <div class="item"><span class="tag intl" title="Fonte internacional (fora do Brasil)">internacional</span> <b>GAFI/FATF</b> — jurisdições de alto risco (chamado à ação) e sob monitoramento reforçado, da plenária de outubro de 2026, cruzadas com o país dos sócios estrangeiros registrado na Receita. Entra na nota de integridade (Rec. 19 do GAFI). Filtros "Sócio estrangeiro" e "Só país da lista do GAFI" (país com código ambíguo na Receita fica de fora)</div>
         <div class="item"><span class="tag intl" title="Fonte internacional (fora do Brasil)">internacional</span> <b>Transparência Internacional — Índice de Percepção da Corrupção 2025</b> — nota (0 a 100) e posição do país de cada sócio estrangeiro, reproduzidas sem alteração (licença CC BY-ND 4.0). Só informativo, não entra na nota</div>
         <div class="item"><span class="tag intl" title="Fonte internacional (fora do Brasil)">internacional</span> <b>ICIJ Offshore Leaks</b> (Panama, Pandora, Paradise Papers…) — dirigente, beneficiário ou intermediário de offshore, só registros ligados ao Brasil. Aparecer no vazamento não significa irregularidade. Dados sob licença ODbL</div>
       </div>
@@ -2401,7 +2449,10 @@ function limpar(){
   // desmarcar cada <option> individualmente.
   ["f_proc_polo","f_proc_classe","f_sanc_tipo","f_ben_tipo","f_vinc_fonte","f_pncp_cat","f_ambiental_prox_tipo","f_risco_geo_grau"].forEach(id=>
     Array.from($(id).options).forEach(o=>o.selected=false));
-  ["f_tel","f_email","f_wpp","f_rede","f_proc","f_sanc","f_amb","f_div","f_lenienc","f_contratos","f_ben","f_vinculo","f_pncp","f_dd","f_dd_forte","f_marca","f_uc","f_ambiental_prox","f_risco_geo"].forEach(id=>$(id).checked=false);
+  ["f_tel","f_email","f_wpp","f_rede","f_proc","f_sanc","f_amb","f_div","f_lenienc","f_contratos","f_ben","f_vinculo","f_pncp","f_dd","f_dd_forte","f_estrang","f_estrang_gafi","f_grupo","f_marca","f_uc","f_ambiental_prox","f_risco_geo"].forEach(id=>$(id).checked=false);
+  document.querySelectorAll("#f_proc_valid input, #f_grupo_rel input").forEach(cb=>cb.checked=false);
+  $("f_grupo_min").value="";
+  toggleSubmenuEstrang(); toggleSubmenuGrupo();
   toggleSubmenuProc(); toggleSubmenuSanc(); toggleSubmenuBen(); toggleSubmenuVinculo(); toggleSubmenuPncp(); toggleSubmenuDD(); toggleSubmenuAmbientalProx(); toggleSubmenuRiscoGeo();
   document.querySelectorAll("#f_municipio_group input").forEach(cb=>cb.checked=false);
   document.querySelectorAll(".citychip").forEach(c=>c.classList.remove("active"));

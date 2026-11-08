@@ -53,7 +53,7 @@ app = FastAPI(
         "(DataJud), classe, ajuizamento, órgão, publicações/intimados/advogados do arquivo do "
         "DJEN, valor da causa quando citado e a `validacao` do vínculo empresa↔processo (CNPJ no "
         "texto + homônimos na base nacional da Receita); homônimos descartados vêm em "
-        "`processos_descartados`. `risco_pais_socios` traz os sócios estrangeiros com o país registrado na Receita, a situação no GAFI (chamado à ação / monitoramento reforçado) e a nota do Índice de Percepção da Corrupção 2025. `grupo_economico` lista outras empresas dos mesmos sócios no Brasil (base nacional da Receita), empresas sócias e participações. `GET /processos/{numero}/detalhes` consulta DataJud/DJEN ao "
+        "`processos_descartados`. `risco_pais_socios` traz os sócios estrangeiros com o país registrado na Receita, a situação no GAFI (chamado à ação / monitoramento reforçado) e a nota do Índice de Percepção da Corrupção 2025. `grupo_economico` lista outras empresas dos mesmos sócios no Brasil (base nacional da Receita), empresas sócias e participações. Filtros: `com_socio_estrangeiro`/`socio_estrangeiro_gafi`, `com_grupo_economico`/`grupo_relacao`/`grupo_min_empresas` e `processo_validacao` (vínculo conferido do processo). `GET /processos/{numero}/detalhes` consulta DataJud/DJEN ao "
         "vivo e `GET /empresas/{cnpj}/midia` busca menções na imprensa. Atualizado a cada 2h a "
         "partir do Release público do dataset."
     ),
@@ -123,6 +123,12 @@ def filtros_comuns(
     com_ocorrencia_socio: bool = Query(None, description="Só empresas com ocorrência na due diligence dos sócios (PGFN PF, servidor federal, CEAF, Bolsa Família, IBAMA, BCB, CVM, TCU, OFAC/ONU/Reino Unido, ICIJ) — POSSÍVEL correspondência, sem o CPF completo"),
     ocorrencia_fonte: list[str] = Query(None, description="Restringe a(s) fonte(s): PGFN_PF, SERVIDOR_FEDERAL, CEAF, BOLSA_FAMILIA, IBAMA_EMBARGO, BCB_INABILITADO, CVM_SANCIONADOR, TCU_INABILITADO, OFAC, ONU, UK_SANCOES, ICIJ_OFFSHORE. Repita o parâmetro pra aceitar QUALQUER UMA delas (OU)"),
     ocorrencia_criterio_forte: bool = Query(None, description="Só cruzamentos por CNPJ, razão social ou CPF mascarado + nome (descarta os feitos só pelo nome, sujeitos a homônimo)"),
+    com_socio_estrangeiro: bool = Query(None, description="Só empresas com sócio residente no exterior (QSA da Receita; risco_pais_socios, por raiz de CNPJ)"),
+    socio_estrangeiro_gafi: bool = Query(None, description="Só empresas com sócio em país da lista do GAFI (chamada à ação ou monitoramento reforçado) com o país CONFIRMADO — código de país ambíguo da RFB (ex.: 187) fica de fora"),
+    com_grupo_economico: bool = Query(None, description="Só empresas com grupo econômico pela base NACIONAL de sócios da Receita (qualquer relação)"),
+    grupo_relacao: list[str] = Query(None, description="Relação no grupo econômico: socio_em_comum (sócio PF em outras empresas — mesmo CPF mascarado + nome), empresa_socia (tem PJ como sócia), participacao (é sócia de outras). Repita pra aceitar mais de uma (OU)"),
+    grupo_min_empresas: int = Query(None, ge=1, le=50, description="Nº mínimo de OUTRAS empresas distintas ligadas no grupo econômico (nas relações de grupo_relacao, ou em qualquer uma). O ETL grava até 50 por sócio"),
+    processo_validacao: list[str] = Query(None, description="Com com_processos: só processos cujo vínculo com a empresa foi conferido no arquivo do DJEN — cnpj_confirmado (CNPJ no texto), nome_unico_brasil (razão social sem homônimo no país), nome_repetido (homônimos, mas processo no ES/tribunal superior), homonimo_mesmo_estado (homônimo no ES — ambíguo). Repita pra aceitar mais de um (OU)"),
     nivel_integridade: list[str] = Query(None, description="Nível da nota de integridade: Baixo/Moderado/Alto/Crítico (repita pra aceitar mais de um — OU). Pré-calculado com a mesma função do modal; indisponível se a versão da metodologia não bater (ver /estatisticas → integridade)"),
     capital_min: float = Query(None),
     capital_max: float = Query(None),
@@ -152,6 +158,9 @@ def filtros_comuns(
         risco_geologico_grau=risco_geologico_grau,
         com_ocorrencia_socio=com_ocorrencia_socio, ocorrencia_fonte=ocorrencia_fonte,
         ocorrencia_criterio_forte=ocorrencia_criterio_forte, nivel_integridade=nivel_integridade,
+        com_socio_estrangeiro=com_socio_estrangeiro, socio_estrangeiro_gafi=socio_estrangeiro_gafi,
+        com_grupo_economico=com_grupo_economico, grupo_relacao=grupo_relacao,
+        grupo_min_empresas=grupo_min_empresas, processo_validacao=processo_validacao,
         capital_min=capital_min, capital_max=capital_max, ordenar_por=ordenar_por,
     )
 

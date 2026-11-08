@@ -288,6 +288,30 @@ def _tem_descartados() -> bool:
     return _descartados_cache["existe"]
 
 
+# Tabelas opcionais (geradas no ETL local) usadas direto em _filtros_sql, sem
+# passar flag tem_* por todas as funções: existência cacheada pelo mtime do banco.
+_tabelas_cache = {"mtime": None, "nomes": frozenset()}
+
+
+def _tem_tabela(nome: str) -> bool:
+    try:
+        mtime = config.DB_PATH.stat().st_mtime
+    except OSError:
+        return False
+    if _tabelas_cache["mtime"] != mtime:
+        with _conn() as c:
+            nomes = frozenset(r[0] for r in c.execute("SELECT name FROM sqlite_master WHERE type='table'"))
+        _tabelas_cache.update(mtime=mtime, nomes=nomes)
+    return nome in _tabelas_cache["nomes"]
+
+
+# Validação do vínculo empresa↔processo (processos_djen_resumo.validacao, ver
+# djen_completo.gerar_resumo no ETL). Só as que ficam no site — cnpj_divergente
+# e homonimo_provavel já são descartadas.
+VALIDACOES_PROCESSO = ("cnpj_confirmado", "nome_unico_brasil", "nome_repetido", "homonimo_mesmo_estado")
+RELACOES_GRUPO = ("socio_em_comum", "empresa_socia", "participacao")
+
+
 def _nao_descartado(alias: str) -> str:
     if not _tem_descartados():
         return ""
@@ -304,6 +328,9 @@ def _filtros_sql(*, tem_contato=False, tem_fts=False, tem_contratos=False,
                  tem_uc=False, tem_ambiental_prox=False, tem_risco_geologico=False,
                  tem_dd=False, integ_ok=False,
                  com_ocorrencia_socio=None, ocorrencia_fonte=None, ocorrencia_criterio_forte=None, nivel_integridade=None,
+                 com_socio_estrangeiro=None, socio_estrangeiro_gafi=None,
+                 com_grupo_economico=None, grupo_relacao=None, grupo_min_empresas=None,
+                 processo_validacao=None,
                  municipio=None, cnae=None, cnae_prefix=None,
                  porte=None, regime_tributario=None, texto=None, tem_pendencia=None,
                  com_telefone=None, com_email=None, com_whatsapp=None,
@@ -392,13 +419,29 @@ def _filtros_sql(*, tem_contato=False, tem_fts=False, tem_contratos=False,
         # na lista `where`, que é unida com AND no final da função).
         polos = _lista_valores(processo_polo)
         classes = _lista_valores(processo_classe)
+        validacoes = [v for v in _lista_valores(processo_validacao) if v in VALIDACOES_PROCESSO]
+        if _lista_valores(processo_validacao) and not validacoes:
+            where.append("0")  # só valor desconhecido: nada bate (não ignora em silêncio)
 
         def _cond_processo(polo_fixo, classe_fixo):
             """EXISTS de UMA linha que satisfaz polo_fixo (ou o default Réu,
             se None e nada foi marcado) e classe_fixo (se informado)."""
-            sql = ("EXISTS (SELECT 1 FROM processos_judiciais pr WHERE pr.cnpj_empresa = e.cnpj"
-                   " AND pr.match_confianca != 'socio'" + _nao_descartado("pr"))
             p = []
+            if validacoes:
+                # Vínculo conferido no arquivo do DJEN (OU entre os marcados);
+                # processo sem resumo/validação não entra. Parte do resumo (PK
+                # cnpj_empresa+processo) — bem menor que processos_judiciais.
+                if not _tem_tabela("processos_djen_resumo"):
+                    return "0", []
+                sql = ("EXISTS (SELECT 1 FROM processos_djen_resumo rv JOIN processos_judiciais pr "
+                       "ON pr.cnpj_empresa = rv.cnpj_empresa AND pr.numero_processo = rv.numero_processo "
+                       "WHERE rv.cnpj_empresa = e.cnpj AND rv.validacao IN "
+                       f"({','.join('?' for _ in validacoes)}) AND pr.match_confianca != 'socio'"
+                       + _nao_descartado("pr"))
+                p.extend(validacoes)
+            else:
+                sql = ("EXISTS (SELECT 1 FROM processos_judiciais pr WHERE pr.cnpj_empresa = e.cnpj"
+                       " AND pr.match_confianca != 'socio'" + _nao_descartado("pr"))
             if polo_fixo is not None:
                 sql += " AND pr.polo = ?"
                 p.append(polo_fixo)
@@ -642,6 +685,44 @@ def _filtros_sql(*, tem_contato=False, tem_fts=False, tem_contratos=False,
                 cond_dd += f" AND o.criterio IN ({','.join('?' for _ in CRITERIOS_FORTES_DD)})"
                 params.extend(CRITERIOS_FORTES_DD)
             where.append(cond_dd + ")")
+    if com_socio_estrangeiro or socio_estrangeiro_gafi:
+        # Sócio residente no exterior (risco_pais_socios, por RAIZ de CNPJ —
+        # gerado no ETL a partir do QSA da Receita). `socio_estrangeiro_gafi`
+        # deixa só país da lista do GAFI com o país CONFIRMADO (código da RFB
+        # ambíguo, ex. 187, fica de fora — não entra na nota também).
+        if not _tem_tabela("risco_pais_socios"):
+            where.append("0")
+        else:
+            cond = ("EXISTS (SELECT 1 FROM risco_pais_socios rp WHERE rp.cnpj_basico = substr(e.cnpj, 1, 8)")
+            if socio_estrangeiro_gafi:
+                cond += " AND rp.gafi IS NOT NULL AND COALESCE(rp.pais_confirmado, 1) != 0"
+            where.append(cond + ")")
+    relacoes = [r for r in _lista_valores(grupo_relacao) if r in RELACOES_GRUPO]
+    if _lista_valores(grupo_relacao) and not relacoes:
+        where.append("0")  # só valor desconhecido: nada bate (não ignora em silêncio)
+    try:
+        min_emp = int(grupo_min_empresas) if grupo_min_empresas else 0
+    except (TypeError, ValueError):
+        min_emp = 0
+    if com_grupo_economico or relacoes or min_emp > 0:
+        # Grupo econômico pela base NACIONAL de sócios da Receita (por RAIZ):
+        # várias relações marcadas = OU. `grupo_min_empresas` = nº mínimo de
+        # OUTRAS empresas distintas ligadas (nas relações marcadas, ou em
+        # qualquer uma). Limite de 50 empresas por sócio no ETL — a contagem
+        # é do que está gravado.
+        if not _tem_tabela("grupo_economico"):
+            where.append("0")
+        else:
+            filtro_rel = (f" AND g.relacao IN ({','.join('?' for _ in relacoes)})" if relacoes else "")
+            if min_emp > 1:
+                where.append("(SELECT COUNT(DISTINCT g.outra_raiz) FROM grupo_economico g "
+                             "WHERE g.cnpj_basico = substr(e.cnpj, 1, 8)" + filtro_rel + ") >= ?")
+                params.extend(relacoes)
+                params.append(min_emp)
+            else:
+                where.append("EXISTS (SELECT 1 FROM grupo_economico g WHERE g.cnpj_basico = substr(e.cnpj, 1, 8)"
+                             + filtro_rel + ")")
+                params.extend(relacoes)
     niveis_integ = _lista_valores(nivel_integridade)
     if niveis_integ:
         # Pré-calculado por src/integridade_lote.py com a MESMA função do modal;
@@ -759,6 +840,33 @@ def estatisticas() -> dict:
                 f"({','.join('?' for _ in CRITERIOS_FORTES_DD)})", CRITERIOS_FORTES_DD).fetchone()[0]
             ocorrencias_por_fonte = dict(conn.execute(
                 "SELECT fonte, COUNT(DISTINCT cnpj_empresa) FROM ocorrencias_socios GROUP BY fonte"))
+        # Contagens dos filtros novos (empresas = CNPJs da base, como os demais).
+        if _tabela_existe(conn, "risco_pais_socios"):
+            empresas_por_flag["socio_estrangeiro"] = conn.execute(
+                "SELECT COUNT(*) FROM empresas WHERE substr(cnpj, 1, 8) IN "
+                "(SELECT cnpj_basico FROM risco_pais_socios)").fetchone()[0]
+            empresas_por_flag["socio_estrangeiro_gafi"] = conn.execute(
+                "SELECT COUNT(*) FROM empresas WHERE substr(cnpj, 1, 8) IN (SELECT cnpj_basico FROM "
+                "risco_pais_socios WHERE gafi IS NOT NULL AND COALESCE(pais_confirmado, 1) != 0)").fetchone()[0]
+        grupo_por_relacao = {}
+        if _tabela_existe(conn, "grupo_economico"):
+            empresas_por_flag["grupo_economico"] = conn.execute(
+                "SELECT COUNT(*) FROM empresas WHERE substr(cnpj, 1, 8) IN "
+                "(SELECT cnpj_basico FROM grupo_economico)").fetchone()[0]
+            for rel in RELACOES_GRUPO:
+                grupo_por_relacao[rel] = conn.execute(
+                    "SELECT COUNT(*) FROM empresas WHERE substr(cnpj, 1, 8) IN "
+                    "(SELECT cnpj_basico FROM grupo_economico WHERE relacao = ?)", (rel,)).fetchone()[0]
+        processos_por_validacao = {}
+        if _tabela_existe(conn, "processos_djen_resumo"):
+            # Mesma base do filtro padrão de processos (empresa ré, não descartado).
+            processos_por_validacao = dict(conn.execute(
+                "SELECT rv.validacao, COUNT(DISTINCT pj.cnpj_empresa) FROM processos_judiciais pj "
+                "JOIN processos_djen_resumo rv ON rv.cnpj_empresa = pj.cnpj_empresa "
+                "AND rv.numero_processo = pj.numero_processo "
+                "WHERE pj.polo = 'Réu' AND pj.match_confianca != 'socio'" + _nao_descartado("pj")
+                + f" AND rv.validacao IN ({','.join('?' for _ in VALIDACOES_PROCESSO)}) GROUP BY rv.validacao",
+                VALIDACOES_PROCESSO))
         integridade = {"disponivel": False, "versao_metodologia": avaliacao_integridade.VERSAO}
         if _integridade_ok(conn):
             meta = conn.execute("SELECT gerado_em, qtd_empresas, qtd_avaliadas, amostra_conferida "
@@ -795,6 +903,8 @@ def estatisticas() -> dict:
         "registros_por_tabela": satelites,
         "empresas_por_flag": empresas_por_flag,
         "ocorrencias_socios_por_fonte": ocorrencias_por_fonte,
+        "grupo_economico_por_relacao": grupo_por_relacao,
+        "processos_por_validacao": processos_por_validacao,
         "integridade": integridade,
     }
 
@@ -860,6 +970,9 @@ def buscar_empresas(municipio=None, cnae=None, cnae_prefix=None, porte=None,
                     com_ambiental_proximidade=None, ambiental_proximidade_tipo=None,
                     com_risco_geologico=None, risco_geologico_grau=None,
                     com_ocorrencia_socio=None, ocorrencia_fonte=None, ocorrencia_criterio_forte=None, nivel_integridade=None,
+                    com_socio_estrangeiro=None, socio_estrangeiro_gafi=None,
+                    com_grupo_economico=None, grupo_relacao=None, grupo_min_empresas=None,
+                    processo_validacao=None,
                     socio=None, cnpj=None, ordenar_por="razao_social",
                     limite=50, offset=0) -> dict:
     """Busca empresas com filtros combináveis. Retorna {'total','itens',...}."""
@@ -909,6 +1022,9 @@ def buscar_empresas(municipio=None, cnae=None, cnae_prefix=None, porte=None,
             risco_geologico_grau=risco_geologico_grau,
             com_ocorrencia_socio=com_ocorrencia_socio, ocorrencia_fonte=ocorrencia_fonte,
             ocorrencia_criterio_forte=ocorrencia_criterio_forte, nivel_integridade=nivel_integridade,
+            com_socio_estrangeiro=com_socio_estrangeiro, socio_estrangeiro_gafi=socio_estrangeiro_gafi,
+            com_grupo_economico=com_grupo_economico, grupo_relacao=grupo_relacao,
+            grupo_min_empresas=grupo_min_empresas, processo_validacao=processo_validacao,
             socio=socio, cnpj=cnpj)
         total = conn.execute(f"SELECT COUNT(*) FROM empresas e{where_sql}", params).fetchone()[0]
         rows = conn.execute(
