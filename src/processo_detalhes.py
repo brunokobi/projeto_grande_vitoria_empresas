@@ -32,7 +32,7 @@ DATAJUD_KEY = (os.environ.get("DATAJUD_API_KEY")
                or "cDZHYzlZa0JadVREZDJCendQbXY6SkJlTzNjLV9TRENyQk1RdnFKZGRQdw==")
 _UA = "grande-vitoria-empresas-dashboard/1.0 (detalhe de processo sob demanda)"
 CACHE_DIAS = 7
-_MAX_MOVS = 30
+_MAX_MOVS = 1000  # todas as movimentações (o modal mostra em lista recolhível)
 _MAX_COMUNICACOES = 10
 
 

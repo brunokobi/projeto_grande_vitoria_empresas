@@ -1229,9 +1229,19 @@ function carregarDetalhesProcesso(el){
   }).catch(()=>falha(box.querySelector(".proc-dj"), "DataJud"));
   // DJEN direto do navegador: a API do CNJ só atende acessos do Brasil (a VPS
   // fica na Alemanha e recebe 403), e libera CORS pra qualquer origem.
-  const urlDjen = "https://comunicaapi.pje.jus.br/api/v1/comunicacao?numeroProcesso="
-    + num + "&itensPorPagina=10&pagina=1";
-  fetch(urlDjen).then(r=>r.ok?r.json():null).then(d=>{
+  // Todas as publicações do processo (até 10 páginas de 100), não só as 10 últimas.
+  const urlDjen = pg => "https://comunicaapi.pje.jus.br/api/v1/comunicacao?numeroProcesso="
+    + num + "&itensPorPagina=100&pagina=" + pg;
+  (async () => {
+    const r1 = await fetch(urlDjen(1)); if(!r1.ok) return null;
+    const d = await r1.json(); const total = d.count||0;
+    for(let pg=2; pg<=10 && (d.items||[]).length < total; pg++){
+      const r = await fetch(urlDjen(pg)); if(!r.ok) break;
+      const dn = await r.json(); if(!(dn.items||[]).length) break;
+      d.items = d.items.concat(dn.items);
+    }
+    return d;
+  })().then(d=>{
     const alvo = box.querySelector(".proc-dn");
     if(!d) return falhaDjen(alvo);
     alvo.innerHTML = _renderDjen(_djenNormalizar(d), el.dataset.socio);
@@ -1334,42 +1344,54 @@ function _renderResumoDjen(r){
   const marc = [r.tem_edital?'<span class="tag pend" title="Houve publicação do tipo Edital (citação por edital, leilão, praça...)">edital</span>':"",
                 r.tem_sentenca?'<span class="tag warn">sentença publicada</span>':"",
                 r.tem_acordao?'<span class="tag warn">acórdão publicado</span>':""].filter(Boolean).join(" ");
-  const linha = (k,v) => v ? `<div style="font-size:12px;margin:2px 0"><span style="color:var(--muted)">${k}:</span> ${v}</div>` : "";
+  const linha = (k,v) => v ? `<div style="font-size:12px;margin:3px 0"><span style="color:var(--muted)">${k}:</span> ${v}</div>` : "";
+  const valor = (v, trecho, rot) => v==null ? "" : linha(rot, `<b>${fmtBRL(v)}</b> <span style="color:var(--muted)" title="${esc(trecho||"")}">— “…${esc((trecho||"").slice(-90))}”</span>`);
+  const val = _VALIDACAO[r.validacao];
   return `<div style="padding:0 12px 4px">
-    ${_tituloProc("&#128451;&#65039; Arquivo do DJEN (coletado pelo projeto)")}
+    ${_tituloProc("&#9878;&#65039; O que é o processo")}
+    ${r.assuntos&&r.assuntos.length?`<div style="font-size:13px;margin:2px 0 4px"><b>${r.assuntos.map(esc).join(" · ")}</b></div>`:'<div style="font-size:12px;color:var(--muted)">Assuntos ainda não consultados no DataJud para este processo.</div>'}
+    ${linha("Classe (DataJud)", esc(r.classe_datajud))}
+    ${linha("Ajuizamento", fmtData(r.data_ajuizamento))}
+    ${linha("Órgão julgador", esc(r.orgao_julgador||r.orgao))}
+    ${linha("Instâncias", (r.graus||[]).map(g=>({G1:"1º grau",G2:"2º grau",JE:"Juizado Especial",TR:"Turma Recursal",SUP:"Superior"}[g]||g)).join(", "))}
+    ${valor(r.valor_causa, r.valor_causa_trecho, "Valor da causa (citado na publicação)")}
+    ${valor(r.valor_condenacao, r.valor_condenacao_trecho, "Valor da condenação (citado na publicação)")}
+    ${_tituloProc("&#128269; É desta empresa?")}
+    <div style="font-size:12px;margin:2px 0">${_seloValidacao(r)} <span style="color:var(--muted)">${esc(r.validacao_detalhe||(val&&val[2])||"")}</span></div>
+    ${_tituloProc("&#128240; Publicações no DJEN (arquivo do projeto)")}
     ${marc?`<div style="margin:2px 0 4px">${marc}</div>`:""}
-    ${linha("Órgão", esc(r.orgao))}
     ${linha("Publicações", `${r.qtd_publicacoes} (${fmtData(r.primeira_publicacao)}${r.ultima_publicacao!==r.primeira_publicacao?" a "+fmtData(r.ultima_publicacao):""})`)}
     ${linha("Atos", tipos)}
     ${linha(`Intimados no polo ativo (${r.qtd_polo_ativo})`, lista(r.polo_ativo, r.qtd_polo_ativo))}
     ${linha(`Intimados no polo passivo, além da empresa (${r.qtd_polo_passivo})`, lista(r.polo_passivo, r.qtd_polo_passivo))}
     ${linha(`Advogados nas publicações (${r.qtd_advogados})`, lista(r.advogados, r.qtd_advogados))}
-    <div style="font-size:11px;color:var(--muted)">coletado em ${fmtData(r.coletado_em)} · contagens das publicações do DJEN em que a empresa é destinatária; o DJEN lista quem foi intimado em cada ato, não necessariamente todas as partes</div>
+    <div style="font-size:11px;color:var(--muted)">coletado em ${fmtData(r.coletado_em)} · o DJEN lista quem foi intimado em cada ato, não necessariamente todas as partes</div>
   </div>`;
 }
-// Panorama da empresa no arquivo do DJEN (todas as publicações coletadas).
-function renderPanoramaDjen(pan){
-  if(!pan) return "";
-  const fmtN = n => Number(n||0).toLocaleString("pt-BR");
-  const top = (arr, rot) => (arr&&arr.length) ? `<div style="margin-top:6px"><div class="k" style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">${rot}</div>
-      <ol style="margin:2px 0 0 18px;padding:0;font-size:12px">${arr.slice(0,5).map(([n,q])=>`<li>${esc(n)} <span style="color:var(--muted)">— ${fmtN(q)} processo(s)</span></li>`).join("")}</ol></div>` : "";
-  const trib = Object.entries(pan.por_tribunal||{}).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([t,n])=>`${esc(t)} ${fmtN(n)}`).join(" · ");
-  const aviso = pan.teto_atingido
-    ? `<div style="font-size:12px;color:var(--amber);margin-top:6px">&#9888;&#65039; Parcial: a empresa tem mais publicações do que o limite da coleta (5.000) — o panorama cobre só as mais recentes, de ${fmtData(pan.primeira_publicacao)} a ${fmtData(pan.ultima_publicacao)}.</div>` : "";
-  return `<details class="divida" open style="margin-bottom:8px">
-    <summary><b>&#128451;&#65039; Panorama no DJEN</b> <span style="color:var(--muted)">— ${fmtN(pan.qtd_processos)} processo(s), ${fmtN(pan.qtd_publicacoes)} publicação(ões) de ${fmtData(pan.primeira_publicacao)} a ${fmtData(pan.ultima_publicacao)}</span></summary>
-    <div style="padding:6px 12px 10px">
-      <div style="font-size:12px">Como ré: <b>${fmtN(pan.qtd_como_reu)}</b> · como autora: <b>${fmtN(pan.qtd_como_autor)}</b> · terceira: ${fmtN(pan.qtd_como_terceiro)}
-        · com edital: <b>${fmtN(pan.qtd_com_edital)}</b> · com sentença: ${fmtN(pan.qtd_com_sentenca)} · com acórdão: ${fmtN(pan.qtd_com_acordao)}</div>
-      ${trib?`<div style="font-size:12px;margin-top:4px"><span style="color:var(--muted)">Tribunais:</span> ${trib}</div>`:""}
-      ${top(pan.principais_polo_ativo, "Mais intimados no polo ativo (lado autor)")}
-      ${top(pan.principais_polo_passivo, "Mais intimados no polo passivo junto com a empresa")}
-      ${top(pan.principais_advogados, "Advogados que mais aparecem nas publicações")}
-      ${aviso}
-      ${pan.outras_empresas_mesmo_nome?`<div style="font-size:12px;color:var(--amber);margin-top:6px">&#9888;&#65039; Há ${pan.outras_empresas_mesmo_nome} outra(s) empresa(s) na base com a mesma razão social (CNPJ diferente). O DJEN não publica CNPJ, então estas publicações podem ser de qualquer uma delas.</div>`:""}
-      <div style="font-size:11px;color:var(--muted);margin-top:6px">Arquivo do DJEN coletado pelo projeto em ${fmtData(pan.coletado_em)}. Contagens das publicações em que a razão social é destinatária confirmada. O DJEN lista quem foi intimado em cada ato (não necessariamente todas as partes); advogados podem ser de qualquer parte.</div>
-    </div>
-  </details>`;
+// Selo da validação do vínculo empresa ↔ processo (calculada no ETL, ver
+// djen_completo._validar): só com dado concreto — CNPJ no texto da publicação
+// e homônimos na base nacional da Receita.
+const _VALIDACAO = {
+  cnpj_confirmado:       ["ok",   "&#10003; CNPJ confirmado", "O CNPJ da empresa aparece no texto da publicação"],
+  nome_unico_brasil:     ["ok",   "&#10003; nome único no Brasil", "Nenhuma outra empresa do país tem esta razão social (base nacional da Receita)"],
+  nome_repetido:         ["warn", "nome repetido no Brasil", ""],
+  homonimo_mesmo_estado: ["pend", "&#9888;&#65039; ambíguo: homônimo no mesmo estado", ""],
+  homonimo_provavel:     ["pend", "provável homônimo", ""],
+  cnpj_divergente:       ["pend", "outro CNPJ na publicação", ""],
+  sem_conferencia:       ["warn", "não conferido", "Razão social não encontrada na base nacional da Receita usada na validação"],
+};
+function _seloValidacao(r){
+  if(!r||!r.validacao) return "";
+  const [cls, rot, dica] = _VALIDACAO[r.validacao] || ["warn", esc(r.validacao), ""];
+  return `<span class="tag ${cls}" title="${esc(r.validacao_detalhe||dica)}">${rot}</span>`;
+}
+// Processos descartados: a publicação traz OUTRO CNPJ junto ao nome (homônimo
+// comprovado) — fora da lista e da pendência, mostrados só pra transparência.
+function renderDescartados(arr){
+  if(!arr||!arr.length) return "";
+  return `<details class="divida" style="margin-top:8px"><summary style="color:var(--muted)">&#128465;&#65039; ${arr.length} processo(s) descartado(s) — de outra empresa com o mesmo nome</summary>
+    <div style="padding:6px 12px 10px;font-size:12px">${arr.map(x=>`<div style="margin:3px 0"><b>${esc(x.numero_processo)}</b> ${esc(x.tribunal||"")} ${esc(x.classe||"")} ${_seloValidacao({validacao:x.motivo,validacao_detalhe:x.detalhe})} — <span style="color:var(--muted)">${esc(x.detalhe||"")}</span></div>`).join("")}
+    <div style="color:var(--muted);margin-top:4px">Achados pelo nome no DJEN, mas o texto oficial traz outro CNPJ junto ao nome, ou o processo corre num estado onde esta empresa não tem sede e há empresa homônima sediada lá. Não contam como processo desta empresa (nem na pendência, nos filtros e na nota).</div></div></details>`;
 }
 function renderProcessos(arr, filtrado, deSocios){
   const titulo = deSocios ? "👤 Processos pessoais de sócios (tribunais do ES)" : "📂 Processos judiciais";
@@ -1395,7 +1417,10 @@ function renderProcessos(arr, filtrado, deSocios){
       <summary><b>${esc(x.numero_processo||"—")}</b> <span style="color:var(--muted)">${esc(x.tribunal||"")}</span>
         ${poloTag}
         ${fuzzy?'<span class="tag warn">correspondência aproximada</span>':""}${viaSocio}
-        <span style="color:var(--muted)">${idadeTexto(x.data_ultima_movimentacao)}</span></summary>
+        ${_seloValidacao(x.djen_resumo)}
+        <span style="color:var(--muted)">${idadeTexto(x.data_ultima_movimentacao)}</span>
+        ${x.djen_resumo&&x.djen_resumo.assuntos&&x.djen_resumo.assuntos.length?`<div style="font-size:12px;margin:3px 0 0 18px">${x.djen_resumo.assuntos.slice(0,3).map(esc).join(" · ")}${x.djen_resumo.assuntos.length>3?" …":""}</div>`:""}
+        ${x.djen_resumo&&x.djen_resumo.valor_causa!=null?`<div style="font-size:12px;margin:2px 0 0 18px;color:var(--muted)">valor da causa: ${fmtBRL(x.djen_resumo.valor_causa)}</div>`:""}</summary>
       <div class="divida-det">
         ${kv("Classe", esc(x.classe))}
         ${kv("Assunto", esc(x.assunto))}
@@ -1979,7 +2004,7 @@ async function abrir(cnpj, viaPopstate){
         statTile("&#127793;", rz.qtd_ambiental_proximidade, "Proximidade ambiental (500m)", false),
         statTile("&#127956;&#65039;", rz.qtd_risco_geologico, "Setor de risco geológico/inundação", false),
       )}
-      ${renderPanoramaDjen(d.djen_panorama)}
+      ${renderDescartados(d.processos_descartados)}
       ${renderProcessos(d.processos_judiciais, qsProc)}
       ${renderProcessos(d.processos_socios, qsProc, true)}
       ${renderDividas(d.dividas_ativas, e.capital_social)}

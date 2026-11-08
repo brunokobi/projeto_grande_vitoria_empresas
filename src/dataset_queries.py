@@ -264,11 +264,39 @@ _PENDENCIA_EXPR = (
     # achado só pelo nome do sócio (ação pessoal dele, não da empresa) -- sem
     # esse filtro a listagem divergia do detalhe (obter_empresa), que já
     # filtrava isso (achado real: NAZCA LTDA, CNPJ 66.240.957/0001-13).
-    "(EXISTS (SELECT 1 FROM processos_judiciais p WHERE p.cnpj_empresa = e.cnpj AND p.polo = 'Réu' AND p.match_confianca != 'socio') "
+    "(EXISTS (SELECT 1 FROM processos_judiciais p WHERE p.cnpj_empresa = e.cnpj AND p.polo = 'Réu' AND p.match_confianca != 'socio'{ND_p}) "
     "OR EXISTS (SELECT 1 FROM sancoes_administrativas s WHERE s.cnpj_empresa = e.cnpj) "
     "OR EXISTS (SELECT 1 FROM infracoes_ambientais i WHERE i.cnpj_empresa = e.cnpj) "
     "OR EXISTS (SELECT 1 FROM dividas_ativas d WHERE d.cnpj_empresa = e.cnpj))"
 )
+
+# Processos DESCARTADOS (homônimo comprovado: a publicação traz outro CNPJ junto
+# ao nome — ver processos_descartados, gerada pelo djen_completo no repo de ETL)
+# saem da pendência, das contagens e da lista do modal. A tabela pode não
+# existir numa cópia antiga do banco — aí a cláusula some.
+_descartados_cache = {"mtime": None, "existe": False}
+
+
+def _tem_descartados() -> bool:
+    try:
+        mtime = config.DB_PATH.stat().st_mtime
+    except OSError:
+        return False
+    if _descartados_cache["mtime"] != mtime:
+        with _conn() as c:
+            _descartados_cache.update(mtime=mtime, existe=_tabela_existe(c, "processos_descartados"))
+    return _descartados_cache["existe"]
+
+
+def _nao_descartado(alias: str) -> str:
+    if not _tem_descartados():
+        return ""
+    return (f" AND NOT EXISTS (SELECT 1 FROM processos_descartados pd WHERE pd.cnpj_empresa = "
+            f"{alias}.cnpj_empresa AND pd.numero_processo = {alias}.numero_processo)")
+
+
+def _pend() -> str:
+    return _PENDENCIA_EXPR.replace("{ND_p}", _nao_descartado("p"))
 
 
 def _filtros_sql(*, tem_contato=False, tem_fts=False, tem_contratos=False,
@@ -345,13 +373,13 @@ def _filtros_sql(*, tem_contato=False, tem_fts=False, tem_contratos=False,
         where.append("e.capital_social <= ?")
         params.append(capital_max)
     if tem_pendencia is True:
-        where.append(_PENDENCIA_EXPR)
+        where.append(_pend())
     elif tem_pendencia is False:
-        where.append("NOT " + _PENDENCIA_EXPR)
+        where.append("NOT " + _pend())
     # Filtros por tipo específico de pendência jurídico-fiscal.
     if com_processos:
         # Padrão (processo_polo não informado) continua só Réu -- é o que
-        # conta como pendência/risco (ver _PENDENCIA_EXPR). processo_polo e
+        # conta como pendência/risco (ver _pend()). processo_polo e
         # processo_classe aceitam valor único OU lista (multi-select do
         # dashboard) — "TODOS" (sentinel de compat) = qualquer polo.
         #
@@ -369,7 +397,7 @@ def _filtros_sql(*, tem_contato=False, tem_fts=False, tem_contratos=False,
             """EXISTS de UMA linha que satisfaz polo_fixo (ou o default Réu,
             se None e nada foi marcado) e classe_fixo (se informado)."""
             sql = ("EXISTS (SELECT 1 FROM processos_judiciais pr WHERE pr.cnpj_empresa = e.cnpj"
-                   " AND pr.match_confianca != 'socio'")
+                   " AND pr.match_confianca != 'socio'" + _nao_descartado("pr"))
             p = []
             if polo_fixo is not None:
                 sql += " AND pr.polo = ?"
@@ -654,7 +682,7 @@ def estatisticas() -> dict:
         com_email = conn.execute(
             "SELECT COUNT(*) FROM empresas WHERE email IS NOT NULL AND email != ''").fetchone()[0]
         com_pendencia = conn.execute(
-            f"SELECT COUNT(*) FROM empresas e WHERE {_PENDENCIA_EXPR}").fetchone()[0]
+            f"SELECT COUNT(*) FROM empresas e WHERE {_pend()}").fetchone()[0]
         satelites = {}
         for tabela in ("processos_judiciais", "sancoes_administrativas",
                        "infracoes_ambientais", "dividas_ativas", "registros_jucees",
@@ -681,10 +709,10 @@ def estatisticas() -> dict:
         # ter várias).
         empresas_por_flag = {}
         # Processo judicial só conta como pendência quando a empresa é ré
-        # (ver _PENDENCIA_EXPR) — sendo autora não é um risco/passivo.
+        # (ver _pend()) — sendo autora não é um risco/passivo.
         empresas_por_flag["processos_judiciais"] = conn.execute(
-            "SELECT COUNT(DISTINCT cnpj_empresa) FROM processos_judiciais "
-            "WHERE polo = 'Réu' AND match_confianca != 'socio'").fetchone()[0]
+            "SELECT COUNT(DISTINCT cnpj_empresa) FROM processos_judiciais pj "
+            "WHERE polo = 'Réu' AND match_confianca != 'socio'" + _nao_descartado("pj")).fetchone()[0]
         for chave, tabela in (
             ("sancoes_administrativas", "sancoes_administrativas"),
             ("infracoes_ambientais", "infracoes_ambientais"),
@@ -780,9 +808,9 @@ def classes_processos(limite: int = 100) -> list:
         if not _tabela_existe(conn, "processos_judiciais"):
             return []
         rows = conn.execute(
-            "SELECT classe, COUNT(*) n FROM processos_judiciais "
-            "WHERE classe IS NOT NULL AND classe != '' AND match_confianca != 'socio' "
-            "GROUP BY classe ORDER BY n DESC LIMIT ?", (limite,)
+            "SELECT classe, COUNT(*) n FROM processos_judiciais pj "
+            "WHERE classe IS NOT NULL AND classe != '' AND match_confianca != 'socio'" + _nao_descartado("pj")
+            + " GROUP BY classe ORDER BY n DESC LIMIT ?", (limite,)
         ).fetchall()
     return [{"classe": r["classe"], "total": r["n"]} for r in rows]
 
@@ -886,7 +914,7 @@ def buscar_empresas(municipio=None, cnae=None, cnae_prefix=None, porte=None,
         rows = conn.execute(
             f"SELECT e.cnpj, e.razao_social, e.nome_fantasia, e.cnae_principal, e.porte, "
             f"e.capital_social, e.municipio, e.bairro, e.telefone, e.email, e.regime_tributario, "
-            f"{_PENDENCIA_EXPR} AS tem_pendencia "
+            f"{_pend()} AS tem_pendencia "
             f"FROM empresas e{where_sql} ORDER BY e.{ordem} LIMIT ? OFFSET ?",
             params + [limite, offset]).fetchall()
     itens = []
@@ -964,7 +992,7 @@ def _pontos_mapa_sem_cache(limite, filtros):
         rows = conn.execute(
             f"SELECT e.cnpj, "
             f"COALESCE(NULLIF(e.razao_social,''), NULLIF(e.nome_fantasia,''), e.cnpj) AS nome, "
-            f"ep.latitude AS lat, ep.longitude AS lng, {_PENDENCIA_EXPR} AS tem_pendencia "
+            f"ep.latitude AS lat, ep.longitude AS lng, {_pend()} AS tem_pendencia "
             f"{base} LIMIT ?", params + [limite]).fetchall()
     return {"total": total, "limite": limite, "pontos": [dict(r) for r in rows]}
 
@@ -1007,7 +1035,7 @@ def risco_por_municipio(**filtros) -> list:
         cond = where_sql[len(" WHERE "):] if where_sql else "1=1"
         rows = conn.execute(
             f"SELECT e.municipio AS municipio, COUNT(*) AS total, "
-            f"SUM(CASE WHEN {_PENDENCIA_EXPR} THEN 1 ELSE 0 END) AS com_pendencia "
+            f"SUM(CASE WHEN {_pend()} THEN 1 ELSE 0 END) AS com_pendencia "
             f"FROM empresas e WHERE {cond} GROUP BY e.municipio", params
         ).fetchall()
     saida = []
@@ -1077,7 +1105,7 @@ def buscar_por_raio(lat: float, lon: float, raio_km: float = 5, limite=50, offse
             f"SELECT e.cnpj, e.razao_social, e.nome_fantasia, e.cnae_principal, e.porte, "
             f"e.municipio, e.bairro, e.telefone, e.email, ep.latitude AS lat, ep.longitude AS lng, "
             f"distancia_km(?, ?, ep.latitude, ep.longitude) AS distancia_km, "
-            f"{_PENDENCIA_EXPR} AS tem_pendencia "
+            f"{_pend()} AS tem_pendencia "
             f"{base} ORDER BY distancia_km LIMIT ? OFFSET ?",
             [lat, lon] + cond_params + params + [limite, offset]).fetchall()
     itens = []
@@ -1122,13 +1150,13 @@ def classificar_empresas(objetivo="generico", pref_telefone=None, pref_email=Non
             termos.append((f"e.porte IN ({ph})", 20)); score_params.extend(portes)
         if presenca == "com": termos.append((site, 20))
         elif presenca == "sem": termos.append((f"NOT {site}", 20))
-        if fiscal == "limpas": termos.append((f"NOT {_PENDENCIA_EXPR}", 25))
+        if fiscal == "limpas": termos.append((f"NOT {_pend()}", 25))
         elif fiscal == "com_pendencia": termos.append((divida, 25))
         # Presets por objetivo comercial:
         if objetivo == "regularizacao": termos.append((divida, 30))
         elif objetivo == "marketing":
             termos.append((f"NOT {site}", 25)); termos.append((tel, 10))
-        elif objetivo == "credito": termos.append((f"NOT {_PENDENCIA_EXPR}", 25))
+        elif objetivo == "credito": termos.append((f"NOT {_pend()}", 25))
         elif objetivo == "software":
             termos.append((site, 15)); termos.append(("e.capital_social >= 100000", 10))
 
@@ -1141,7 +1169,7 @@ def classificar_empresas(objetivo="generico", pref_telefone=None, pref_email=Non
         limite = max(1, min(int(limite), 500))
         rows = conn.execute(
             f"SELECT e.cnpj, e.razao_social, e.nome_fantasia, e.municipio, e.porte, "
-            f"e.cnae_principal, e.capital_social, {_PENDENCIA_EXPR} AS tem_pendencia, "
+            f"e.cnae_principal, e.capital_social, {_pend()} AS tem_pendencia, "
             f"{score_sql} AS score FROM empresas e{where_sql} "
             f"ORDER BY score DESC, e.razao_social LIMIT ?",
             score_params + where_params + [limite]).fetchall()
@@ -1277,7 +1305,7 @@ def exportar_empresas(max_linhas=20000, colunas=None, **filtros) -> list:
             if c in ("cnpj", "cnae_desc"):
                 continue
             if c == "tem_pendencia":
-                selects.append(f"{_PENDENCIA_EXPR} AS tem_pendencia")
+                selects.append(f"{_pend()} AS tem_pendencia")
                 continue
             if c in _COLS_CONTATO and not precisa_contato:
                 selects.append(f"NULL AS {c}")
@@ -1356,8 +1384,12 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
                          "data_ultima_movimentacao, match_confianca, nome_socio_vinculado "
                          "FROM processos_judiciais WHERE cnpj_empresa = ?")
         # Processos da própria empresa (achados pela razão social).
+        tem_desc = _tabela_existe(conn, "processos_descartados")
         processos = [dict(r) for r in conn.execute(
-            sql_proc_base + " AND match_confianca != 'socio'" + filtro_proc
+            sql_proc_base + " AND match_confianca != 'socio'"
+            + (" AND numero_processo NOT IN (SELECT numero_processo FROM processos_descartados "
+               "WHERE cnpj_empresa = processos_judiciais.cnpj_empresa)" if tem_desc else "")
+            + filtro_proc
             + " ORDER BY data_ultima_movimentacao DESC LIMIT 100",
             [cnpj, *params_filtro_proc])]
         # Processos pessoais de sócios, só tribunais do ES (ver TRIBUNAIS_ES).
@@ -1367,10 +1399,10 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
             [cnpj, *params_filtro_proc])]
         for p in processos + processos_socios:
             p["url_jusbrasil"] = url_jusbrasil(p.get("numero_processo"))
-        # Arquivo completo do DJEN (coletado na máquina local, ver
-        # grande_vitoria_empresas_extracao/src/djen_completo.py): resumo por
-        # processo + panorama da empresa. Só fatos contados das publicações.
-        djen_panorama = None
+        # Arquivo completo do DJEN + DataJud em lote (coletados na máquina local,
+        # ver grande_vitoria_empresas_extracao/src/djen_completo.py): resumo por
+        # processo com a VALIDAÇÃO do vínculo empresa↔processo.
+        _JSON_RESUMO = ("tipos_documento", "polo_ativo", "polo_passivo", "advogados", "assuntos", "graus")
         if _tabela_existe(conn, "processos_djen_resumo"):
             nums = [p["numero_processo"] for p in processos if p.get("numero_processo")]
             if nums:
@@ -1380,28 +1412,25 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
                 for p in processos:
                     r = res.get(p.get("numero_processo"))
                     if r:
-                        for campo in ("tipos_documento", "polo_ativo", "polo_passivo", "advogados"):
-                            r[campo] = json.loads(r[campo] or "null")
+                        for campo in _JSON_RESUMO:
+                            if campo in r:
+                                r[campo] = json.loads(r[campo] or "null")
                         r.pop("cnpj_empresa", None)
                         p["djen_resumo"] = r
-        if _tabela_existe(conn, "empresas_djen_panorama"):
-            row = conn.execute("SELECT * FROM empresas_djen_panorama WHERE cnpj_empresa = ?", (cnpj,)).fetchone()
-            if row:
-                djen_panorama = dict(row)
-                # O DJEN não publica CNPJ: outra empresa (raiz de CNPJ diferente,
-                # não filial) com a MESMA razão social recebe as mesmas publicações.
-                djen_panorama["outras_empresas_mesmo_nome"] = conn.execute(
-                    "SELECT COUNT(DISTINCT substr(cnpj, 1, 8)) FROM empresas WHERE razao_social = "
-                    "(SELECT razao_social FROM empresas WHERE cnpj = ?) AND substr(cnpj, 1, 8) != ?",
-                    (cnpj, cnpj[:8])).fetchone()[0]
-                for campo in ("principais_polo_ativo", "principais_polo_passivo", "principais_advogados",
-                              "por_tribunal"):
-                    djen_panorama[campo] = json.loads(djen_panorama[campo] or "null")
+        processos_descartados = []
+        if tem_desc:
+            processos_descartados = [dict(r) for r in conn.execute(
+                "SELECT pd.numero_processo, pd.motivo, pd.detalhe, pj.tribunal, pj.classe, pj.polo "
+                "FROM processos_descartados pd LEFT JOIN processos_judiciais pj ON pj.cnpj_empresa = "
+                "pd.cnpj_empresa AND pj.numero_processo = pd.numero_processo AND pj.match_confianca != 'socio' "
+                "WHERE pd.cnpj_empresa = ?", (cnpj,))]
         if processo_polo or processo_classe:
             # Resumo sempre com o total real, sem o filtro de exibição acima.
             processos_resumo = [dict(r) for r in conn.execute(
                 "SELECT polo, match_confianca FROM processos_judiciais WHERE cnpj_empresa = ? "
                 "AND match_confianca != 'socio' "
+                + (" AND numero_processo NOT IN (SELECT numero_processo FROM processos_descartados "
+                   "WHERE cnpj_empresa = processos_judiciais.cnpj_empresa) " if tem_desc else "") +
                 "ORDER BY data_ultima_movimentacao DESC LIMIT 100", (cnpj,))]
         else:
             processos_resumo = processos
@@ -1595,7 +1624,7 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
         "contato": dict(contato) if contato else None,
         "processos_judiciais": processos,
         "processos_socios": processos_socios,
-        "djen_panorama": djen_panorama,
+        "processos_descartados": processos_descartados,
         "sancoes_administrativas": sancoes,
         "infracoes_ambientais": ambiental,
         "dividas_ativas": dividas,
