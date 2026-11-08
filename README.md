@@ -159,6 +159,8 @@ Em desenvolvimento ativo. Estado atual:
 
 Empresas cruzadas pelo **CNPJ**; sócios pelos **6 dígitos do meio do CPF mascarado + nome completo** (ou só nome, nas fontes que não publicam CPF) — exclusivamente de **fontes públicas oficiais**:
 
+Na página de fontes do site (botão **?**), cada fonte leva uma tag de origem: **nacional** (órgão ou base federal), **estadual** (órgão do ES), **municipal** (prefeitura) ou **internacional** (fora do Brasil); sem tag = dado derivado pelo próprio projeto.
+
 | Fonte | O que agrega | Status |
 |---|---|:--:|
 | **Receita Federal** (CNPJ) | Cadastro, **sócios**, CNAE, porte, capital, endereço | ✅ |

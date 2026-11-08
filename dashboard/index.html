@@ -170,6 +170,9 @@
   th.col-atividade,td.col-atividade{max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
   .tag.intl{background:rgba(90,170,255,.12);color:#7cc0ff;border:1px solid #3b7fc4}
+  .tag.nac{background:rgba(0,200,120,.10);color:#4fe0a0;border:1px solid #1f9a66}
+  .tag.est{background:rgba(255,190,60,.10);color:#ffc95a;border:1px solid #b88a2a}
+  .tag.mun{background:rgba(200,130,255,.10);color:#d3a2ff;border:1px solid #8a5cc0}
   .tag.ok{background:rgba(0,255,136,.12);color:var(--green);border:1px solid var(--green-dim)}
   .tag.warn{background:rgba(255,207,77,.12);color:var(--amber);border:1px solid var(--amber)}
   details.divida{background:var(--bg2);border:1px solid var(--line);border-radius:8px;margin-bottom:6px;padding:8px 12px}
@@ -2331,44 +2334,45 @@ function abrirSobre(){
     </div>
     <div class="body">
       <p>O universo de empresas vem da <b>Receita Federal</b> (CNPJ, sócios, situação cadastral) — só entram na base as empresas <b>ativas</b> dos 7 municípios da Grande Vitória. A partir do CNPJ, cada empresa é cruzada com as fontes complementares abaixo.</p>
+      <p style="font-size:12px;color:var(--muted)">Origem de cada fonte: <span class="tag nac">nacional</span> órgão ou base federal do Brasil · <span class="tag est">estadual</span> órgão do Espírito Santo · <span class="tag mun">municipal</span> prefeitura · <span class="tag intl">internacional</span> fora do Brasil. Sem tag: dado derivado pelo próprio projeto.</p>
       <div class="sec">Cadastral e societário</div>
       <div class="lista">
-        <div class="item"><b>Receita Federal</b> — cadastro (CNPJ), sócios, capital social, CNAE, situação cadastral</div>
-        <div class="item"><b>Receita Federal — base nacional</b> (todas as empresas e sócios do Brasil) — <b>grupo econômico</b> (outras empresas dos mesmos sócios em qualquer estado, empresas sócias e participações; a mesma pessoa é identificada pelo CPF mascarado + nome completo, como a Receita publica) e o índice de <b>homônimos</b> usado para validar processos. Filtro "Grupo econômico": por relação (sócio com outras empresas, empresa sócia, participação) e mínimo de outras empresas ligadas</div>
-        <div class="item"><b>JUCEES</b> (Junta Comercial do ES) — registros complementares de constituição/alteração</div>
+        <div class="item"><span class="tag nac" title="Fonte nacional (órgão ou base federal do Brasil)">nacional</span> <b>Receita Federal</b> — cadastro (CNPJ), sócios, capital social, CNAE, situação cadastral</div>
+        <div class="item"><span class="tag nac" title="Fonte nacional (órgão ou base federal do Brasil)">nacional</span> <b>Receita Federal — base nacional</b> (todas as empresas e sócios do Brasil) — <b>grupo econômico</b> (outras empresas dos mesmos sócios em qualquer estado, empresas sócias e participações; a mesma pessoa é identificada pelo CPF mascarado + nome completo, como a Receita publica) e o índice de <b>homônimos</b> usado para validar processos. Filtro "Grupo econômico": por relação (sócio com outras empresas, empresa sócia, participação) e mínimo de outras empresas ligadas</div>
+        <div class="item"><span class="tag est" title="Fonte estadual (órgão do Espírito Santo)">estadual</span> <b>JUCEES</b> (Junta Comercial do ES) — registros complementares de constituição/alteração</div>
       </div>
       <div class="sec">Riscos jurídicos e fiscais</div>
       <div class="lista">
-        <div class="item"><b>PGFN</b> — dívida ativa da União</div>
-        <div class="item"><b>CEIS/CNEP</b> (CGU) — sanções federais, incluindo Lista Suja do trabalho escravo (MTE), CEPIM e acordos de leniência</div>
-        <div class="item"><b>TCEES</b> — sanções do Tribunal de Contas do Espírito Santo</div>
-        <div class="item"><b>IBAMA</b> — infrações ambientais</div>
-        <div class="item"><b>DJEN/CNJ</b> (Comunica API do PJe) — publicações dos processos, localizadas pelo nome da empresa (a fonte não publica CNPJ). O projeto guarda um <b>arquivo completo</b>: todas as publicações em que a razão social é destinatária confirmada, com partes intimadas, advogados (OAB), tipo de ato e texto. Só conta como pendência quando a empresa aparece como <b>ré</b>. Processos achados pelo <b>nome do sócio</b> aparecem numa seção separada, só de tribunais do ES (TJES, TRT17, TRF2, TRE-ES), e não contam como pendência da empresa</div>
-        <div class="item"><b>DataJud/CNJ</b> (API pública) — o <b>motivo</b> do processo (assuntos da Tabela Processual Unificada do CNJ), classe, órgão julgador, instâncias, data de ajuizamento e movimentações, consultados pelo número do processo. O valor da causa não está no DataJud; quando aparece escrito numa publicação do DJEN, é mostrado com o trecho de onde saiu</div>
-        <div class="item"><b>Validação do vínculo processo ↔ empresa</b> — como o DJEN não traz CNPJ, cada processo é conferido com dado concreto: o CNPJ citado no texto da publicação (confirma ou derruba) e os <b>homônimos na base nacional da Receita</b> (quantas empresas no Brasil têm a mesma razão social e em que estado fica a sede de cada uma, comparado ao estado do tribunal). Homônimo comprovado ou provável sai da lista, da pendência, dos filtros e da nota, e aparece à parte com o motivo. No filtro "Em processo judicial" dá para exigir o tipo de vínculo conferido (CNPJ confirmado no texto, nome único no Brasil etc.)</div>
+        <div class="item"><span class="tag nac" title="Fonte nacional (órgão ou base federal do Brasil)">nacional</span> <b>PGFN</b> — dívida ativa da União</div>
+        <div class="item"><span class="tag nac" title="Fonte nacional (órgão ou base federal do Brasil)">nacional</span> <b>CEIS/CNEP</b> (CGU) — sanções federais, incluindo Lista Suja do trabalho escravo (MTE), CEPIM e acordos de leniência</div>
+        <div class="item"><span class="tag est" title="Fonte estadual (órgão do Espírito Santo)">estadual</span> <b>TCEES</b> — sanções do Tribunal de Contas do Espírito Santo</div>
+        <div class="item"><span class="tag nac" title="Fonte nacional (órgão ou base federal do Brasil)">nacional</span> <b>IBAMA</b> — infrações ambientais</div>
+        <div class="item"><span class="tag nac" title="Fonte nacional (órgão ou base federal do Brasil)">nacional</span> <b>DJEN/CNJ</b> (Comunica API do PJe) — publicações dos processos, localizadas pelo nome da empresa (a fonte não publica CNPJ). O projeto guarda um <b>arquivo completo</b>: todas as publicações em que a razão social é destinatária confirmada, com partes intimadas, advogados (OAB), tipo de ato e texto. Só conta como pendência quando a empresa aparece como <b>ré</b>. Processos achados pelo <b>nome do sócio</b> aparecem numa seção separada, só de tribunais do ES (TJES, TRT17, TRF2, TRE-ES), e não contam como pendência da empresa</div>
+        <div class="item"><span class="tag nac" title="Fonte nacional (órgão ou base federal do Brasil)">nacional</span> <b>DataJud/CNJ</b> (API pública) — o <b>motivo</b> do processo (assuntos da Tabela Processual Unificada do CNJ), classe, órgão julgador, instâncias, data de ajuizamento e movimentações, consultados pelo número do processo. O valor da causa não está no DataJud; quando aparece escrito numa publicação do DJEN, é mostrado com o trecho de onde saiu</div>
+        <div class="item"><span class="tag nac" title="Fonte nacional (órgão ou base federal do Brasil)">nacional</span> <b>Validação do vínculo processo ↔ empresa</b> — como o DJEN não traz CNPJ, cada processo é conferido com dado concreto: o CNPJ citado no texto da publicação (confirma ou derruba) e os <b>homônimos na base nacional da Receita</b> (quantas empresas no Brasil têm a mesma razão social e em que estado fica a sede de cada uma, comparado ao estado do tribunal). Homônimo comprovado ou provável sai da lista, da pendência, dos filtros e da nota, e aparece à parte com o motivo. No filtro "Em processo judicial" dá para exigir o tipo de vínculo conferido (CNPJ confirmado no texto, nome único no Brasil etc.)</div>
       </div>
       <div class="sec">Contratos públicos e propriedade intelectual</div>
       <div class="lista">
-        <div class="item"><b>PNCP</b> (Portal Nacional de Contratações Públicas) — contratos municipais, estaduais e federais, unificados numa API só desde 2023</div>
-        <div class="item"><b>Portal da Transparência</b> (Compras.gov) — contratos exclusivamente federais (fonte histórica, mais restrita que o PNCP)</div>
-        <div class="item"><b>INPI</b> — marcas registradas (usado como sinal indireto de atividade/inovação)</div>
-        <div class="item">Renúncia/benefício fiscal federal e habilitação a regime de benefício, quando disponíveis nas bases públicas correspondentes</div>
-        <div class="item"><b>SEDES-ES</b> — Programa COMPETE-ES: incentivo fiscal de ICMS estadual (portaria, vigência, exclusão)</div>
+        <div class="item"><span class="tag nac" title="Fonte nacional (órgão ou base federal do Brasil)">nacional</span> <b>PNCP</b> (Portal Nacional de Contratações Públicas) — contratos municipais, estaduais e federais, unificados numa API só desde 2023</div>
+        <div class="item"><span class="tag nac" title="Fonte nacional (órgão ou base federal do Brasil)">nacional</span> <b>Portal da Transparência</b> (Compras.gov) — contratos exclusivamente federais (fonte histórica, mais restrita que o PNCP)</div>
+        <div class="item"><span class="tag nac" title="Fonte nacional (órgão ou base federal do Brasil)">nacional</span> <b>INPI</b> — marcas registradas (usado como sinal indireto de atividade/inovação)</div>
+        <div class="item"><span class="tag nac" title="Fonte nacional (órgão ou base federal do Brasil)">nacional</span> Renúncia/benefício fiscal federal e habilitação a regime de benefício, quando disponíveis nas bases públicas correspondentes</div>
+        <div class="item"><span class="tag est" title="Fonte estadual (órgão do Espírito Santo)">estadual</span> <b>SEDES-ES</b> — Programa COMPETE-ES: incentivo fiscal de ICMS estadual (portaria, vigência, exclusão)</div>
       </div>
       <div class="sec">Vínculos políticos</div>
       <div class="lista">
-        <div class="item"><b>TSE</b> — candidaturas e doações eleitorais declaradas por sócios</div>
-        <div class="item"><b>Portal da Transparência (CGU)</b> — PEP: sócios que são pessoa exposta politicamente</div>
+        <div class="item"><span class="tag nac" title="Fonte nacional (órgão ou base federal do Brasil)">nacional</span> <b>TSE</b> — candidaturas e doações eleitorais declaradas por sócios</div>
+        <div class="item"><span class="tag nac" title="Fonte nacional (órgão ou base federal do Brasil)">nacional</span> <b>Portal da Transparência (CGU)</b> — PEP: sócios que são pessoa exposta politicamente</div>
       </div>
       <div class="sec">Due diligence dos sócios</div>
       <p style="font-size:13px">Cada sócio pessoa física é cruzado com fontes públicas pelos <b>6 dígitos do meio do CPF mascarado</b> (a mesma máscara da Receita) + <b>nome completo</b>; nas fontes que não publicam CPF, só pelo nome completo — e, quando a lista traz data de nascimento, ela precisa ser compatível com a faixa etária do sócio. Sem o CPF completo pode haver homônimo, por isso tudo aparece como <b>possível correspondência</b>, com o critério usado.</p>
       <div class="lista">
-        <div class="item"><b>PGFN</b> — dívida ativa da União em nome do próprio sócio</div>
-        <div class="item"><b>Portal da Transparência (CGU)</b> — servidor público federal (SIAPE), expulsões da administração federal (CEAF) e favorecidos do Novo Bolsa Família</div>
-        <div class="item"><b>IBAMA</b> — termos de embargo em nome do sócio (CPF) ou da própria empresa (CNPJ)</div>
-        <div class="item"><b>Banco Central</b> — inabilitados para cargo em instituição financeira</div>
-        <div class="item"><b>CVM</b> — acusados em processo administrativo sancionador</div>
-        <div class="item"><b>TCU</b> — inabilitados para cargo público</div>
+        <div class="item"><span class="tag nac" title="Fonte nacional (órgão ou base federal do Brasil)">nacional</span> <b>PGFN</b> — dívida ativa da União em nome do próprio sócio</div>
+        <div class="item"><span class="tag nac" title="Fonte nacional (órgão ou base federal do Brasil)">nacional</span> <b>Portal da Transparência (CGU)</b> — servidor público federal (SIAPE), expulsões da administração federal (CEAF) e favorecidos do Novo Bolsa Família</div>
+        <div class="item"><span class="tag nac" title="Fonte nacional (órgão ou base federal do Brasil)">nacional</span> <b>IBAMA</b> — termos de embargo em nome do sócio (CPF) ou da própria empresa (CNPJ)</div>
+        <div class="item"><span class="tag nac" title="Fonte nacional (órgão ou base federal do Brasil)">nacional</span> <b>Banco Central</b> — inabilitados para cargo em instituição financeira</div>
+        <div class="item"><span class="tag nac" title="Fonte nacional (órgão ou base federal do Brasil)">nacional</span> <b>CVM</b> — acusados em processo administrativo sancionador</div>
+        <div class="item"><span class="tag nac" title="Fonte nacional (órgão ou base federal do Brasil)">nacional</span> <b>TCU</b> — inabilitados para cargo público</div>
         <div class="item"><span class="tag intl" title="Fonte internacional (fora do Brasil)">internacional</span> <b>OFAC</b> (EUA), <b>ONU</b> (inclui as difusões especiais Interpol–ONU) e <b>Reino Unido</b> — listas de sanções internacionais</div>
         <div class="item"><span class="tag intl" title="Fonte internacional (fora do Brasil)">internacional</span> <b>GAFI/FATF</b> — jurisdições de alto risco (chamado à ação) e sob monitoramento reforçado, da plenária de outubro de 2026, cruzadas com o país dos sócios estrangeiros registrado na Receita. Entra na nota de integridade (Rec. 19 do GAFI). Filtros "Sócio estrangeiro" e "Só país da lista do GAFI" (país com código ambíguo na Receita fica de fora)</div>
         <div class="item"><span class="tag intl" title="Fonte internacional (fora do Brasil)">internacional</span> <b>Transparência Internacional — Índice de Percepção da Corrupção 2025</b> — nota (0 a 100) e posição do país de cada sócio estrangeiro, reproduzidas sem alteração (licença CC BY-ND 4.0). Só informativo, não entra na nota</div>
@@ -2376,7 +2380,7 @@ function abrirSobre(){
       </div>
       <div class="sec">Menções na mídia</div>
       <div class="lista">
-        <div class="item"><b>Google Notícias</b> — manchetes com a razão social ou o nome fantasia, buscadas só quando você pede no modal</div>
+        <div class="item"><span class="tag intl" title="Fonte internacional (fora do Brasil)">internacional</span> <b>Google Notícias</b> — manchetes com a razão social ou o nome fantasia, buscadas só quando você pede no modal</div>
         <div class="item"><span class="tag intl" title="Fonte internacional (fora do Brasil)">internacional</span> <b>GDELT</b> — notícias indexadas no mundo todo (filtradas para veículos do Brasil); complementa o Google Notícias quando a API responde</div>
       </div>
       <div class="sec">Localização e contato</div>
@@ -2386,11 +2390,11 @@ function abrirSobre(){
       </div>
       <div class="sec">Mapa: contexto territorial, criminal e ambiental</div>
       <div class="lista">
-        <div class="item"><b>IJSN/GeoBases-ES</b> — limites de bairro (Projeto Bairros, 2012), camada de referência visual no mapa (aba "Bairros")</div>
-        <div class="item"><b>SESP-ES</b> — ocorrências criminais por bairro (furto/roubo/estelionato/crimes informáticos, 2018–2026), dado agregado — a fonte não traz coordenada exata, só município+bairro (aba "Crime")</div>
-        <div class="item"><b>MMA/CNUC + IEMA-ES</b> (via GeoBases-ES) — Unidades de Conservação e Zonas de Amortecimento (aba "UC"). Empresa "dentro de UC" é identidade real: a geolocalização da empresa cai dentro do polígono</div>
-        <div class="item"><b>IDAF/IEMA</b> (fiscalização/autuação ambiental), <b>AGERH/ANA</b> (outorga de recursos hídricos) e <b>IDAF</b> (barragens licenciadas/dispensadas) — via GeoBases-ES (aba "Ambiental"). Essas 3 são sinal de <b>proximidade</b> (empresa a até 500m de um ponto), não de identidade — a fonte pública não traz CNPJ/nome de quem foi autuado ou outorgado, exceto barragem, que tem o nome de quem requereu e é cruzado por nome contra os sócios da empresa</div>
-        <div class="item"><b>Defesa Civil-ES / CPRM</b> (setores de risco geológico/inundação, mapeamento de campo) e <b>PMRR Serra/Viana</b> (Plano Municipal de Redução de Risco, via SEDURB) — via GeoBases-ES (aba "Risco Geo"). Empresa "dentro de setor de risco" é identidade real (a geolocalização cai dentro do polígono), mas a cobertura é desigual entre os 7 municípios: reflete onde a Defesa Civil/CPRM/prefeitura de fato mapeou um setor, não a ausência real de risco onde não há polígono</div>
+        <div class="item"><span class="tag est" title="Fonte estadual (órgão do Espírito Santo)">estadual</span> <b>IJSN/GeoBases-ES</b> — limites de bairro (Projeto Bairros, 2012), camada de referência visual no mapa (aba "Bairros")</div>
+        <div class="item"><span class="tag est" title="Fonte estadual (órgão do Espírito Santo)">estadual</span> <b>SESP-ES</b> — ocorrências criminais por bairro (furto/roubo/estelionato/crimes informáticos, 2018–2026), dado agregado — a fonte não traz coordenada exata, só município+bairro (aba "Crime")</div>
+        <div class="item"><span class="tag nac" title="Fonte nacional (órgão ou base federal do Brasil)">nacional</span> <span class="tag est" title="Fonte estadual (órgão do Espírito Santo)">estadual</span> <b>MMA/CNUC + IEMA-ES</b> (via GeoBases-ES) — Unidades de Conservação e Zonas de Amortecimento (aba "UC"). Empresa "dentro de UC" é identidade real: a geolocalização da empresa cai dentro do polígono</div>
+        <div class="item"><span class="tag est" title="Fonte estadual (órgão do Espírito Santo)">estadual</span> <span class="tag nac" title="Fonte nacional (órgão ou base federal do Brasil)">nacional</span> <b>IDAF/IEMA</b> (fiscalização/autuação ambiental), <b>AGERH/ANA</b> (outorga de recursos hídricos) e <b>IDAF</b> (barragens licenciadas/dispensadas) — via GeoBases-ES (aba "Ambiental"). Essas 3 são sinal de <b>proximidade</b> (empresa a até 500m de um ponto), não de identidade — a fonte pública não traz CNPJ/nome de quem foi autuado ou outorgado, exceto barragem, que tem o nome de quem requereu e é cruzado por nome contra os sócios da empresa</div>
+        <div class="item"><span class="tag est" title="Fonte estadual (órgão do Espírito Santo)">estadual</span> <span class="tag nac" title="Fonte nacional (órgão ou base federal do Brasil)">nacional</span> <span class="tag mun" title="Fonte municipal (prefeitura)">municipal</span> <b>Defesa Civil-ES / CPRM</b> (setores de risco geológico/inundação, mapeamento de campo) e <b>PMRR Serra/Viana</b> (Plano Municipal de Redução de Risco, via SEDURB) — via GeoBases-ES (aba "Risco Geo"). Empresa "dentro de setor de risco" é identidade real (a geolocalização cai dentro do polígono), mas a cobertura é desigual entre os 7 municípios: reflete onde a Defesa Civil/CPRM/prefeitura de fato mapeou um setor, não a ausência real de risco onde não há polígono</div>
       </div>
       <div class="sec">🔍 Dossiê de Due Diligence (IA)</div>
       <p>Cada empresa tem um botão <b>"Gerar dossiê com IA"</b> no modal — monta um relatório de due diligence sob demanda, combinando 3 fontes: (1) os dados factuais já listados acima (cadastro, sanções, dívida ativa, processos judiciais, infrações ambientais); (2) a <b>rede societária</b> em grafo (Neo4j — sócio em comum entre empresas, endereço compartilhado); (3) um <b>score de risco preditivo</b> (0-100), calculado por um modelo de machine learning (XGBoost) treinado sobre esse mesmo dataset. Um LLM local (Ollama, <code>llama3.1:8b</code>) redige o parecer técnico final a partir desses dados — nenhum dado é inventado, só interpretado. O dossiê gerado fica salvo (mostra a data da última geração e um botão para regerar a qualquer momento).</p>
