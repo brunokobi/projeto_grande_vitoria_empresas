@@ -691,6 +691,7 @@ function animarContagem(el, alvo, duracaoMs = 900){
 }
 async function initEstat(){
   const s = await (await fetch("/estatisticas")).json();
+  window._versaoInteg = (s.integridade||{}).versao_metodologia || "";
   const total = s.total_empresas || 1;
   const pct = n => (n/total*100).toLocaleString('pt-BR',{maximumFractionDigits:1});
   const cards = [
@@ -2326,6 +2327,8 @@ function _renderConteudoRanking(){
 }
 function abrirSobre(){
   $("overlay").classList.add("open");
+  // Versão da metodologia vem do servidor (mesma constante que calcula a nota).
+  setTimeout(()=>{ const v=$("sobre_integ_versao"); if(v && window._versaoInteg) v.textContent="— versão "+window._versaoInteg; },0);
   $("modal").innerHTML = `
     <div class="top">
       <span class="close" onclick="fechar()">&times;</span>
@@ -2396,6 +2399,28 @@ function abrirSobre(){
         <div class="item"><span class="tag est" title="Fonte estadual (órgão do Espírito Santo)">estadual</span> <span class="tag nac" title="Fonte nacional (órgão ou base federal do Brasil)">nacional</span> <b>IDAF/IEMA</b> (fiscalização/autuação ambiental), <b>AGERH/ANA</b> (outorga de recursos hídricos) e <b>IDAF</b> (barragens licenciadas/dispensadas) — via GeoBases-ES (aba "Ambiental"). Essas 3 são sinal de <b>proximidade</b> (empresa a até 500m de um ponto), não de identidade — a fonte pública não traz CNPJ/nome de quem foi autuado ou outorgado, exceto barragem, que tem o nome de quem requereu e é cruzado por nome contra os sócios da empresa</div>
         <div class="item"><span class="tag est" title="Fonte estadual (órgão do Espírito Santo)">estadual</span> <span class="tag nac" title="Fonte nacional (órgão ou base federal do Brasil)">nacional</span> <span class="tag mun" title="Fonte municipal (prefeitura)">municipal</span> <b>Defesa Civil-ES / CPRM</b> (setores de risco geológico/inundação, mapeamento de campo) e <b>PMRR Serra/Viana</b> (Plano Municipal de Redução de Risco, via SEDURB) — via GeoBases-ES (aba "Risco Geo"). Empresa "dentro de setor de risco" é identidade real (a geolocalização cai dentro do polígono), mas a cobertura é desigual entre os 7 municípios: reflete onde a Defesa Civil/CPRM/prefeitura de fato mapeou um setor, não a ausência real de risco onde não há polígono</div>
       </div>
+      <div class="sec" id="sobre_integridade">Nota de risco de integridade — metodologia <span id="sobre_integ_versao" style="font-size:11px;color:var(--muted);text-transform:none;letter-spacing:0"></span></div>
+      <p>Nota de <b>0 a 100</b> (maior = mais risco), calculada por <b>regras explícitas</b> a partir dos dados do modal — cada ponto aparece com a fonte e o motivo. Não é juízo de culpa: indica o nível de verificação recomendado antes de contratar ou se relacionar com a empresa. A mesma função calcula a nota do modal e o filtro por nível (pré-calculado a cada atualização do banco e conferido numa amostra de 500 empresas; se a versão da metodologia não bater, o filtro some).</p>
+      <p><b>Referências:</b> abordagem baseada em risco do <b>GAFI/FATF</b> (Recomendações 1, 10, 12, 19 e 24 e sinais de alerta de interposição de pessoas), diligência de terceiros do <b>Decreto 11.129/2022</b> (art. 57, XIII, que regulamenta a Lei Anticorrupção), diretrizes de integridade da <b>CGU</b> e níveis de diligência da <b>Circular BCB 3.978/2020</b>. Essas normas definem fatores e níveis, não pontos: os <b>pesos são calibração deste projeto</b>.</p>
+      <p><b>Como a nota é calculada</b></p>
+      <div class="lista">
+        <div class="item"><b>1. Fatores:</b> cada achado soma pontos-base numa dimensão (tabela abaixo).</div>
+        <div class="item"><b>2. Força da evidência:</b> os pontos são multiplicados pela confiança do cruzamento — CNPJ ou a própria empresa ×1,0 · razão social ×0,9 · CPF mascarado + nome ×0,85 · nome + faixa etária ×0,7 · via sócio em comum ×0,6 · só nome ×0,5.</div>
+        <div class="item"><b>3. Tempo:</b> sanção já encerrada pesa 30% da vigente (CEIS/CNEP, CEPIM, TCEES e demais sanções administrativas).</div>
+        <div class="item"><b>4. Teto por dimensão:</b> Sanções e listas 60 · Situação fiscal 25 · Litígios 25 · Ambiental 20 · Exposição política e governança 20 · Interposição/fachada 25. A nota é a soma das dimensões, limitada a 100.</div>
+        <div class="item"><b>5. Impeditivos:</b> Lista Suja do trabalho escravo, CEIS/CNEP vigente, sanção de inidoneidade vigente do TCEES (todos na própria empresa) e lista de sanções internacional (OFAC, ONU, Reino Unido) elevam a nota a <b>no mínimo 60 (Crítico)</b> — só quando a evidência é forte (força ≥ 0,7; cruzamento só por nome não dispara).</div>
+      </div>
+      <p><b>Níveis e diligência recomendada:</b> <b>Crítico</b> (60+) reforçada + análise jurídica antes de contratar · <b>Alto</b> (35–59) reforçada: verificar cada apontamento na fonte e pedir esclarecimentos · <b>Moderado</b> (15–34) padrão: confirmar os apontamentos relevantes · <b>Baixo</b> (0–14) simplificada.</p>
+      <p><b>Fatores e pontos-base</b></p>
+      <div class="lista">
+        <div class="item"><b>Sanções e listas:</b> Lista Suja do trabalho escravo 50 · CEIS/CNEP 40 · sanção do TCEES 25 · CEPIM 20 · acordo de leniência 20 · outra sanção administrativa 15 · lista de sanções internacional (OFAC/ONU/Reino Unido) 50 · sócio de país sob chamado à ação do GAFI (lista negra) 25</div>
+        <div class="item"><b>Situação fiscal:</b> dívida ativa da União 8, +4 se ≥ R$ 100 mil ou +7 se ≥ R$ 1 milhão, +5 se maior que o capital social, +5 se há execução fiscal ajuizada · sócio com dívida ativa em nome próprio 4 (+2 por sócio adicional, até 8)</div>
+        <div class="item"><b>Litígios:</b> ré em processos (escala logarítmica: 1 processo = 4, 10 = 8, 100 ou mais = 12 — empresa grande litiga muito) · ré em improbidade administrativa 10 · ré em processo criminal 6 · sócio com processos pessoais em tribunais do ES 3. Só contam processos validados (homônimo comprovado ou provável fica de fora)</div>
+        <div class="item"><b>Ambiental:</b> infrações do IBAMA 8, +5 se multas ≥ R$ 100 mil, +4 se alguma grave · área embargada pelo IBAMA na empresa 12 (vigente) ou 4 · sócio com área embargada 4 (vigente) ou 1</div>
+        <div class="item"><b>Exposição política e governança:</b> sócio expulso da administração federal, inabilitado pelo Banco Central ou pelo TCU 10 cada · sócio PEP 8 · sócio acusado em processo sancionador da CVM 6 · doação eleitoral de sócio + contratos públicos 6 · sócio de país sob monitoramento reforçado do GAFI (lista cinza) 6 · sócio candidato 3 · sócio servidor federal 3 (8 se a empresa tem contratos públicos)</div>
+        <div class="item"><b>Interposição/fachada:</b> sócio favorecido de programa social 8, +7 se capital ≥ R$ 100 mil, +5 se há contratos públicos · ligação com offshore (ICIJ) 6 · capital social menor que 1% dos contratos públicos (contratos ≥ R$ 1 milhão) 6</div>
+      </div>
+      <p style="font-size:12px;color:var(--muted)">Não entram na nota: o Índice de Percepção da Corrupção (licença CC BY-ND, só informativo), país de sócio com código ambíguo no cadastro da Receita (marcado "a confirmar"), menções na mídia e o score preditivo do dossiê.</p>
       <div class="sec">🔍 Dossiê de Due Diligence (IA)</div>
       <p>Cada empresa tem um botão <b>"Gerar dossiê com IA"</b> no modal — monta um relatório de due diligence sob demanda, combinando 3 fontes: (1) os dados factuais já listados acima (cadastro, sanções, dívida ativa, processos judiciais, infrações ambientais); (2) a <b>rede societária</b> em grafo (Neo4j — sócio em comum entre empresas, endereço compartilhado); (3) um <b>score de risco preditivo</b> (0-100), calculado por um modelo de machine learning (XGBoost) treinado sobre esse mesmo dataset. Um LLM local (Ollama, <code>llama3.1:8b</code>) redige o parecer técnico final a partir desses dados — nenhum dado é inventado, só interpretado. O dossiê gerado fica salvo (mostra a data da última geração e um botão para regerar a qualquer momento).</p>
       <p>O score preditivo vem de um <b>projeto de pesquisa de mestrado</b> do autor (<code>experimento2026</code>), que investiga se uma empresa conectada a uma já sancionada — via sócio em comum, mesmo endereço, ou vínculo político — tem risco maior de também estar envolvida em irregularidade, comparando modelos tabulares contra modelos de grafo (GNN/HAN) com validação estatística (30 folds, teste de Wilcoxon). <b>Por vir de um modelo de pesquisa</b> (treinado numa base com &lt;0,1% de empresas sancionadas), todo dossiê que exibe o score traz uma nota metodológica explícita: interpretar como sinal de priorização para investigação manual, nunca como veredito. Preprint publicado em acesso aberto (Zenodo, CC BY 4.0): <a href="https://doi.org/10.5281/zenodo.21961062" target="_blank" rel="noopener">10.5281/zenodo.21961062</a>.</p>
