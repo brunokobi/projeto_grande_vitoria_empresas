@@ -56,9 +56,15 @@ def gerar(db_path: str | Path, log=print) -> dict:
         existentes = {r[0] for r in c.execute("SELECT name FROM sqlite_master WHERE type='table'")}
         tabelas = [t for t in _TABELAS_QUE_PONTUAM if t in existentes]
         uniao = " UNION ".join(f"SELECT cnpj_empresa FROM {t}" for t in tabelas)
-        candidatos = [r[0] for r in c.execute(
+        candidatos = {r[0] for r in c.execute(
             f"SELECT e.cnpj FROM empresas e JOIN ({uniao}) x ON x.cnpj_empresa = e.cnpj "
-            "GROUP BY e.cnpj")]
+            "GROUP BY e.cnpj")}
+        # Sócio estrangeiro de país do GAFI (risco_pais_socios é por RAIZ de CNPJ).
+        if "risco_pais_socios" in existentes:
+            candidatos |= {r[0] for r in c.execute(
+                "SELECT cnpj FROM empresas WHERE substr(cnpj, 1, 8) IN "
+                "(SELECT cnpj_basico FROM risco_pais_socios WHERE gafi IS NOT NULL)")}
+        candidatos = sorted(candidatos)
         total_empresas = c.execute("SELECT COUNT(*) FROM empresas").fetchone()[0]
         set_cand = set(candidatos)
         sem_registro = [r[0] for r in c.execute("SELECT cnpj FROM empresas")

@@ -53,7 +53,7 @@ app = FastAPI(
         "(DataJud), classe, ajuizamento, órgão, publicações/intimados/advogados do arquivo do "
         "DJEN, valor da causa quando citado e a `validacao` do vínculo empresa↔processo (CNPJ no "
         "texto + homônimos na base nacional da Receita); homônimos descartados vêm em "
-        "`processos_descartados`. `grupo_economico` lista outras empresas dos mesmos sócios no Brasil (base nacional da Receita), empresas sócias e participações. `GET /processos/{numero}/detalhes` consulta DataJud/DJEN ao "
+        "`processos_descartados`. `risco_pais_socios` traz os sócios estrangeiros com o país registrado na Receita, a situação no GAFI (chamado à ação / monitoramento reforçado) e a nota do Índice de Percepção da Corrupção 2025. `grupo_economico` lista outras empresas dos mesmos sócios no Brasil (base nacional da Receita), empresas sócias e participações. `GET /processos/{numero}/detalhes` consulta DataJud/DJEN ao "
         "vivo e `GET /empresas/{cnpj}/midia` busca menções na imprensa. Atualizado a cada 2h a "
         "partir do Release público do dataset."
     ),

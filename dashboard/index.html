@@ -1763,6 +1763,23 @@ function renderMidia(d){
 }
 // Grupo econômico — base NACIONAL de sócios da Receita (mesmo CPF mascarado +
 // mesmo nome = mesma pessoa, como a própria RFB identifica nos dados abertos).
+// Sócios estrangeiros e risco-país (GAFI + Índice de Percepção da Corrupção).
+// País = o registrado no cadastro da Receita (base nacional de sócios).
+function renderRiscoPais(arr){
+  if(!arr||!arr.length) return "";
+  const intl = '<span class="tag intl" title="Fonte internacional">internacional</span>';
+  const gafiTag = g => g==="acao"
+    ? '<span class="tag pend" title="GAFI: jurisdição de alto risco sob chamado à ação (lista negra)">GAFI: chamado à ação</span>'
+    : g==="monitoramento" ? '<span class="tag warn" title="GAFI: jurisdição sob monitoramento reforçado (lista cinza)">GAFI: monitoramento reforçado</span>' : "";
+  const tipo = {PF:"pessoa física", PJ:"empresa", estrangeiro:"estrangeiro"};
+  const linhas = arr.map(x=>`<div style="font-size:12px;margin:4px 0"><b>${esc(x.nome_socio||"—")}</b> <span style="color:var(--muted)">(${tipo[x.tipo]||esc(x.tipo)})</span> — ${esc(x.pais_nome||"país não informado")}
+      ${x.pais_confirmado===0?`<span class="tag warn" title="${esc(x.observacao||"")}">país a confirmar</span> <span style="color:var(--muted)">${esc(x.observacao||"")} — não entra na nota</span>`:gafiTag(x.gafi)}
+      ${x.cpi_score!=null&&x.pais_confirmado!==0?`<span class="tag ${x.cpi_score<30?'pend':x.cpi_score<50?'warn':'default'}" title="Índice de Percepção da Corrupção 2025 (Transparência Internacional): 0 = muito corrupto, 100 = muito íntegro">IPC ${x.cpi_score}/100 · ${x.cpi_rank}º de 182</span>`:""}</div>`).join("");
+  const algumGafi = arr.some(x=>x.gafi && x.pais_confirmado!==0);
+  return `<div class="sec">&#127760; Sócios estrangeiros e risco-país (${arr.length}) ${intl} <span style="font-size:11px;color:var(--muted);font-weight:normal;text-transform:none;letter-spacing:0">— país como registrado na Receita; GAFI (out/2026) e IPC 2025</span></div>
+    ${algumGafi?'<p style="font-size:12px;color:var(--amber);margin:2px 0 6px">&#9888;&#65039; Há sócio de país listado pelo GAFI — o GAFI recomenda diligência reforçada (Rec. 19). Confira o país no cadastro: erro de código na Receita acontece.</p>':""}
+    <details class="divida" ${algumGafi?"open":""}><summary>${arr.length} sócio(s) com país estrangeiro</summary><div style="padding:6px 12px 8px">${linhas}</div></details>`;
+}
 function renderGrupoEconomico(arr){
   if(!arr||!arr.length) return "";
   const fmtCnpjRaiz = r => r ? `${r.slice(0,2)}.${r.slice(2,5)}.${r.slice(5,8)}` : "";
@@ -2040,6 +2057,7 @@ async function abrir(cnpj, viaPopstate){
       ${renderContratosPncp(d.contratos_pncp, qsPncp)}
       ${renderMarcas(d.marcas_inpi)}
       ${renderOcorrenciasSocios(d.ocorrencias_socios)}
+      ${renderRiscoPais(d.risco_pais_socios)}
       ${renderGrupoEconomico(d.grupo_economico)}
 
       <div class="sec">&#128240; Menções na mídia <span style="font-size:11px;color:var(--muted);font-weight:normal;text-transform:none;letter-spacing:0">— Google Notícias + GDELT; pode haver homônimos</span></div>
@@ -2304,6 +2322,8 @@ function abrirSobre(){
         <div class="item"><b>CVM</b> — acusados em processo administrativo sancionador</div>
         <div class="item"><b>TCU</b> — inabilitados para cargo público</div>
         <div class="item"><span class="tag intl" title="Fonte internacional (fora do Brasil)">internacional</span> <b>OFAC</b> (EUA), <b>ONU</b> (inclui as difusões especiais Interpol–ONU) e <b>Reino Unido</b> — listas de sanções internacionais</div>
+        <div class="item"><span class="tag intl" title="Fonte internacional (fora do Brasil)">internacional</span> <b>GAFI/FATF</b> — jurisdições de alto risco (chamado à ação) e sob monitoramento reforçado, da plenária de outubro de 2026, cruzadas com o país dos sócios estrangeiros registrado na Receita. Entra na nota de integridade (Rec. 19 do GAFI)</div>
+        <div class="item"><span class="tag intl" title="Fonte internacional (fora do Brasil)">internacional</span> <b>Transparência Internacional — Índice de Percepção da Corrupção 2025</b> — nota (0 a 100) e posição do país de cada sócio estrangeiro, reproduzidas sem alteração (licença CC BY-ND 4.0). Só informativo, não entra na nota</div>
         <div class="item"><span class="tag intl" title="Fonte internacional (fora do Brasil)">internacional</span> <b>ICIJ Offshore Leaks</b> (Panama, Pandora, Paradise Papers…) — dirigente, beneficiário ou intermediário de offshore, só registros ligados ao Brasil. Aparecer no vazamento não significa irregularidade. Dados sob licença ODbL</div>
       </div>
       <div class="sec">Menções na mídia</div>

@@ -29,7 +29,7 @@ from __future__ import annotations
 import datetime
 import math
 
-VERSAO = "1.0 (nov/2026)"
+VERSAO = "1.1 (nov/2026)"  # 1.1: risco-país do GAFI (sócio estrangeiro)
 
 # Força da evidência por critério de cruzamento (multiplica os pontos).
 FORCA_EVIDENCIA = {
@@ -192,6 +192,23 @@ def avaliar(dados: dict) -> dict:
                 a.add("ambiental", "Sócio com área embargada pelo IBAMA", 4 if vig else 1, "IBAMA",
                       f"{o.get('nome_socio_vinculado')}: {o.get('situacao') or ''}", o.get("criterio"))
 
+    # ---------------------------------------------------------- risco-país (GAFI, Rec. 19)
+    # País do sócio estrangeiro como registrado na Receita (base nacional de sócios).
+    vistos_pais = set()
+    for r in dados.get("risco_pais_socios") or []:
+        if not r.get("gafi") or (r.get("iso3"), r.get("gafi")) in vistos_pais:
+            continue
+        if r.get("pais_confirmado") == 0:
+            continue  # código de país sabidamente trocado no cadastro (ex.: 187 x 190, Coreias)
+        vistos_pais.add((r.get("iso3"), r.get("gafi")))
+        quem = f"{r.get('nome_socio') or 'sócio'} ({r.get('pais_nome')}, segundo o cadastro da Receita)"
+        if r["gafi"] == "acao":
+            a.add("listas", "Sócio de jurisdição sob chamado à ação do GAFI (lista negra)", 25, "GAFI/FATF",
+                  quem, "direto")
+        else:
+            a.add("exposicao", "Sócio de jurisdição sob monitoramento reforçado do GAFI (lista cinza)", 6,
+                  "GAFI/FATF", quem, "direto")
+
     # ---------------------------------------------------------- exposição
     vinc = dados.get("vinculos_politicos") or []
     pep = [v for v in vinc if (v.get("fonte") or "") == "PEP"]
@@ -265,7 +282,7 @@ def avaliar(dados: dict) -> dict:
         "versao": VERSAO,
         "metodologia": (
             "Nota de risco de integridade de 0 a 100 (maior = mais risco), por regras explícitas. "
-            "Fatores e níveis seguem a abordagem baseada em risco do GAFI/FATF (Rec. 1, 10, 12 e 24), "
+            "Fatores e níveis seguem a abordagem baseada em risco do GAFI/FATF (Rec. 1, 10, 12, 19 e 24), "
             "a diligência de terceiros do Decreto 11.129/2022 (art. 57, XIII), as diretrizes de integridade "
             "da CGU e os níveis de diligência da Circular BCB 3.978/2020. Os pesos são calibração deste "
             "projeto; cada ponto é multiplicado pela força da evidência do cruzamento e sanções encerradas "

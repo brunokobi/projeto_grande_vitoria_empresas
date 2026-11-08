@@ -1427,6 +1427,12 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
                 "outra_situacao, na_base_cnpj, qtd_total_via_socio FROM grupo_economico "
                 "WHERE cnpj_basico = ? ORDER BY relacao, via_socio, outra_situacao != 'Ativa', outra_razao_social "
                 "LIMIT 500", (cnpj[:8],))]
+        # Risco-país dos sócios estrangeiros (GAFI + CPI), gerado no ETL (risco_pais.py).
+        risco_pais_socios = []
+        if _tabela_existe(conn, "risco_pais_socios"):
+            risco_pais_socios = [dict(r) for r in conn.execute(
+                "SELECT nome_socio, tipo, pais_nome, iso3, gafi, cpi_score, cpi_rank, pais_confirmado, observacao FROM risco_pais_socios "
+                "WHERE cnpj_basico = ? ORDER BY gafi IS NULL, cpi_score", (cnpj[:8],))]
         processos_descartados = []
         if tem_desc:
             processos_descartados = [dict(r) for r in conn.execute(
@@ -1636,6 +1642,7 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
         "processos_socios": processos_socios,
         "processos_descartados": processos_descartados,
         "grupo_economico": grupo_economico,
+        "risco_pais_socios": risco_pais_socios,
         "sancoes_administrativas": sancoes,
         "infracoes_ambientais": ambiental,
         "dividas_ativas": dividas,
