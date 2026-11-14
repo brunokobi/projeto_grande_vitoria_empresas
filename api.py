@@ -15,7 +15,7 @@ import json
 import re
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, Request, Depends
-from fastapi.responses import FileResponse, StreamingResponse, JSONResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse, JSONResponse, Response
 
 import config
 from src import dataset_queries, geocode as geocode_lib, midia, notificar_telegram, processo_detalhes
@@ -180,8 +180,34 @@ def dashboard(request: Request, background_tasks: BackgroundTasks):
         # Sem isso o navegador pode ficar horas sem revalidar com o servidor
         # (heurística padrão de cache), servindo uma versão antiga do
         # dashboard.html mesmo depois de um deploy novo.
-        return FileResponse(DASHBOARD_HTML, headers={"Cache-Control": "no-cache"})
+        return HTMLResponse(_dashboard_com_numeros(), headers={"Cache-Control": "no-cache"})
     return JSONResponse({"erro": "dashboard/index.html não encontrado"}, status_code=404)
+
+
+def _numero_curto(n: int) -> str:
+    """367 mil, 5,2 milhões: como os números aparecem no título e na descrição do dashboard."""
+    if n >= 1_000_000:
+        return f"{n / 1_000_000:.1f}".replace(".", ",") + " milhões"
+    return f"{round(n / 1000)} mil"
+
+
+def _dashboard_com_numeros() -> str:
+    """index.html com os totais atuais do banco na descrição, prévia de link e dados
+    estruturados, para buscadores e o WhatsApp/LinkedIn verem sempre o número do dia."""
+    html = DASHBOARD_HTML.read_text(encoding="utf-8")
+    try:
+        stats = json.loads(_estatisticas_json())
+        tabelas = stats.get("registros_por_tabela", {})
+        valores = {
+            "EMPRESAS": _numero_curto(int(stats["total_empresas"])),
+            "SOCIOS": _numero_curto(int(tabelas["socios"])),
+            "PROCESSOS": _numero_curto(int(tabelas["processos_judiciais"])),
+        }
+    except Exception:
+        valores = {"EMPRESAS": "367 mil", "SOCIOS": "243 mil", "PROCESSOS": "5,2 milhões"}
+    for chave, valor in valores.items():
+        html = html.replace("{{" + chave + "}}", valor)
+    return html
 
 
 @app.get("/robots.txt", include_in_schema=False)
@@ -270,17 +296,21 @@ _ESTATISTICAS_CACHE = {}
 
 @app.get("/estatisticas", summary="Panorama geral do dataset")
 def get_estatisticas():
+    return Response(content=_estatisticas_json(), media_type="application/json")
+
+
+def _estatisticas_json() -> bytes:
     try:
         db_mtime = config.DB_PATH.stat().st_mtime
     except OSError:
         db_mtime = None
     cacheado = _ESTATISTICAS_CACHE.get("v")
     if cacheado and cacheado[0] == db_mtime:
-        return Response(content=cacheado[1], media_type="application/json")
+        return cacheado[1]
     resultado = dataset_queries.estatisticas()
     corpo = json.dumps(resultado, ensure_ascii=False).encode("utf-8")
     _ESTATISTICAS_CACHE["v"] = (db_mtime, corpo)
-    return Response(content=corpo, media_type="application/json")
+    return corpo
 
 
 @app.get("/segmentos", summary="Segmentos (divisões CNAE) com contagem")
