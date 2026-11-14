@@ -35,7 +35,7 @@
 
 | | |
 |---|---|
-| 🖥️ **Dashboard** | **[empresas.brunokobi.tech](https://empresas.brunokobi.tech)** (ou [empresas.brunokobi.duckdns.org](https://empresas.brunokobi.duckdns.org), mesmo serviço) |
+| 🖥️ **Dashboard** | **[empresas.brunokobi.tech](https://empresas.brunokobi.tech)** |
 | 🔌 **API REST** | [empresas.brunokobi.tech/docs](https://empresas.brunokobi.tech/docs) |
 | 🤖 **MCP** (Claude, Cursor, Windsurf, VS Code, Cline...) | `https://empresas.brunokobi.tech/mcp/` — instruções por cliente em **[MCP.md](MCP.md)** |
 
@@ -290,7 +290,7 @@ e no [Currículo Lattes/CNPq](http://lattes.cnpq.br/3842437456265629) do autor.
 | 💡 Sugestão, melhoria ou pedido | [![Abrir issue](https://img.shields.io/badge/Abrir%20issue-2563eb?style=flat-square&logo=github&logoColor=white)](https://github.com/brunokobi/projeto_grande_vitoria_empresas/issues/new?template=sugestao.yml) |
 | 🐞 Problema ou reclamação | [![Abrir issue](https://img.shields.io/badge/Abrir%20issue-2563eb?style=flat-square&logo=github&logoColor=white)](https://github.com/brunokobi/projeto_grande_vitoria_empresas/issues/new?template=problema.yml) |
 | 📧 Falar direto | [![E-mail](https://img.shields.io/badge/brunokobi2@hotmail.com-EA4335?style=flat-square&logo=maildotru&logoColor=white)](mailto:brunokobi2@hotmail.com) |
-| 🌐 Site / portfólio | [![Site](https://img.shields.io/badge/brunokobi.netlify.app-00C7B7?style=flat-square&logo=netlify&logoColor=white)](https://brunokobi.netlify.app) |
+| 🌐 Site / portfólio | [![Site](https://img.shields.io/badge/brunokobi.tech-00C7B7?style=flat-square&logo=netlify&logoColor=white)](https://brunokobi.tech) |
 
 ---
 

@@ -27,8 +27,9 @@ from mcp_server import mcp
 mcp.settings.streamable_http_path = "/"
 # Proteção anti DNS-rebinding do SDK só libera localhost por padrão — precisa
 # incluir o domínio público, senão toda requisição cai com "Invalid Host header".
-mcp.settings.transport_security.allowed_hosts.append("empresas.brunokobi.duckdns.org")
-mcp.settings.transport_security.allowed_origins.append("https://empresas.brunokobi.duckdns.org")
+for _dominio in ("empresas.brunokobi.tech", "empresas.brunokobi.duckdns.org"):
+    mcp.settings.transport_security.allowed_hosts.append(_dominio)
+    mcp.settings.transport_security.allowed_origins.append(f"https://{_dominio}")
 mcp_app = mcp.streamable_http_app()
 
 
@@ -72,7 +73,7 @@ BARRAGENS_GEOJSON = config.BASE_DIR / "reference" / "barragens_es.geojson"
 OUTORGAS_HIDRICAS_GEOJSON = config.BASE_DIR / "reference" / "outorgas_hidricas_es.geojson"
 RISCO_GEOLOGICO_GEOJSON = config.BASE_DIR / "reference" / "risco_geologico_es.geojson"
 OG_IMAGE = config.BASE_DIR / "docs" / "dashboard.png"
-SITE_URL = "https://empresas.brunokobi.duckdns.org"
+SITE_URL = "https://empresas.brunokobi.tech"
 
 
 # --------------------------------------------------------------------------

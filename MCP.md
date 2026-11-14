@@ -33,7 +33,7 @@ instalar) ou rodar **localmente** (stdio, se quiser seu próprio dataset/instân
 URL do servidor MCP (Streamable HTTP):
 
 ```
-https://empresas.brunokobi.duckdns.org/mcp/
+https://empresas.brunokobi.tech/mcp/
 ```
 
 > Repare na **barra final** (`/mcp/`) — sem ela alguns clientes recebem um
@@ -46,14 +46,14 @@ Arquivo `.mcp.json` (raiz do projeto ou `~/.claude/.mcp.json` para todos os proj
   "mcpServers": {
     "grande-vitoria-empresas": {
       "type": "http",
-      "url": "https://empresas.brunokobi.duckdns.org/mcp/"
+      "url": "https://empresas.brunokobi.tech/mcp/"
     }
   }
 }
 ```
 Ou via CLI, de qualquer lugar:
 ```bash
-claude mcp add --transport http grande-vitoria-empresas https://empresas.brunokobi.duckdns.org/mcp/
+claude mcp add --transport http grande-vitoria-empresas https://empresas.brunokobi.tech/mcp/
 ```
 
 ### 🔵 Cursor
@@ -62,7 +62,7 @@ claude mcp add --transport http grande-vitoria-empresas https://empresas.brunoko
 {
   "mcpServers": {
     "grande-vitoria-empresas": {
-      "url": "https://empresas.brunokobi.duckdns.org/mcp/"
+      "url": "https://empresas.brunokobi.tech/mcp/"
     }
   }
 }
@@ -74,7 +74,7 @@ claude mcp add --transport http grande-vitoria-empresas https://empresas.brunoko
 {
   "mcpServers": {
     "grande-vitoria-empresas": {
-      "serverUrl": "https://empresas.brunokobi.duckdns.org/mcp/"
+      "serverUrl": "https://empresas.brunokobi.tech/mcp/"
     }
   }
 }
@@ -87,7 +87,7 @@ claude mcp add --transport http grande-vitoria-empresas https://empresas.brunoko
   "servers": {
     "grande-vitoria-empresas": {
       "type": "http",
-      "url": "https://empresas.brunokobi.duckdns.org/mcp/"
+      "url": "https://empresas.brunokobi.tech/mcp/"
     }
   }
 }
@@ -100,7 +100,7 @@ claude mcp add --transport http grande-vitoria-empresas https://empresas.brunoko
   "mcpServers": {
     "grande-vitoria-empresas": {
       "type": "streamableHttp",
-      "url": "https://empresas.brunokobi.duckdns.org/mcp/"
+      "url": "https://empresas.brunokobi.tech/mcp/"
     }
   }
 }
@@ -117,7 +117,7 @@ O app desktop **não** aceita servidor remoto direto no `claude_desktop_config.j
     "mcpServers": {
       "grande-vitoria-empresas": {
         "command": "npx",
-        "args": ["mcp-remote", "https://empresas.brunokobi.duckdns.org/mcp/"]
+        "args": ["mcp-remote", "https://empresas.brunokobi.tech/mcp/"]
       }
     }
   }
@@ -125,7 +125,7 @@ O app desktop **não** aceita servidor remoto direto no `claude_desktop_config.j
 
 ### 💬 ChatGPT
 Ainda não conecta servidores MCP como os acima. Use a **API REST**:
-`https://empresas.brunokobi.duckdns.org/docs`.
+`https://empresas.brunokobi.tech/docs`.
 
 ---
 
@@ -263,7 +263,7 @@ Se responder com os números do dataset, está conectado. 🎉
 ## Alternativa sem MCP: API REST
 
 Se seu cliente não suporta MCP, tudo também está disponível por HTTP:
-- **Remoto (já no ar):** `https://empresas.brunokobi.duckdns.org/docs`
+- **Remoto (já no ar):** `https://empresas.brunokobi.tech/docs`
 - **Local:**
   ```bash
   source .venv/bin/activate
