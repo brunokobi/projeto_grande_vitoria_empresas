@@ -6,68 +6,95 @@ corrigidas** — para não repetir investigação em outra máquina.
 
 ## O que é
 
-Pipeline ETL em Python que constrói um **dataset de empresas ativas da
-Grande Vitória (ES)** — Vitória, Vila Velha, Serra, Cariacica, Viana,
-Guarapari, Fundão — cruzando fontes públicas: base cadastral (Receita
-Federal), JUCEES, sanções federais (CEIS/CNEP) e estaduais (TCEES), dívida
-ativa (PGFN), infrações ambientais (IBAMA), processos judiciais (DataJud/CNJ)
-e geocodificação (OpenStreetMap/Nominatim). Objetivo de uso: **prospecção
-de clientes**.
+**Produto de consumo** de um dataset de **empresas ativas da Grande Vitória
+(ES)** — Vitória, Vila Velha, Serra, Cariacica, Viana, Guarapari, Fundão —
+montado a partir de fontes públicas oficiais (Receita Federal, JUCEES, PGFN,
+CGU, TCEES, IBAMA, MTE, DJEN/DataJud do CNJ, TSE, PNCP, INPI, GeoBases-ES,
+listas internacionais etc.). Este repositório (público) tem o **dashboard**
+(`dashboard/index.html`), a **API REST** (`api.py`), o **servidor MCP**
+(`mcp_server.py`) e o `refresh_dataset.py`, que mantém o banco de produção
+em dia.
 
-## Como rodar
+A **extração** (ETL) fica no repositório privado
+`grande_vitoria_empresas_extracao`. O registro detalhado de cada fonte e
+cruzamento está em
+[`docs/EXTRACAO_E_CRUZAMENTOS.md`](https://github.com/brunokobi/grande_vitoria_empresas_extracao/blob/main/docs/EXTRACAO_E_CRUZAMENTOS.md)
+naquele repo — linke para ele em vez de duplicar detalhe aqui.
+
+`main.py` e os módulos de ingestão em `src/` (`cnpj_ingest`, `djen_client`,
+`geo_enrich`, `contato_enrich`...) são uma versão antiga do pipeline, que
+ficou aqui. A coleta atual (sócios, TSE, PNCP, due diligence, redes sociais,
+DataJud em lote, grupo econômico etc.) só existe no repo de extração.
+
+## Como rodar (consumo)
 
 ```bash
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env            # ajuste o NOMINATIM_USER_AGENT com seu e-mail
-set -a && source .env && set +a  # carrega o .env (zsh/bash)
-
-python main.py --etapa cnpj      # 1º SEMPRE — define o universo de CNPJs
-python main.py --etapa jucees
-python main.py --etapa sancoes
-python main.py --etapa tcees
-python main.py --etapa ibama
-python main.py --etapa datajud   # rate-limited, MUITO lento (dias)
-python main.py --etapa geo       # rate-limited, lento (dias)
-python main.py --etapa contato   # WhatsApp + site + redes sociais (grátis, retomável)
-python main.py --etapa exportar  # gera output/*.csv e *.xlsx
+bash setup.sh                    # uv + Python 3.12 em .venv, deps e dataset do Release
+source .venv/bin/activate
+uvicorn api:app                  # dashboard em http://localhost:8000, API em /docs
+python mcp_server.py             # MCP via stdio (o .mcp.json da raiz já aponta pra ele)
 ```
 
-## Estado atual (reconferido no banco real em 08/08/2026)
+O banco (`data/grande_vitoria.db`) vem do Release `dataset-latest` deste
+repo; `python3 refresh_dataset.py --force` baixa a versão mais nova.
 
-Rodado numa primeira máquina, base do mês **2026-07** da Receita. **`datajud` foi
-descontinuado e substituído por `djen`** (a API pública do DataJud não expõe partes
-do processo — impossível casar por CNPJ; o DJEN casa por nome da razão social,
-confirmado contra os destinatários da publicação — ver `src/djen_client.py`). Tabela
-abaixo conferida direto em `data/grande_vitoria.db`, não só nos checkpoints:
+## Estado atual (API de produção, 15/11/2026)
 
-| Etapa    | Resultado                                                       | Status |
-|----------|------------------------------------------------------------------|--------|
-| cnpj     | 344.130 empresas ativas                                         | ✅ ok  |
-| jucees   | 88.349 registros vinculados                                     | ✅ ok  |
-| sancoes  | 322 sanções administrativas / 188 empresas distintas (CEIS/CNEP/CEPIM/TCEES/TRABALHO_ESCRAVO) | ✅ ok |
-| dívida ativa (PGFN) | 158.675 registros / 32.754 empresas                  | ✅ ok  |
-| tcees    | 17 sanções estaduais (já incluídas em `sancoes_administrativas`) | ✅ ok  |
-| ibama    | 1.323 infrações ambientais                                       | ✅ ok  |
-| djen     | 110.489 registros em `processos_judiciais` / 2.374 empresas casadas por nome — pipeline ainda rodando | ⏸️ em andamento |
-| geo      | ~1.776/344.130 (pausado — retomável)                             | ⏸️ parcial |
-| exportar | —                                                                 | ⏳ pendente |
+Números de `GET https://empresas.brunokobi.tech/estatisticas`. Mudam a cada
+publicação; arredondados.
 
-**Achado ao reconferir `sancoes_administrativas`**: das 188 empresas positivas, 148
-têm `match_confianca='direto'` (a própria empresa está na lista da fonte) e 41 têm
-`match_confianca='socio'` (marcada só por ter sócio em comum com entidade sancionada —
-ocorre apenas dentro do CEIS). Relevante para quem consome este dataset em
-`experimento2026`: ~22% do rótulo de risco usado ali já é construído via sócio comum,
-o que gera risco de circularidade com a hipótese de metapath sócio-comum daquela
-dissertação (ver `docs/research_plan.md`, seções 5 e 9, naquele repo).
+| Item | Valor |
+|---|---|
+| Empresas ativas | 366.995 |
+| Sócios | ~243 mil |
+| Processos judiciais (DJEN) | ~5,2 milhões de registros; ~94,8 mil empresas como ré (sem os homônimos descartados) |
+| Dívida ativa (PGFN) | ~201 mil inscrições em ~39,6 mil empresas |
+| Sanções administrativas | 346 registros / 195 empresas; flags: CEPIM 11 empresas, Lista Suja 2, leniência 0 |
+| Infrações IBAMA | 1.340 registros / 644 empresas |
+| Due diligence dos sócios | ~26,5 mil empresas com alguma ocorrência (PGFN PF em ~24,2 mil) |
+| Grupo econômico (base nacional) | ~82 mil empresas |
+| Sócio estrangeiro | 914 empresas (8 com país da lista do GAFI) |
+| Geocodificação | 100% (`enriquecimento_places` = total de empresas) |
+| Nota de integridade | metodologia v1.1 (nov/2026), pré-calculada para todas as empresas |
 
-Distribuição cnpj: Vila Velha 90.865, Serra 85.636, Vitória 78.872,
-Cariacica 51.479, Guarapari 23.710, Viana 11.038, Fundão 2.530.
+Fontes **sem registro** em produção: acordos de leniência, TCU inabilitados
+(a API do TCU estava fora do ar na coleta) e OFAC/ONU/Reino Unido (nenhuma
+correspondência até agora).
 
-**datajud e geo são retomáveis** via `data/checkpoints/*.json` — reexecutar
-a etapa continua de onde parou. Para 344 mil empresas com rate limit externo
-(1 req/s), essas duas etapas levam DIAS, não horas. Isso é do rate limit das
-APIs públicas (CNJ, Nominatim), não do código.
+## Produção e publicação
+
+- **VPS:** `vpsrafa` (Oracle Cloud, Frankfurt, `130.61.140.66`). Site:
+  https://empresas.brunokobi.tech. A VPS antiga (`vpsbruno`,
+  `129.213.96.52`) foi reclamada pela Oracle em 20/09/2026; o domínio
+  `empresas.brunokobi.duckdns.org` não responde mais.
+- **Dashboard/API/MCP:** serviço systemd `gv-dashboard`, em
+  `/home/ubuntu/apps/projeto_grande_vitoria_empresas`. **Não** é mais
+  Coolify e **não** há git no servidor: deploy = copiar os arquivos +
+  `sudo systemctl restart gv-dashboard`. O comentário do `start.sh` ainda
+  cita o Coolify.
+- **Atualização do banco:** cron `30 */2 * * *` do usuário `ubuntu` roda
+  `refresh_dataset.py`. Ele só baixa se o asset do Release mudou, garante os
+  índices de `grupo_economico`/`risco_pais_socios`, pré-calcula a nota de
+  integridade (`src/integridade_lote.py`, ~10 min), confere o banco e troca
+  o arquivo com `os.replace` (sem restart).
+- **Publicação do dataset:** o container `geo` do ETL, na mesma VPS, publica
+  o Release a cada 2h (cron `0 */2` UTC, `vps-publicar-2h.sh`).
+- **Onde cada coleta roda:**
+  - Site e redes sociais (`src/redes_sociais.py`) e DataJud em lote
+    (`src/datajud_lote.py`): 24/7 dentro do container `geo` desde
+    15/11/2026, supervisionadas pelos crons `vps-redes-sociais.sh` e
+    `vps-datajud-lote.sh`.
+  - DJEN: só na máquina local do autor (a API do DJEN recusa IP de fora do
+    Brasil); publicado com `scripts/djen-refresh.sh` do repo de extração.
+  - Atualização mensal das demais fontes: cron `vps-atualizar-mensal.sh` no
+    container `geo`.
+
+**Achado ao reconferir `sancoes_administrativas` (08/08/2026, base antiga)**:
+parte das empresas positivas tinha `match_confianca='socio'` (marcada só por
+ter sócio em comum com entidade sancionada — ocorre dentro do CEIS); na época,
+~22%. Relevante para quem consome este dataset em `experimento2026`: risco de
+circularidade com a hipótese de metapath sócio-comum daquela dissertação (ver
+`docs/research_plan.md`, seções 5 e 9, naquele repo).
 
 ## Armadilhas já descobertas e corrigidas (NÃO regredir)
 
@@ -96,9 +123,10 @@ APIs públicas (CNJ, Nominatim), não do código.
    (formato BR). A coluna de situação real é `SITUACAO_INSCRICAO`, não
    `SITUACAO`.
 
-6. **DATAJUD_API_KEY vazia no .env.** `os.environ.get(k, default)` NÃO usa o
-   default quando a var existe mas está vazia (`source .env` a define como
-   ""). Corrigido para `os.environ.get(k) or FALLBACK` em config.py.
+6. **Variável de ambiente vazia não usa o default.** `os.environ.get(k, default)`
+   NÃO usa o default quando a var existe mas está vazia (`source .env` a
+   define como ""). Use `os.environ.get(k) or FALLBACK` (é o que faz
+   `src/processo_detalhes.py` com `DATAJUD_API_KEY`).
 
 7. **`.env` sem aspas quebra o `source`.** O `NOMINATIM_USER_AGENT` tem
    parênteses — precisa estar entre aspas.
@@ -121,35 +149,42 @@ APIs públicas (CNJ, Nominatim), não do código.
 ## Consumo do dataset (implementado)
 
 - **Servidor MCP** (`mcp_server.py`, FastMCP): ferramentas `estatisticas`,
-  `buscar_empresas`, `obter_empresa`. `.mcp.json` na raiz para o Claude Code
-  detectar automaticamente.
-- **API REST** (`api.py`, FastAPI): `GET /estatisticas`, `/segmentos`,
-  `/empresas` (com filtros), `/empresas/{cnpj}`, `/export/empresas.xlsx` e
-  `/export/empresas.pdf`. Docs em `/docs`.
-- **Dashboard web** (`dashboard/index.html`, servido em `/` pela API):
-  visual verde-matrix/preto, filtros (segmento CNAE, município, porte, regime,
-  contato/redes, pendência, capital, texto), visão 360º por empresa em modal, e
-  export Excel/PDF da lista filtrada. Roda com `uvicorn api:app` → abre em
-  `http://localhost:8000`. Export usa openpyxl (xlsx) e reportlab (pdf).
-  Filtro de segmento = prefixo CNAE de 2 dígitos (`config.SEGMENTOS_CNAE`).
-- Ambos usam `src/dataset_queries.py` (SQLite somente-leitura) — sem duplicar
-  SQL. Testados contra a base real.
+  `buscar_empresas`, `buscar_empresas_perto`, `obter_empresa`,
+  `classificar_empresas`, `ranking_doacoes_eleitorais`, `classes_processos`
+  e `orgaos_sancionadores`. Remoto em `https://empresas.brunokobi.tech/mcp/`
+  (montado em `/mcp` pela API); local via `.mcp.json`. Os filtros novos do
+  dashboard (due diligence, nível de integridade, sócio estrangeiro, grupo
+  econômico, vínculo do processo) estão só na API, não no MCP.
+- **API REST** (`api.py`, FastAPI): `/estatisticas`, `/empresas` (com
+  filtros), `/empresas/{cnpj}`, `/empresas/perto`, `/mapa`,
+  `/empresas/{cnpj}/midia`, `/processos/{numero}/detalhes`, `/classificar`,
+  `/export/empresas.xlsx|pdf` e outras. Docs em `/docs`.
+- **Dashboard web** (`dashboard/index.html`, servido em `/` pela API): mapa
+  (MapLibre), filtros, visão 360º por empresa em modal, export Excel/PDF. A
+  página de fontes é a função `abrirSobre()` (botão **?**) — revisada contra
+  código e produção em 15/11/2026; use como referência do que cada fonte é e
+  das ressalvas.
+- Todos usam `src/dataset_queries.py` (SQLite somente-leitura) — sem duplicar
+  SQL. A nota de integridade é `src/avaliacao_integridade.py` (mesma função no
+  modal e no pré-cálculo em lote).
+- **Dossiê de IA:** vem do repo privado `kobi-intelligence-hub` (chamado em
+  `/kobi-api/dossie/...`). Índice principal = nota de integridade; scores de
+  XGBoost e de uma GNN são sinais auxiliares; parecer redigido por LLM gratuito
+  do OpenRouter (padrão `llama-3.1-8b-instruct`, com troca para outro modelo
+  gratuito quando indisponível).
 - Doação: `.github/FUNDING.yml` → GitHub Sponsors (`brunokobi`).
 
-## Etapa `contato` (WhatsApp + site + redes sociais) — grátis
+## Site e redes sociais × etapa antiga `contato`
 
-`src/contato_enrich.py`: deriva WhatsApp do telefone (link wa.me, só celular),
-site do domínio do e-mail corporativo, e extrai Instagram/Facebook/LinkedIn do
-HTML do próprio site da empresa (não raspa as redes direto — evita ToS). Grava
-em `enriquecimento_contato`. Retomável (checkpoint em lote a cada 200). Só há
-requisição de rede para empresas com site inferido. Filtros novos na API/MCP:
-`com_whatsapp`, `com_rede_social`. Testada em amostra; ainda NÃO rodada na base
-completa (é lenta, roda na outra máquina).
-
-## Continuar em outra máquina
-
-O banco `data/grande_vitoria.db` (~139 MB) **não** está no git (limite do
-GitHub + LGPD). Para continuar datajud/geo sem refazer o `cnpj` (que leva
-horas + 10 GB de download), transfira o `.db` e `data/checkpoints/` por fora
-(nuvem/USB). Sem eles, rode `python main.py --etapa cnpj` primeiro para
-reconstruir a base, depois retome datajud/geo.
+- **Atual:** tabela `redes_sociais`, gerada no ETL (`src/redes_sociais.py`
+  daquele repo), por raiz de CNPJ. Site só com prova (Registro.br RDAP com o
+  mesmo CNPJ, CNPJ exibido no site, ou domínio do e-mail da Receita compatível
+  com o nome); redes = links publicados no próprio site (as plataformas não
+  são acessadas). No modal aparece em "Contato & redes" como **dado provável,
+  pode conter falhas**, com o motivo da aceitação.
+- **Antiga:** `src/contato_enrich.py` (`--etapa contato`, tabela
+  `enriquecimento_contato`: WhatsApp derivado do telefone, site do e-mail)
+  **nunca rodou na base completa**; a tabela publicada está vazia. Por isso os
+  filtros `com_whatsapp`/`com_rede_social` (checkboxes "Com WhatsApp" e "Com
+  rede social") e as preferências de WhatsApp/rede da classificação de leads
+  não retornam nada em produção.

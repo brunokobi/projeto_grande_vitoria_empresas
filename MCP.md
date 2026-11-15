@@ -6,14 +6,20 @@ Grande Vitória direto, com estas ferramentas:
 
 | Ferramenta | O que faz |
 |---|---|
-| `estatisticas` | Panorama geral (totais, por município/porte/CNAE) |
+| `estatisticas` | Panorama geral (totais por município, porte e regime; registros e empresas por fonte; nota de integridade) |
 | `buscar_empresas` | Busca com filtros (segmento, município, pendências, contato…) |
 | `buscar_empresas_perto` | Busca num **raio (km)** de um ponto — endereço em texto livre ou lat/lon |
-| `obter_empresa` | Visão 360º de um CNPJ (sócios+rede, dívidas, sanções, infrações, vínculos políticos, contratos públicos, benefícios/renúncias fiscais) |
+| `obter_empresa` | Visão 360º de um CNPJ (sócios+rede, dívidas, sanções, infrações, processos, vínculos políticos, contratos públicos, benefícios/renúncias fiscais, contexto ambiental e geológico) com resumo agregado |
 | `classificar_empresas` | Pontua/ranqueia leads por objetivo comercial (score 0–100) |
 | `ranking_doacoes_eleitorais` | Ranking de doações eleitorais (TSE) — candidatos que mais receberam e empresas que mais aparecem doando, por quantidade ou valor |
 | `classes_processos` | Classes de processo judicial disponíveis (com contagem), pra refinar `com_processos` por `processo_classe` |
 | `orgaos_sancionadores` | Órgãos sancionadores disponíveis (com contagem), pra refinar `com_sancoes` por `sancao_orgao` |
+
+Os filtros mais novos do dashboard (due diligence dos sócios, nível da nota de integridade,
+sócio estrangeiro/GAFI, grupo econômico, vínculo conferido do processo) estão só na
+[API REST](https://empresas.brunokobi.tech/docs), ainda não no MCP. Os filtros
+`com_whatsapp`/`com_rede_social` existem, mas hoje não retornam empresas (a tabela de
+origem está vazia em produção).
 
 Exemplos de perguntas: *"quantas empresas ativas há em Vila Velha?"*, *"restaurantes
 em Vitória com e-mail e sem dívida ativa"*, *"classifique como lead de contabilidade
