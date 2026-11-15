@@ -361,7 +361,7 @@ def _filtros_sql(*, tem_contato=False, tem_fts=False, tem_contratos=False,
                  com_contratos_governamentais=None,
                  com_renuncia_fiscal=None, com_imune_isento=None, com_habilitado_beneficio=None,
                  com_vinculo_politico=None, com_contrato_pncp=None, com_marca_registrada=None,
-                 com_incentivo_estadual=None, processo_polo=None, processo_classe=None,
+                 com_incentivo_estadual=None, com_devedor_contumaz=None, processo_polo=None, processo_classe=None,
                  sancao_tipo=None, sancao_orgao=None,
                  com_beneficio_fiscal=None, beneficio_tipo=None,
                  vinculo_fonte=None, pncp_categoria=None,
@@ -754,6 +754,12 @@ def _filtros_sql(*, tem_contato=False, tem_fts=False, tem_contratos=False,
             where.append("EXISTS (SELECT 1 FROM integridade_empresas ie WHERE ie.cnpj = e.cnpj "
                          f"AND ie.nivel IN ({','.join('?' for _ in niveis_integ)}))")
             params.extend(niveis_integ)
+    if com_devedor_contumaz:
+        # Lista oficial da SEFAZ-ES (Lei 12.124/2024), por raiz de CNPJ.
+        if not _tem_tabela("devedores_contumazes_es"):
+            where.append("0")
+        else:
+            where.append("substr(e.cnpj, 1, 8) IN (SELECT cnpj_basico FROM devedores_contumazes_es)")
     if com_rede_social or com_site or com_whatsapp:
         # Site/redes com prova de titularidade (ETL redes_sociais.py), por raiz.
         if not _tem_tabela("redes_sociais"):
@@ -877,6 +883,10 @@ def estatisticas() -> dict:
             empresas_por_flag["socio_estrangeiro_gafi"] = conn.execute(
                 "SELECT COUNT(*) FROM empresas WHERE substr(cnpj, 1, 8) IN (SELECT cnpj_basico FROM "
                 "risco_pais_socios WHERE gafi IS NOT NULL AND COALESCE(pais_confirmado, 1) != 0)").fetchone()[0]
+        if _tabela_existe(conn, "devedores_contumazes_es"):
+            empresas_por_flag["devedor_contumaz_es"] = conn.execute(
+                "SELECT COUNT(*) FROM empresas WHERE substr(cnpj, 1, 8) IN "
+                "(SELECT cnpj_basico FROM devedores_contumazes_es)").fetchone()[0]
         grupo_por_relacao = {}
         if _tabela_existe(conn, "grupo_economico"):
             empresas_por_flag["grupo_economico"] = conn.execute(
@@ -991,7 +1001,7 @@ def buscar_empresas(municipio=None, cnae=None, cnae_prefix=None, porte=None,
                     com_renuncia_fiscal=None, com_imune_isento=None,
                     com_habilitado_beneficio=None, com_vinculo_politico=None,
                     com_contrato_pncp=None, com_marca_registrada=None,
-                    com_incentivo_estadual=None, processo_polo=None, processo_classe=None,
+                    com_incentivo_estadual=None, com_devedor_contumaz=None, processo_polo=None, processo_classe=None,
                     sancao_tipo=None, sancao_orgao=None,
                     com_beneficio_fiscal=None, beneficio_tipo=None,
                     vinculo_fonte=None, pncp_categoria=None,
@@ -1039,7 +1049,7 @@ def buscar_empresas(municipio=None, cnae=None, cnae_prefix=None, porte=None,
             com_habilitado_beneficio=com_habilitado_beneficio,
             com_vinculo_politico=com_vinculo_politico,
             com_contrato_pncp=com_contrato_pncp, com_marca_registrada=com_marca_registrada,
-            com_incentivo_estadual=com_incentivo_estadual,
+            com_incentivo_estadual=com_incentivo_estadual, com_devedor_contumaz=com_devedor_contumaz,
             processo_polo=processo_polo, processo_classe=processo_classe,
             sancao_tipo=sancao_tipo, sancao_orgao=sancao_orgao,
             com_beneficio_fiscal=com_beneficio_fiscal, beneficio_tipo=beneficio_tipo,
@@ -1582,6 +1592,12 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
             risco_pais_socios = [dict(r) for r in conn.execute(
                 "SELECT nome_socio, tipo, pais_nome, iso3, gafi, cpi_score, cpi_rank, pais_confirmado, observacao FROM risco_pais_socios "
                 "WHERE cnpj_basico = ? ORDER BY gafi IS NULL, cpi_score", (cnpj[:8],))]
+        # Devedor contumaz de ICMS (lista oficial da SEFAZ-ES), por raiz.
+        devedor_contumaz_es = None
+        if _tabela_existe(conn, "devedores_contumazes_es"):
+            r = conn.execute("SELECT grupo_empresarial, lista_atualizada_em, fonte_url FROM "
+                             "devedores_contumazes_es WHERE cnpj_basico = ?", (cnpj[:8],)).fetchone()
+            devedor_contumaz_es = dict(r) if r else None
         # Site e redes sociais com prova de titularidade (ETL redes_sociais.py,
         # por RAIZ). Dado provável: o modal exibe com aviso.
         redes_sociais = None
@@ -1802,6 +1818,7 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
         "grupo_economico": grupo_economico,
         "risco_pais_socios": risco_pais_socios,
         "redes_sociais": redes_sociais,
+        "devedor_contumaz_es": devedor_contumaz_es,
         "sancoes_administrativas": sancoes,
         "infracoes_ambientais": ambiental,
         "dividas_ativas": dividas,

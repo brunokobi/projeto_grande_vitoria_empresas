@@ -169,7 +169,8 @@ Na página de fontes do site (botão **?**), cada fonte leva uma tag de origem: 
 |---|---|:--:|
 | **Receita Federal** (CNPJ) | Cadastro, **sócios**, CNAE, porte, capital, endereço | ✅ |
 | **JUCEES** (dados.es.gov.br) | NIRE, constituição, natureza jurídica | ✅ |
-| **PGFN** | Dívida ativa (tipo de tributo, valor, ajuizamento) | ✅ |
+| **PGFN** | Dívida ativa da União (tipo de tributo, valor, ajuizamento): tributos federais (SIDA), **FGTS** não depositado e **previdenciário** (base antiga do INSS), desde 15/11/2026 | ✅ |
+| **SEFAZ-ES** | **Devedores contumazes de ICMS** (lista oficial, Lei 12.124/2024), pela raiz do CNPJ: aviso no modal e filtro `com_devedor_contumaz`. Não entra na nota de integridade | ✅ |
 | **CGU** — Portal da Transparência | Sanções **CEIS/CNEP**, **CEPIM**, **Acordos de Leniência** (leniência sem registro até agora) | ✅ |
 | **TCEES** | Sanções estaduais (processo/deliberação) | ✅ |
 | **IBAMA** | Infrações ambientais (valor da multa, gravidade, situação) | ✅ |

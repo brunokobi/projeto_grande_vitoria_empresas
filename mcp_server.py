@@ -101,6 +101,7 @@ def buscar_empresas(
     pncp_categoria: list = None,
     com_marca_registrada: bool = None,
     com_incentivo_estadual: bool = None,
+    com_devedor_contumaz: bool = None,
     com_beneficio_fiscal: bool = None,
     beneficio_tipo: list = None,
     com_unidade_conservacao: bool = None,
@@ -172,6 +173,8 @@ def buscar_empresas(
     - com_marca_registrada: True exige marca registrada no INPI.
     - com_incentivo_estadual: True exige incentivo fiscal de ICMS estadual
       (Programa COMPETE-ES).
+    - com_devedor_contumaz: True exige o grupo (raiz do CNPJ) na lista oficial
+      de devedores contumazes de ICMS da SEFAZ-ES (Lei 12.124/2024).
     - com_beneficio_fiscal: True exige qualquer benefício fiscal (renúncia,
       imune/isento, habilitado ou incentivo ICMS — engloba os 4 filtros
       acima num só). beneficio_tipo restringe o(s) tipo(s) específico(s)
@@ -220,7 +223,7 @@ def buscar_empresas(
         com_vinculo_politico=com_vinculo_politico, vinculo_fonte=vinculo_fonte,
         com_contrato_pncp=com_contrato_pncp, pncp_categoria=pncp_categoria,
         com_marca_registrada=com_marca_registrada,
-        com_incentivo_estadual=com_incentivo_estadual,
+        com_incentivo_estadual=com_incentivo_estadual, com_devedor_contumaz=com_devedor_contumaz,
         com_beneficio_fiscal=com_beneficio_fiscal, beneficio_tipo=beneficio_tipo,
         com_unidade_conservacao=com_unidade_conservacao,
         com_ambiental_proximidade=com_ambiental_proximidade,
