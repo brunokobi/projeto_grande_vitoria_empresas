@@ -568,7 +568,9 @@
 
 <footer style="max-width:1500px;margin:8px auto 0;padding:20px 22px 30px;border-top:1px solid var(--line);text-align:center;color:var(--muted);font-size:12px;letter-spacing:.3px">
   © 2026 <a href="https://brunokobi.tech/" target="_blank" rel="noopener" style="font-weight:600">Bruno Kobi</a>. Todos os direitos reservados.<br>
-  Dados de fontes públicas oficiais (CPF sempre mascarado) — uso responsável e conforme a LGPD.
+  Dados de fontes públicas oficiais (CPF sempre mascarado) — uso responsável e conforme a LGPD.<br>
+  <a href="#" onclick="abrirPrivacidade();return false">Política de privacidade</a> ·
+  <a href="mailto:brunokobi2@hotmail.com?subject=LGPD%20-%20pedido%20do%20titular">Solicitar correção ou remoção de dados</a>
 </footer>
 
 <div class="overlay" id="overlay" onclick="if(event.target===this)fechar()">
@@ -2149,6 +2151,12 @@ async function abrir(cnpj, viaPopstate){
       ${mapaEmbed(e, d.geolocalizacao)}
       <a class="maplink" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(endereco)}" target="_blank">Abrir no Google Maps &#8599;</a>
       <span class="iconbtn" id="btn_copiar_geo" style="display:none;margin-left:8px;vertical-align:middle" title="Copiar coordenadas (lat, lng)" onclick="copiarGeo(this)">&#9678;</span>
+
+      <div style="margin-top:18px;padding-top:10px;border-top:1px solid var(--line);font-size:11px;color:var(--muted)">
+        &#128274; Algum dado sobre voc&ecirc; nesta p&aacute;gina est&aacute; errado ou voc&ecirc; quer se opor ao tratamento?
+        <a href="${mailtoTitular(e.cnpj, e.razao_social)}">Solicitar corre&ccedil;&atilde;o ou remo&ccedil;&atilde;o</a> &middot;
+        <a href="#" onclick="abrirPrivacidade();return false">Pol&iacute;tica de privacidade</a>
+      </div>
     </div>`;
   initMapaModal(d.geolocalizacao, e);
   verificarDossieCache(e.cnpj); // se já existe dossiê salvo pra essa empresa, troca o botão pelo dossiê + data + regerar
@@ -2452,9 +2460,64 @@ function abrirSobre(){
       <p>O score preditivo vem de um <b>projeto de pesquisa de mestrado</b> do autor (<code>experimento2026</code>), que investiga se uma empresa conectada a uma já sancionada — via sócio em comum, mesmo endereço, ou vínculo político — tem risco maior de também estar envolvida em irregularidade, comparando modelos tabulares contra modelos de grafo (GNN/HAN) com validação estatística (30 folds, teste de Wilcoxon). <b>Por vir de um modelo de pesquisa</b> (treinado numa base com &lt;0,1% de empresas sancionadas), todo dossiê que exibe o score traz uma nota metodológica explícita: interpretar como sinal de priorização para investigação manual, nunca como veredito. Preprint publicado em acesso aberto (Zenodo, CC BY 4.0): <a href="https://doi.org/10.5281/zenodo.21961062" target="_blank" rel="noopener">10.5281/zenodo.21961062</a>.</p>
       <div class="sec">Como o cruzamento é feito</div>
       <p>A maioria das fontes é combinada pelo <b>CNPJ</b> (chave única). Exceções: processos judiciais são localizados por <b>nome</b> da empresa (a API pública não expõe CNPJ das partes); a due diligence dos sócios usa <b>CPF mascarado + nome</b> (ou só nome, nas fontes sem CPF); Unidade de Conservação e setor de risco geológico/inundação são por <b>geolocalização</b> (a empresa cai dentro do polígono); fiscalização ambiental/barragem/outorga hídrica são por <b>proximidade geográfica</b> (a fonte não traz CNPJ/nome, exceto barragem, também cruzada por nome do sócio); ocorrências criminais são agregadas por <b>bairro</b> (a fonte não traz coordenada exata); grupo econômico e homônimos usam a <b>base nacional da Receita</b> (CPF mascarado + nome); o GAFI usa o <b>código de país</b> do sócio na Receita; site e redes sociais usam o <b>titular do domínio no Registro.br</b>. Os campos de origem não são alterados; o que é derivado pelo projeto (nota de integridade, validação de processos, valor da causa lido do texto, agregações) aparece identificado como tal. CPFs de sócios são sempre mascarados, conforme a LGPD.</p>
-      <p style="color:var(--muted);font-size:12px;margin-top:16px">Código aberto: <a href="https://github.com/brunokobi/projeto_grande_vitoria_empresas" target="_blank" rel="noopener">github.com/brunokobi/projeto_grande_vitoria_empresas</a></p>
+      <p style="font-size:12px;margin-top:16px">Dados pessoais, direitos do titular e como pedir correção ou remoção: <a href="#" onclick="abrirPrivacidade();return false">Política de privacidade</a>.</p>
+      <p style="color:var(--muted);font-size:12px;margin-top:6px">Código aberto: <a href="https://github.com/brunokobi/projeto_grande_vitoria_empresas" target="_blank" rel="noopener">github.com/brunokobi/projeto_grande_vitoria_empresas</a></p>
     </div>`;
 }
+// LGPD: canal do titular (art. 18) e política de privacidade.
+const EMAIL_TITULAR = "brunokobi2@hotmail.com";
+function mailtoTitular(cnpj, razao){
+  const assunto = `LGPD - pedido do titular - CNPJ ${cnpj||""}`;
+  const corpo = `Empresa: ${razao||""} (CNPJ ${cnpj||""})\nPágina: ${location.origin}/?empresa=${cnpj||""}\n\n`+
+    `Seu nome:\nQual dado está errado ou você quer remover/se opor:\nPedido (correção / remoção / oposição / acesso):\n`;
+  return `mailto:${EMAIL_TITULAR}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(corpo)}`;
+}
+function abrirPrivacidade(){
+  $("overlay").classList.add("open");
+  $("modal").innerHTML = `
+    <div class="top">
+      <span class="close" onclick="fechar()">&times;</span>
+      <h2>&#128274; Política de privacidade</h2>
+      <div class="sub">Como este site trata dados pessoais (Lei 13.709/2018 — LGPD) · atualizada em 15/11/2026</div>
+    </div>
+    <div class="body">
+      <div class="sec">Quem é o responsável</div>
+      <p>Projeto independente mantido por <b>Bruno Kobi</b> (pessoa física), que atua como controlador e encarregado pelo tratamento de dados. Contato para qualquer assunto de privacidade: <a href="mailto:${EMAIL_TITULAR}">${EMAIL_TITULAR}</a>.</p>
+
+      <div class="sec">Finalidade</div>
+      <p>Reunir, numa consulta só, informações <b>públicas</b> sobre as empresas ativas da Grande Vitória (ES) para transparência, pesquisa, avaliação de risco de integridade antes de contratar ou se relacionar com uma empresa (due diligence) e prospecção comercial entre empresas. O site não vende dados e não faz publicidade.</p>
+
+      <div class="sec">Quais dados pessoais aparecem</div>
+      <div class="lista">
+        <div class="item"><b>Sócios e administradores:</b> nome, qualificação e CPF mascarado, como a Receita Federal publica.</div>
+        <div class="item"><b>Cruzamentos de sócios com fontes públicas</b> (dívida ativa, servidor federal, sanções, PEP, candidaturas e doações eleitorais, programas sociais, listas internacionais etc.): sempre como <b>possível correspondência</b>, porque sem o CPF completo pode haver homônimo. O critério usado aparece junto.</div>
+        <div class="item"><b>Contato cadastral da empresa</b> (telefone, e-mail, endereço) informado à Receita. Em microempresas e MEI, pode ser o contato pessoal do titular.</div>
+        <div class="item"><b>Publicações judiciais:</b> nomes de partes e advogados que constam nas publicações oficiais do DJEN/CNJ em que a empresa aparece.</div>
+        <div class="item"><b>Site, redes sociais e WhatsApp</b> que a própria empresa publica no seu site.</div>
+      </div>
+
+      <div class="sec">De onde vêm e base legal</div>
+      <p>Todos os dados vêm de <b>fontes públicas oficiais</b> (lista completa em <a href="#" onclick="abrirSobre();return false">Fontes de dados</a>) ou do site da própria empresa. O tratamento se apoia no <b>legítimo interesse</b> (art. 7º, IX, e art. 10) e nas regras para dados de acesso público (art. 7º, §§ 3º, 4º e 7º), respeitando a finalidade e o interesse público que justificaram a publicação original. Nenhum dado é comprado ou obtido de fonte privada.</p>
+
+      <div class="sec">Com quem os dados são compartilhados</div>
+      <div class="lista">
+        <div class="item">O conteúdo do site é público, e também fica disponível pela <b>API</b>, pelo <b>servidor MCP</b> e como <b>banco de dados para download</b> no GitHub do projeto.</div>
+        <div class="item">Ao gerar o <b>Dossiê com IA</b> (só quando alguém clica no botão), dados da empresa e dos sócios são enviados ao serviço externo <b>OpenRouter</b> para redigir o parecer.</div>
+        <div class="item">A busca de <b>notícias</b> (sob demanda) consulta o Google Notícias e o GDELT com o nome da empresa.</div>
+      </div>
+
+      <div class="sec">Cookies e registros</div>
+      <p>O site não usa cookies de rastreamento nem ferramentas de análise de visitantes. O servidor pode manter registros técnicos de acesso (como endereço IP, data e página) para segurança e funcionamento.</p>
+
+      <div class="sec">Seus direitos como titular (art. 18)</div>
+      <p>Você pode pedir <b>confirmação e acesso</b> aos dados, <b>correção</b> de dado incompleto ou errado (por exemplo, um homônimo atribuído a você), <b>oposição</b> ao tratamento e <b>eliminação</b> do que não for necessário à finalidade. Escreva para <a href="mailto:${EMAIL_TITULAR}?subject=${encodeURIComponent("LGPD - pedido do titular")}">${EMAIL_TITULAR}</a> dizendo o CNPJ ou a página e o que deseja. Em cada empresa, o link "Solicitar correção ou remoção" no fim da página já preenche o e-mail. A resposta vem em até 15 dias. Correções feitas aqui não alteram a fonte original: se o erro estiver lá, indicamos onde pedir a correção.</p>
+      <p>Você também pode reclamar à <b>Autoridade Nacional de Proteção de Dados (ANPD)</b>: <a href="https://www.gov.br/anpd" target="_blank" rel="noopener">gov.br/anpd</a>.</p>
+
+      <div class="sec">Qualidade dos dados</div>
+      <p>Os dados são atualizados periodicamente a partir das fontes, mas podem estar defasados ou conter erros de cruzamento (homônimos). Antes de qualquer decisão, confira a informação na fonte oficial indicada.</p>
+    </div>`;
+}
+if(location.hash === "#privacidade") window.addEventListener("load", () => abrirPrivacidade());
 function exportar(fmt, colunas){
   const p = query();
   (colunas||[]).forEach(c=>p.append("colunas", c));
