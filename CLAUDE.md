@@ -55,7 +55,7 @@ publicação; arredondados.
 | Grupo econômico (base nacional) | ~82 mil empresas |
 | Sócio estrangeiro | 914 empresas (8 com país da lista do GAFI) |
 | Geocodificação | 100% (`enriquecimento_places` = total de empresas) |
-| Nota de integridade | metodologia v1.1 (nov/2026), pré-calculada para todas as empresas |
+| Nota de integridade | metodologia v1.2 (nov/2026: v1.1 + devedor contumaz de ICMS e contratos TCEES/estaduais), pré-calculada para todas as empresas |
 
 Fontes **sem registro** em produção: acordos de leniência, TCU inabilitados
 (a API do TCU estava fora do ar na coleta) e OFAC/ONU/Reino Unido (nenhuma

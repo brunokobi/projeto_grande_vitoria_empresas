@@ -35,6 +35,7 @@ _TABELAS_QUE_PONTUAM = (
     "sancoes_administrativas", "ocorrencias_socios", "dividas_ativas",
     "processos_judiciais", "infracoes_ambientais", "vinculos_politicos",
     "contratos_pncp", "contratos_governamentais",
+    "contratos_tcees_es", "contratos_estaduais_es",  # 1.2
 )
 _AMOSTRA_CONFERENCIA = 500
 
@@ -64,6 +65,11 @@ def gerar(db_path: str | Path, log=print) -> dict:
             candidatos |= {r[0] for r in c.execute(
                 "SELECT cnpj FROM empresas WHERE substr(cnpj, 1, 8) IN "
                 "(SELECT cnpj_basico FROM risco_pais_socios WHERE gafi IS NOT NULL)")}
+        # Devedor contumaz de ICMS (1.2), também por RAIZ de CNPJ.
+        if "devedores_contumazes_es" in existentes:
+            candidatos |= {r[0] for r in c.execute(
+                "SELECT cnpj FROM empresas WHERE substr(cnpj, 1, 8) IN "
+                "(SELECT cnpj_basico FROM devedores_contumazes_es)")}
         candidatos = sorted(candidatos)
         total_empresas = c.execute("SELECT COUNT(*) FROM empresas").fetchone()[0]
         set_cand = set(candidatos)

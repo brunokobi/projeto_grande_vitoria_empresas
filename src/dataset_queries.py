@@ -1639,9 +1639,14 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
                 f"SELECT {cols} FROM {tabela} WHERE cnpj_empresa = ? ORDER BY "
                 f"CASE WHEN {ordem} BETWEEN '1990' AND strftime('%Y', 'now', '+2 years') THEN {ordem} END DESC "
                 f"LIMIT 100", (cnpj,))]  # em DESC o SQLite já põe NULL por último
-            tot = conn.execute(f"SELECT COUNT(*), SUM(COALESCE(valor_atual_ou_final, 0)) FROM "
-                               f"(SELECT {'COALESCE(valor_atual, valor_total)' if tabela == 'contratos_tcees_es' else 'COALESCE(valor_final, valor_inicial)'} "
-                               f"AS valor_atual_ou_final FROM {tabela} WHERE cnpj_empresa = ?)", (cnpj,)).fetchone()
+            # TCEES: ata de registro de preços é TETO de preço, não compra, e as
+            # ordens de compra derivadas dela já estão na base — a ata entra na
+            # lista, mas não na soma (senão conta o mesmo dinheiro duas vezes).
+            tcees = tabela == "contratos_tcees_es"
+            tot = conn.execute(
+                f"SELECT COUNT(*), SUM(CASE WHEN {'tipo_instrumento IS NOT ' + chr(39) + 'Ata de Registro de Preços' + chr(39) if tcees else '1'} "
+                f"THEN COALESCE({'valor_atual, valor_total' if tcees else 'valor_final, valor_inicial'}, 0) ELSE 0 END) "
+                f"FROM {tabela} WHERE cnpj_empresa = ?", (cnpj,)).fetchone()
             return {"qtd": tot[0], "valor_total": tot[1] or 0, "itens": itens} if tot[0] else None
         contratos_tcees = _contratos(
             "contratos_tcees_es", "unidade_gestora, poder, esfera, numero_instrumento, ano_instrumento, "

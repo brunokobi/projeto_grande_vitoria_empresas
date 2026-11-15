@@ -29,7 +29,7 @@ from __future__ import annotations
 import datetime
 import math
 
-VERSAO = "1.1 (nov/2026)"  # 1.1: risco-país do GAFI (sócio estrangeiro)
+VERSAO = "1.2 (nov/2026)"  # 1.1: risco-país do GAFI (sócio estrangeiro); 1.2: devedor contumaz de ICMS + contratos TCEES/estaduais
 
 # Força da evidência por critério de cruzamento (multiplica os pontos).
 FORCA_EVIDENCIA = {
@@ -149,6 +149,13 @@ def avaliar(dados: dict) -> dict:
             pts += 5
             det += " — com execução fiscal ajuizada"
         a.add("fiscal", "Dívida ativa da União", pts, "PGFN", det)
+    # 1.2: lista oficial de devedores contumazes de ICMS da SEFAZ-ES (Lei
+    # 12.124/2024 — critério legal objetivo), por raiz de CNPJ.
+    dc = dados.get("devedor_contumaz_es")
+    if dc:
+        a.add("fiscal", "Devedor contumaz de ICMS (lista oficial da SEFAZ-ES)", 12, "SEFAZ-ES",
+              f"grupo {dc.get('grupo_empresarial') or ''} — lista de {dc.get('lista_atualizada_em') or 'data n/d'}".strip(),
+              "direto")
     pf = [o for o in socios_ocorr if o.get("fonte") == "PGFN_PF"]
     if pf:
         a.add("fiscal", "Sócio com dívida ativa da União em nome próprio", min(8, 4 + 2 * (len(pf) - 1)),
@@ -217,9 +224,12 @@ def avaliar(dados: dict) -> dict:
               ", ".join(sorted({v.get("nome_socio_vinculado") or "" for v in pep}))[:200], "cpf_mascarado+nome")
     if any((v.get("fonte") or "").startswith("TSE_CANDIDATURA") for v in vinc):
         a.add("exposicao", "Sócio candidato a cargo eletivo", 3, "TSE", "", "cpf_mascarado+nome")
-    tem_contrato_publico = bool(dados.get("contratos_pncp") or dados.get("contratos_governamentais"))
+    # 1.2: contratos com prefeituras/órgãos do ES (TCEES) e com o Governo do ES
+    # (SEGER) também contam como contrato público.
+    tem_contrato_publico = bool(dados.get("contratos_pncp") or dados.get("contratos_governamentais")
+                                or dados.get("contratos_tcees") or dados.get("contratos_estaduais_es"))
     if tem_contrato_publico and any((v.get("fonte") or "").startswith("TSE_DOACAO") for v in vinc):
-        a.add("exposicao", "Doação eleitoral de sócio + contratos com o poder público", 6, "TSE/PNCP",
+        a.add("exposicao", "Doação eleitoral de sócio + contratos com o poder público", 6, "TSE/contratos públicos",
               "combinação que pede verificação de conflito de interesse", "cpf_mascarado+nome")
     pesos_socio = {
         "CEAF": (10, "Sócio expulso da administração pública federal"),
@@ -256,10 +266,18 @@ def avaliar(dados: dict) -> dict:
             a.add("fachada", "Ligação com offshore (Offshore Leaks)", 6, "ICIJ",
                   f"{o.get('nome_socio_vinculado') or 'empresa'}: {o.get('descricao') or ''}"[:200],
                   o.get("criterio") or "nome_completo")
-    valor_pub = float(resumo.get("valor_total_contratos_pncp") or 0) + float(resumo.get("valor_total_contratos_governamentais") or 0)
+    # O mesmo contrato pode estar no PNCP, no TCEES e no portal estadual: usa a
+    # fonte de MAIOR valor, nunca a soma das três (inflaria por duplicidade).
+    fontes_valor = {
+        "PNCP/Portal da Transparência": float(resumo.get("valor_total_contratos_pncp") or 0)
+                                        + float(resumo.get("valor_total_contratos_governamentais") or 0),
+        "TCEES": float((dados.get("contratos_tcees") or {}).get("valor_total") or 0),
+        "Governo do ES": float((dados.get("contratos_estaduais_es") or {}).get("valor_total") or 0),
+    }
+    fonte_pub, valor_pub = max(fontes_valor.items(), key=lambda kv: kv[1])
     if valor_pub >= 1_000_000 and 0 < capital < valor_pub / 100:
-        a.add("fachada", "Capital social muito baixo frente aos contratos públicos", 6, "Receita/PNCP",
-              f"capital {_brl(capital)} × contratos {_brl(valor_pub)}")
+        a.add("fachada", "Capital social muito baixo frente aos contratos públicos", 6, f"Receita/{fonte_pub}",
+              f"capital {_brl(capital)} × contratos {_brl(valor_pub)} ({fonte_pub}; maior fonte, sem somar fontes)")
 
     # ---------------------------------------------------------- consolidação
     por_dim = {}
