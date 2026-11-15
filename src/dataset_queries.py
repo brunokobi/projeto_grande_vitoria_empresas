@@ -1549,6 +1549,14 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
             risco_pais_socios = [dict(r) for r in conn.execute(
                 "SELECT nome_socio, tipo, pais_nome, iso3, gafi, cpi_score, cpi_rank, pais_confirmado, observacao FROM risco_pais_socios "
                 "WHERE cnpj_basico = ? ORDER BY gafi IS NULL, cpi_score", (cnpj[:8],))]
+        # Site e redes sociais com prova de titularidade (ETL redes_sociais.py,
+        # por RAIZ). Dado provável: o modal exibe com aviso.
+        redes_sociais = None
+        if _tabela_existe(conn, "redes_sociais"):
+            r = conn.execute(
+                "SELECT site, dominio, prova, titular_rdap, instagram, facebook, linkedin, youtube, "
+                "x, tiktok, atualizado_em FROM redes_sociais WHERE cnpj_basico = ?", (cnpj[:8],)).fetchone()
+            redes_sociais = dict(r) if r else None
         processos_descartados = []
         if tem_desc:
             processos_descartados = [dict(r) for r in conn.execute(
@@ -1759,6 +1767,7 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
         "processos_descartados": processos_descartados,
         "grupo_economico": grupo_economico,
         "risco_pais_socios": risco_pais_socios,
+        "redes_sociais": redes_sociais,
         "sancoes_administrativas": sancoes,
         "infracoes_ambientais": ambiental,
         "dividas_ativas": dividas,
