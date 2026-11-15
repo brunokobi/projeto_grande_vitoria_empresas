@@ -18,8 +18,9 @@ Grande Vitória direto, com estas ferramentas:
 Os filtros mais novos do dashboard (due diligence dos sócios, nível da nota de integridade,
 sócio estrangeiro/GAFI, grupo econômico, vínculo conferido do processo) estão só na
 [API REST](https://empresas.brunokobi.tech/docs), ainda não no MCP. Os filtros
-`com_whatsapp`/`com_rede_social` existem, mas hoje não retornam empresas (a tabela de
-origem está vazia em produção).
+`com_site` (site confirmado) e `com_rede_social` (rede publicada nesse site) leem a
+tabela `redes_sociais` — dado provável, e a coleta começa pelas maiores empresas.
+`com_whatsapp` foi descontinuado (nunca teve dados) e não retorna empresas.
 
 Exemplos de perguntas: *"quantas empresas ativas há em Vila Velha?"*, *"restaurantes
 em Vitória com e-mail e sem dívida ativa"*, *"classifique como lead de contabilidade

@@ -79,6 +79,7 @@ def buscar_empresas(
     com_email: bool = None,
     com_whatsapp: bool = None,
     com_rede_social: bool = None,
+    com_site: bool = None,
     com_processos: bool = None,
     processo_polo: list = None,
     processo_classe: list = None,
@@ -141,8 +142,12 @@ def buscar_empresas(
       órgão sancionador exato (ver ferramenta orgaos_sancionadores pra
       lista completa).
     - com_telefone / com_email: True exige o contato preenchido.
-    - com_whatsapp: True exige link de WhatsApp (requer a etapa `contato`).
-    - com_rede_social: True exige Instagram/Facebook/LinkedIn (etapa `contato`).
+    - com_whatsapp: descontinuado (nunca teve dados); não retorna empresas.
+    - com_site: True exige site confirmado como da empresa (Registro.br, CNPJ
+      no site ou e-mail da Receita compatível). Dado provável; a coleta começa
+      pelas maiores empresas e ainda não cobre a base toda.
+    - com_rede_social: True exige rede social (Instagram, Facebook, LinkedIn,
+      YouTube, X ou TikTok) publicada nesse site confirmado.
     - capital_min / capital_max: faixa de capital social (R$).
     - com_contratos_governamentais: True exige contrato com órgão público
       federal (Portal da Transparência).
@@ -202,7 +207,7 @@ def buscar_empresas(
         regime_tributario=regime_tributario, texto=texto, socio=socio,
         tem_pendencia=tem_pendencia, com_telefone=com_telefone,
         com_email=com_email, com_whatsapp=com_whatsapp,
-        com_rede_social=com_rede_social, com_processos=com_processos,
+        com_rede_social=com_rede_social, com_site=com_site, com_processos=com_processos,
         processo_polo=processo_polo, processo_classe=processo_classe,
         com_sancoes=com_sancoes, sancao_tipo=sancao_tipo, sancao_orgao=sancao_orgao,
         com_ambiental=com_ambiental, com_divida=com_divida,
@@ -338,10 +343,13 @@ def classificar_empresas(
       "marketing" (prioriza quem NÃO tem site/redes = oportunidade digital),
       "credito" (prioriza empresas sem pendências), "software" (porte +
       presença digital), "generico" (equilibrado).
-    - pref_telefone/pref_email/pref_whatsapp/pref_rede: dão pontos a quem tem
-      esse canal de contato.
+    - pref_telefone/pref_email/pref_rede: dão pontos a quem tem esse canal
+      (pref_rede = site confirmado). pref_whatsapp foi descontinuado e não
+      pontua (não há dado de WhatsApp).
     - portes: lista de códigos de porte alvo (pontua quem está na lista).
-    - presenca: "com" | "sem" | "indiferente" (presença digital: site/redes).
+    - presenca: "com" | "sem" | "indiferente" (presença digital = site
+      confirmado; "sem" quer dizer sem site confirmado, já que a coleta ainda
+      não cobre todas as empresas).
     - fiscal: "limpas" | "com_pendencia" | "indiferente".
     - municipio/cnae_prefix/texto/capital_min/capital_max: recortam a base
       antes de pontuar. limite (máx. 500).

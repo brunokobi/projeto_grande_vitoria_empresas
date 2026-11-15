@@ -522,8 +522,8 @@
       <label class="f">Exigir contato</label>
       <label class="chk"><input type="checkbox" id="f_tel"> Com telefone</label>
       <label class="chk"><input type="checkbox" id="f_email"> Com e-mail</label>
-      <label class="chk"><input type="checkbox" id="f_wpp"> Com WhatsApp</label>
-      <label class="chk"><input type="checkbox" id="f_rede"> Com rede social</label>
+      <label class="chk" title="Site confirmado como da empresa (Registro.br, CNPJ no site ou e-mail da Receita). Dado provável; a coleta começa pelas maiores empresas e ainda não cobre a base toda"><input type="checkbox" id="f_site"> Com site confirmado</label>
+      <label class="chk" title="Rede social publicada no próprio site confirmado da empresa. Dado provável; a coleta começa pelas maiores empresas e ainda não cobre a base toda"><input type="checkbox" id="f_rede"> Com rede social</label>
         </div>
       </details>
       <label class="f">Ordenar por</label>
@@ -617,7 +617,7 @@ function query(){
   add("capital_max",$("f_capmax").value);
   if($("f_tel").checked) p.set("com_telefone","true");
   if($("f_email").checked) p.set("com_email","true");
-  if($("f_wpp").checked) p.set("com_whatsapp","true");
+  if($("f_site").checked) p.set("com_site","true");
   if($("f_rede").checked) p.set("com_rede_social","true");
   if($("f_proc").checked){
     p.set("com_processos","true");
@@ -2411,7 +2411,7 @@ function abrirSobre(){
       <div class="sec">Localização e contato</div>
       <div class="lista">
         <div class="item"><span class="tag intl" title="Fonte internacional (fora do Brasil)">internacional</span> <b>OpenStreetMap/Nominatim</b> — geocodificação do endereço cadastral (lat/lng do mapa). A precisão varia: endereço exato quando encontrado; senão o ponto fica no CEP, no bairro ou no município</div>
-        <div class="item"><span class="tag nac" title="Fonte nacional (órgão ou base federal do Brasil)">nacional</span> <b>Site e redes sociais (dado provável)</b> — por empresa (raiz do CNPJ), começando pelas de maior porte e capital. O site só é aceito com prova de que é da empresa: o <b>Registro.br</b> (RDAP público) mostra o domínio registrado no mesmo CNPJ; ou o site exibe o CNPJ da empresa; ou o domínio é o do e-mail cadastrado na Receita e bate com o nome da empresa (e-mail do contador é descartado). Endereço "chutado" a partir do nome só vale com a confirmação do Registro.br. As redes (Instagram, Facebook, LinkedIn, YouTube, X, TikTok) são os links publicados no próprio site; as plataformas sociais não são acessadas. Não há certeza total: o link pode ser o perfil global da marca ou de outra empresa do grupo, ou estar desatualizado. Por isso o modal mostra o aviso e o motivo da aceitação</div>
+        <div class="item"><span class="tag nac" title="Fonte nacional (órgão ou base federal do Brasil)">nacional</span> <b>Site e redes sociais (dado provável)</b> — por empresa (raiz do CNPJ), começando pelas de maior porte e capital. O site só é aceito com prova de que é da empresa: o <b>Registro.br</b> (RDAP público) mostra o domínio registrado no mesmo CNPJ; ou o site exibe o CNPJ da empresa; ou o domínio é o do e-mail cadastrado na Receita e bate com o nome da empresa (e-mail do contador é descartado). Endereço "chutado" a partir do nome só vale com a confirmação do Registro.br. As redes (Instagram, Facebook, LinkedIn, YouTube, X, TikTok) são os links publicados no próprio site; as plataformas sociais não são acessadas. Não há certeza total: o link pode ser o perfil global da marca ou de outra empresa do grupo, ou estar desatualizado. Por isso o modal mostra o aviso e o motivo da aceitação. Filtros "Com site confirmado" e "Com rede social": a coleta começa pelas maiores empresas e ainda não cobre a base toda, então empresa fora do filtro pode simplesmente não ter sido verificada</div>
       </div>
       <div class="sec">Mapa: contexto territorial, criminal e ambiental</div>
       <div class="lista">
@@ -2500,7 +2500,7 @@ function limpar(){
   // desmarcar cada <option> individualmente.
   ["f_proc_polo","f_proc_classe","f_sanc_tipo","f_ben_tipo","f_vinc_fonte","f_pncp_cat","f_ambiental_prox_tipo","f_risco_geo_grau"].forEach(id=>
     Array.from($(id).options).forEach(o=>o.selected=false));
-  ["f_tel","f_email","f_wpp","f_rede","f_proc","f_sanc","f_amb","f_div","f_lenienc","f_contratos","f_ben","f_vinculo","f_pncp","f_dd","f_dd_forte","f_estrang","f_estrang_gafi","f_grupo","f_marca","f_uc","f_ambiental_prox","f_risco_geo"].forEach(id=>$(id).checked=false);
+  ["f_tel","f_email","f_site","f_rede","f_proc","f_sanc","f_amb","f_div","f_lenienc","f_contratos","f_ben","f_vinculo","f_pncp","f_dd","f_dd_forte","f_estrang","f_estrang_gafi","f_grupo","f_marca","f_uc","f_ambiental_prox","f_risco_geo"].forEach(id=>$(id).checked=false);
   document.querySelectorAll("#f_proc_valid input, #f_grupo_rel input").forEach(cb=>cb.checked=false);
   $("f_grupo_min").value="";
   toggleSubmenuEstrang(); toggleSubmenuGrupo();

@@ -17,9 +17,9 @@ em dia.
 
 A **extração** (ETL) fica no repositório privado
 `grande_vitoria_empresas_extracao`. O registro detalhado de cada fonte e
-cruzamento está em
-[`docs/EXTRACAO_E_CRUZAMENTOS.md`](https://github.com/brunokobi/grande_vitoria_empresas_extracao/blob/main/docs/EXTRACAO_E_CRUZAMENTOS.md)
-naquele repo — linke para ele em vez de duplicar detalhe aqui.
+cruzamento está em `docs/EXTRACAO_E_CRUZAMENTOS.md` naquele repo. Como ele é
+privado, não linke esse arquivo em texto público (README, página de fontes):
+só mencione que o registro existe.
 
 `main.py` e os módulos de ingestão em `src/` (`cnpj_ingest`, `djen_client`,
 `geo_enrich`, `contato_enrich`...) são uma versão antiga do pipeline, que
@@ -184,7 +184,7 @@ circularidade com a hipótese de metapath sócio-comum daquela dissertação (ve
   pode conter falhas**, com o motivo da aceitação.
 - **Antiga:** `src/contato_enrich.py` (`--etapa contato`, tabela
   `enriquecimento_contato`: WhatsApp derivado do telefone, site do e-mail)
-  **nunca rodou na base completa**; a tabela publicada está vazia. Por isso os
-  filtros `com_whatsapp`/`com_rede_social` (checkboxes "Com WhatsApp" e "Com
-  rede social") e as preferências de WhatsApp/rede da classificação de leads
-  não retornam nada em produção.
+  **nunca rodou na base completa**; a tabela publicada está vazia. Desde
+  15/11/2026 os filtros `com_site`/`com_rede_social` e a presença digital da
+  classificação de leads leem `redes_sociais`; `com_whatsapp`/`pref_whatsapp`
+  foram descontinuados (aceitos por compatibilidade, sem resultado/pontos).

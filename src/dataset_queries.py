@@ -308,6 +308,9 @@ def _tem_tabela(nome: str) -> bool:
 # Validação do vínculo empresa↔processo (processos_djen_resumo.validacao, ver
 # djen_completo.gerar_resumo no ETL). Só as que ficam no site — cnpj_divergente
 # e homonimo_provavel já são descartadas.
+# Raiz com alguma rede social publicada no próprio site (tabela redes_sociais).
+_TEM_REDE = ("(rs.instagram IS NOT NULL OR rs.facebook IS NOT NULL OR rs.linkedin IS NOT NULL "
+             "OR rs.youtube IS NOT NULL OR rs.x IS NOT NULL OR rs.tiktok IS NOT NULL)")
 VALIDACOES_PROCESSO = ("cnpj_confirmado", "nome_unico_brasil", "nome_repetido", "homonimo_mesmo_estado")
 RELACOES_GRUPO = ("socio_em_comum", "empresa_socia", "participacao")
 
@@ -334,7 +337,7 @@ def _filtros_sql(*, tem_contato=False, tem_fts=False, tem_contratos=False,
                  municipio=None, cnae=None, cnae_prefix=None,
                  porte=None, regime_tributario=None, texto=None, tem_pendencia=None,
                  com_telefone=None, com_email=None, com_whatsapp=None,
-                 com_rede_social=None, capital_min=None, capital_max=None,
+                 com_rede_social=None, com_site=None, capital_min=None, capital_max=None,
                  com_processos=None, com_sancoes=None, com_ambiental=None, com_divida=None,
                  com_trabalho_escravo=None, com_cepim=None, com_leniencia=None,
                  com_contratos_governamentais=None,
@@ -733,17 +736,22 @@ def _filtros_sql(*, tem_contato=False, tem_fts=False, tem_contratos=False,
             where.append("EXISTS (SELECT 1 FROM integridade_empresas ie WHERE ie.cnpj = e.cnpj "
                          f"AND ie.nivel IN ({','.join('?' for _ in niveis_integ)}))")
             params.extend(niveis_integ)
-    if com_whatsapp or com_rede_social:
-        if not tem_contato:
-            where.append("0")  # etapa `contato` ainda não rodou → sem resultados
+    if com_whatsapp:
+        # Removido em 15/11/2026: era só um palpite pelo formato do telefone e a
+        # tabela antiga (enriquecimento_contato) nunca foi preenchida. O
+        # parâmetro continua aceito por compatibilidade, sem resultados.
+        where.append("0")
+    if com_rede_social or com_site:
+        # Site/redes com prova de titularidade (ETL redes_sociais.py), por raiz.
+        if not _tem_tabela("redes_sociais"):
+            where.append("0")
         else:
-            if com_whatsapp:
-                where.append("EXISTS (SELECT 1 FROM enriquecimento_contato ec "
-                             "WHERE ec.cnpj_empresa = e.cnpj AND ec.whatsapp IS NOT NULL)")
+            if com_site:
+                where.append("EXISTS (SELECT 1 FROM redes_sociais rs "
+                             "WHERE rs.cnpj_basico = substr(e.cnpj, 1, 8) AND rs.site IS NOT NULL)")
             if com_rede_social:
-                where.append("EXISTS (SELECT 1 FROM enriquecimento_contato ec "
-                             "WHERE ec.cnpj_empresa = e.cnpj AND (ec.instagram IS NOT NULL "
-                             "OR ec.facebook IS NOT NULL OR ec.linkedin IS NOT NULL))")
+                where.append("EXISTS (SELECT 1 FROM redes_sociais rs "
+                             f"WHERE rs.cnpj_basico = substr(e.cnpj, 1, 8) AND {_TEM_REDE})")
     where_sql = (" WHERE " + " AND ".join(where)) if where else ""
     return where_sql, params
 
@@ -955,7 +963,7 @@ def segmentos() -> list:
 def buscar_empresas(municipio=None, cnae=None, cnae_prefix=None, porte=None,
                     regime_tributario=None, texto=None, tem_pendencia=None,
                     com_telefone=None, com_email=None, com_whatsapp=None,
-                    com_rede_social=None, capital_min=None, capital_max=None,
+                    com_rede_social=None, com_site=None, capital_min=None, capital_max=None,
                     com_processos=None, com_sancoes=None, com_ambiental=None,
                     com_divida=None, com_trabalho_escravo=None, com_cepim=None,
                     com_leniencia=None, com_contratos_governamentais=None,
@@ -1001,7 +1009,7 @@ def buscar_empresas(municipio=None, cnae=None, cnae_prefix=None, porte=None,
             cnae_prefix=cnae_prefix, porte=porte, regime_tributario=regime_tributario,
             texto=texto, tem_pendencia=tem_pendencia, com_telefone=com_telefone,
             com_email=com_email, com_whatsapp=com_whatsapp,
-            com_rede_social=com_rede_social, capital_min=capital_min, capital_max=capital_max,
+            com_rede_social=com_rede_social, com_site=com_site, capital_min=capital_min, capital_max=capital_max,
             com_processos=com_processos, com_sancoes=com_sancoes,
             com_ambiental=com_ambiental, com_divida=com_divida,
             com_trabalho_escravo=com_trabalho_escravo, com_cepim=com_cepim,
@@ -1249,12 +1257,15 @@ def classificar_empresas(objetivo="generico", pref_telefone=None, pref_email=Non
         divida = "EXISTS (SELECT 1 FROM dividas_ativas d WHERE d.cnpj_empresa = e.cnpj)"
         tel = _tel_valido()
         eml = "(e.email IS NOT NULL AND e.email != '')"
-        if tem_contato:
-            site = ("EXISTS (SELECT 1 FROM enriquecimento_contato ec WHERE ec.cnpj_empresa = e.cnpj "
-                    "AND (ec.site IS NOT NULL OR ec.instagram IS NOT NULL OR ec.facebook IS NOT NULL OR ec.linkedin IS NOT NULL))")
-            wpp = "EXISTS (SELECT 1 FROM enriquecimento_contato ec WHERE ec.cnpj_empresa = e.cnpj AND ec.whatsapp IS NOT NULL)"
+        # Presença digital = site confirmado (tabela redes_sociais, por raiz).
+        # "Sem site" quer dizer sem site CONFIRMADO: a coleta ainda não cobre
+        # todas as empresas. WhatsApp não é mais pontuado (era só palpite).
+        if _tabela_existe(conn, "redes_sociais"):
+            site = ("EXISTS (SELECT 1 FROM redes_sociais rs WHERE rs.cnpj_basico = substr(e.cnpj, 1, 8) "
+                    "AND rs.site IS NOT NULL)")
         else:
-            site, wpp = "0", "0"
+            site = "0"
+        wpp = "0"
 
         termos, score_params = [], []          # (expr, peso)
         if pref_telefone: termos.append((tel, 15))
