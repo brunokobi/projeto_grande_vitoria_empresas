@@ -20,7 +20,7 @@ sócio estrangeiro/GAFI, grupo econômico, vínculo conferido do processo) estã
 [API REST](https://empresas.brunokobi.tech/docs), ainda não no MCP. Os filtros
 `com_site` (site confirmado) e `com_rede_social` (rede publicada nesse site) leem a
 tabela `redes_sociais` — dado provável, e a coleta começa pelas maiores empresas.
-`com_whatsapp` foi descontinuado (nunca teve dados) e não retorna empresas.
+`com_whatsapp` exige o WhatsApp que a própria empresa publica nesse site (link wa.me / api.whatsapp.com).
 
 Exemplos de perguntas: *"quantas empresas ativas há em Vila Velha?"*, *"restaurantes
 em Vitória com e-mail e sem dívida ativa"*, *"classifique como lead de contabilidade

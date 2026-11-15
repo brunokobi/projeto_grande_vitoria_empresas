@@ -142,7 +142,8 @@ def buscar_empresas(
       órgão sancionador exato (ver ferramenta orgaos_sancionadores pra
       lista completa).
     - com_telefone / com_email: True exige o contato preenchido.
-    - com_whatsapp: descontinuado (nunca teve dados); não retorna empresas.
+    - com_whatsapp: True exige WhatsApp publicado pela própria empresa no
+      site confirmado (link wa.me / api.whatsapp.com). Dado provável.
     - com_site: True exige site confirmado como da empresa (Registro.br, CNPJ
       no site ou e-mail da Receita compatível). Dado provável; a coleta começa
       pelas maiores empresas e ainda não cobre a base toda.
@@ -343,9 +344,9 @@ def classificar_empresas(
       "marketing" (prioriza quem NÃO tem site/redes = oportunidade digital),
       "credito" (prioriza empresas sem pendências), "software" (porte +
       presença digital), "generico" (equilibrado).
-    - pref_telefone/pref_email/pref_rede: dão pontos a quem tem esse canal
-      (pref_rede = site confirmado). pref_whatsapp foi descontinuado e não
-      pontua (não há dado de WhatsApp).
+    - pref_telefone/pref_email/pref_whatsapp/pref_rede: dão pontos a quem tem
+      esse canal (pref_rede = site confirmado; pref_whatsapp = WhatsApp
+      publicado no site da empresa).
     - portes: lista de códigos de porte alvo (pontua quem está na lista).
     - presenca: "com" | "sem" | "indiferente" (presença digital = site
       confirmado; "sem" quer dizer sem site confirmado, já que a coleta ainda

@@ -186,5 +186,7 @@ circularidade com a hipótese de metapath sócio-comum daquela dissertação (ve
   `enriquecimento_contato`: WhatsApp derivado do telefone, site do e-mail)
   **nunca rodou na base completa**; a tabela publicada está vazia. Desde
   15/11/2026 os filtros `com_site`/`com_rede_social` e a presença digital da
-  classificação de leads leem `redes_sociais`; `com_whatsapp`/`pref_whatsapp`
-  foram descontinuados (aceitos por compatibilidade, sem resultado/pontos).
+  classificação de leads leem `redes_sociais`. `com_whatsapp`/`pref_whatsapp`
+  usam `redes_sociais.whatsapp`: só o WhatsApp que a empresa publica no próprio
+  site (não existe forma oficial de checar se um número tem WhatsApp; o
+  palpite antigo pelo formato do telefone foi abandonado).

@@ -91,7 +91,7 @@ def filtros_comuns(
     tem_pendencia: bool = Query(None),
     com_telefone: bool = Query(None),
     com_email: bool = Query(None),
-    com_whatsapp: bool = Query(None, description="Descontinuado (15/11/2026): era só um palpite pelo formato do telefone e nunca teve dados. Aceito por compatibilidade, não retorna empresas", deprecated=True),
+    com_whatsapp: bool = Query(None, description="WhatsApp publicado pela própria empresa no site confirmado (link wa.me / api.whatsapp.com; tabela redes_sociais). Dado provável; a coleta começa pelas maiores empresas"),
     com_rede_social: bool = Query(None, description="Rede social (Instagram, Facebook, LinkedIn, YouTube, X ou TikTok) publicada no site confirmado da empresa (tabela redes_sociais, por raiz de CNPJ). Dado provável; a coleta começa pelas maiores empresas"),
     com_site: bool = Query(None, description="Site confirmado como da empresa: domínio no mesmo CNPJ no Registro.br, CNPJ exibido no site ou domínio do e-mail da Receita compatível com o nome. Dado provável; a coleta começa pelas maiores empresas"),
     com_processos: bool = Query(None, description="Só empresas com processos judiciais"),

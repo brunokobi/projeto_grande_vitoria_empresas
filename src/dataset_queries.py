@@ -305,12 +305,30 @@ def _tem_tabela(nome: str) -> bool:
     return nome in _tabelas_cache["nomes"]
 
 
-# Validação do vínculo empresa↔processo (processos_djen_resumo.validacao, ver
-# djen_completo.gerar_resumo no ETL). Só as que ficam no site — cnpj_divergente
-# e homonimo_provavel já são descartadas.
+_colunas_cache = {"mtime": None, "cols": {}}
+
+
+def _tem_coluna(tabela: str, coluna: str) -> bool:
+    """Coluna existe (cacheado pelo mtime do banco) — para colunas que chegam
+    depois da tabela, ex.: redes_sociais.whatsapp (15/11/2026)."""
+    if not _tem_tabela(tabela):
+        return False
+    mtime = _tabelas_cache["mtime"]
+    if _colunas_cache["mtime"] != mtime:
+        _colunas_cache.update(mtime=mtime, cols={})
+    if tabela not in _colunas_cache["cols"]:
+        with _conn() as c:
+            _colunas_cache["cols"][tabela] = frozenset(r[1] for r in c.execute(f"PRAGMA table_info({tabela})"))
+    return coluna in _colunas_cache["cols"][tabela]
+
+
 # Raiz com alguma rede social publicada no próprio site (tabela redes_sociais).
 _TEM_REDE = ("(rs.instagram IS NOT NULL OR rs.facebook IS NOT NULL OR rs.linkedin IS NOT NULL "
              "OR rs.youtube IS NOT NULL OR rs.x IS NOT NULL OR rs.tiktok IS NOT NULL)")
+
+# Validação do vínculo empresa↔processo (processos_djen_resumo.validacao, ver
+# djen_completo.gerar_resumo no ETL). Só as que ficam no site — cnpj_divergente
+# e homonimo_provavel já são descartadas.
 VALIDACOES_PROCESSO = ("cnpj_confirmado", "nome_unico_brasil", "nome_repetido", "homonimo_mesmo_estado")
 RELACOES_GRUPO = ("socio_em_comum", "empresa_socia", "participacao")
 
@@ -736,12 +754,7 @@ def _filtros_sql(*, tem_contato=False, tem_fts=False, tem_contratos=False,
             where.append("EXISTS (SELECT 1 FROM integridade_empresas ie WHERE ie.cnpj = e.cnpj "
                          f"AND ie.nivel IN ({','.join('?' for _ in niveis_integ)}))")
             params.extend(niveis_integ)
-    if com_whatsapp:
-        # Removido em 15/11/2026: era só um palpite pelo formato do telefone e a
-        # tabela antiga (enriquecimento_contato) nunca foi preenchida. O
-        # parâmetro continua aceito por compatibilidade, sem resultados.
-        where.append("0")
-    if com_rede_social or com_site:
+    if com_rede_social or com_site or com_whatsapp:
         # Site/redes com prova de titularidade (ETL redes_sociais.py), por raiz.
         if not _tem_tabela("redes_sociais"):
             where.append("0")
@@ -752,6 +765,14 @@ def _filtros_sql(*, tem_contato=False, tem_fts=False, tem_contratos=False,
             if com_rede_social:
                 where.append("EXISTS (SELECT 1 FROM redes_sociais rs "
                              f"WHERE rs.cnpj_basico = substr(e.cnpj, 1, 8) AND {_TEM_REDE})")
+            if com_whatsapp:
+                # WhatsApp publicado pela própria empresa no site confirmado
+                # (desde 15/11/2026; antes era palpite pelo telefone, sem dados).
+                if not _tem_coluna("redes_sociais", "whatsapp"):
+                    where.append("0")
+                else:
+                    where.append("EXISTS (SELECT 1 FROM redes_sociais rs "
+                                 "WHERE rs.cnpj_basico = substr(e.cnpj, 1, 8) AND rs.whatsapp IS NOT NULL)")
     where_sql = (" WHERE " + " AND ".join(where)) if where else ""
     return where_sql, params
 
@@ -1259,13 +1280,14 @@ def classificar_empresas(objetivo="generico", pref_telefone=None, pref_email=Non
         eml = "(e.email IS NOT NULL AND e.email != '')"
         # Presença digital = site confirmado (tabela redes_sociais, por raiz).
         # "Sem site" quer dizer sem site CONFIRMADO: a coleta ainda não cobre
-        # todas as empresas. WhatsApp não é mais pontuado (era só palpite).
+        # todas as empresas. WhatsApp = publicado pela empresa no próprio site.
         if _tabela_existe(conn, "redes_sociais"):
             site = ("EXISTS (SELECT 1 FROM redes_sociais rs WHERE rs.cnpj_basico = substr(e.cnpj, 1, 8) "
                     "AND rs.site IS NOT NULL)")
         else:
             site = "0"
-        wpp = "0"
+        wpp = ("EXISTS (SELECT 1 FROM redes_sociais rs WHERE rs.cnpj_basico = substr(e.cnpj, 1, 8) "
+               "AND rs.whatsapp IS NOT NULL)") if _tem_coluna("redes_sociais", "whatsapp") else "0"
 
         termos, score_params = [], []          # (expr, peso)
         if pref_telefone: termos.append((tel, 15))
@@ -1564,9 +1586,10 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
         # por RAIZ). Dado provável: o modal exibe com aviso.
         redes_sociais = None
         if _tabela_existe(conn, "redes_sociais"):
+            wpp_col = ", whatsapp" if _tem_coluna("redes_sociais", "whatsapp") else ""
             r = conn.execute(
                 "SELECT site, dominio, prova, titular_rdap, instagram, facebook, linkedin, youtube, "
-                "x, tiktok, atualizado_em FROM redes_sociais WHERE cnpj_basico = ?", (cnpj[:8],)).fetchone()
+                f"x, tiktok, atualizado_em{wpp_col} FROM redes_sociais WHERE cnpj_basico = ?", (cnpj[:8],)).fetchone()
             redes_sociais = dict(r) if r else None
         processos_descartados = []
         if tem_desc:
