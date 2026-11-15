@@ -435,6 +435,7 @@
       </div>
       <label class="chk" id="row_amb"><input type="checkbox" id="f_amb"> Com infração ambiental</label>
       <label class="chk" id="row_div"><input type="checkbox" id="f_div"> Com dívida ativa</label>
+      <label class="chk" id="row_insolv" style="display:none" title="A Receita Federal registra EM RECUPERAÇÃO JUDICIAL ou MASSA FALIDA na razão social da empresa"><input type="checkbox" id="f_insolv"> Em recuperação judicial / falência</label>
       <label class="chk" id="row_contumaz" style="display:none" title="Grupo (raiz do CNPJ) na lista oficial de devedores contumazes de ICMS da SEFAZ-ES (Lei 12.124/2024)"><input type="checkbox" id="f_contumaz"> Devedor contumaz de ICMS (ES)</label>
       <label class="chk" id="row_lenienc"><input type="checkbox" id="f_lenienc"> Acordo de leniência</label>
       <label class="chk" id="row_contratos"><input type="checkbox" id="f_contratos"> Contratos com órgãos públicos</label>
@@ -637,6 +638,7 @@ function query(){
   if($("f_amb").checked) p.set("com_ambiental","true");
   if($("f_div").checked) p.set("com_divida","true");
   if($("f_contumaz").checked) p.set("com_devedor_contumaz","true");
+  if($("f_insolv").checked) p.set("com_insolvencia","true");
   if($("f_lenienc").checked) p.set("com_leniencia","true");
   if($("f_contratos").checked) p.set("com_contratos_governamentais","true");
   if($("f_ben").checked){
@@ -741,6 +743,7 @@ async function initEstat(){
   $("f_dd_fonte").innerHTML = Object.keys(_FONTE_DD).filter(f=>porFonte[f]>0).map(f=>
     `<label class="chk"><input type="checkbox" value="${f}"> <span>${esc(_FONTE_DD_FILTRO[f]||_FONTE_DD[f][1])} (${fmtN(porFonte[f])})</span></label>`).join("");
   setCnt("row_contumaz", pf.devedor_contumaz_es);
+  setCnt("row_insolv", pf.insolvencia);
   setCnt("row_estrang", pf.socio_estrangeiro);
   setCnt("row_estrang_gafi", pf.socio_estrangeiro_gafi);
   setCnt("row_grupo", pf.grupo_economico);
@@ -1129,6 +1132,18 @@ function _limitarLinhasTabela(linhasArr, limite, colspan){
     + `<tbody id="${id}_btn"><tr><td colspan="${colspan}" style="text-align:center;padding:10px">`
     + `<button class="btn ghost" style="font-size:12px" onclick="document.getElementById('${id}').hidden=false;document.getElementById('${id}_btn').remove();">Mostrar mais ${restantes.toLocaleString('pt-BR')}</button>`
     + `</td></tr></tbody>`;
+}
+// Recuperação judicial / falência. Selo só com o marcador oficial da Receita na
+// razão social; processos dessas classes aparecem como informação neutra (o
+// polo do DJEN não identifica a devedora: credores aparecem como Autor/Réu).
+function renderInsolvencia(ins){
+  if(!ins) return "";
+  const linhas = (ins.processos||[]).map(p=>`<div style="font-size:12px;margin:2px 0">&#9898; <b>${esc(p.classe||"")}</b> · ${esc(p.numero_processo||"")} · ${esc(p.tribunal||"")} · <span style="color:var(--muted)">polo no DJEN: ${esc(p.polo_empresa||"—")}${p.ultima_publicacao?` · última publicação ${fmtData(p.ultima_publicacao)}`:""}</span></div>`).join("");
+  const topo = ins.na_razao_social
+    ? `<div class="alertbar" style="margin:10px 0;display:block;line-height:1.5">&#9888;&#65039; <b>Em recuperação judicial / falência</b> — a Receita Federal registra isso na razão social da empresa.</div>`
+    : "";
+  const aviso = linhas ? `<div style="font-size:12px;color:var(--muted);margin:${topo?"4px":"10px"} 0 2px">&#9878;&#65039; Aparece em ${ins.processos.length} processo(s) de recuperação judicial ou falência. <b>O papel não é identificado com segurança</b>: pode ser a devedora ou uma credora/interessada no processo de outra empresa (bancos e fornecedores aparecem muito assim). Confira no processo.</div>` : "";
+  return topo + aviso + linhas;
 }
 // Lista oficial de devedores contumazes de ICMS da SEFAZ-ES (por raiz do CNPJ).
 function renderContumaz(dc){
@@ -2137,6 +2152,7 @@ async function abrir(cnpj, viaPopstate){
       ${renderDescartados(d.processos_descartados)}
       ${renderProcessos(d.processos_judiciais, qsProc)}
       ${renderProcessos(d.processos_socios, qsProc, true)}
+      ${renderInsolvencia(d.insolvencia)}
       ${renderContumaz(d.devedor_contumaz_es)}
       ${renderDividas(d.dividas_ativas, e.capital_social)}
       ${renderSancoes(d.sancoes_administrativas, qsSanc)}
@@ -2392,6 +2408,7 @@ function abrirSobre(){
       <div class="lista">
         <div class="item"><span class="tag nac" title="Fonte nacional (órgão ou base federal do Brasil)">nacional</span> <b>PGFN</b> — dívida ativa da União: tributos federais (SIDA), <b>FGTS</b> não depositado e contribuições <b>previdenciárias</b> (base antiga do INSS), pelo CNPJ. No modal, o tipo aparece como "FGTS — ..." ou "Previdenciário — ..."</div>
         <div class="item"><span class="tag est" title="Fonte estadual (órgão do Espírito Santo)">estadual</span> <b>SEFAZ-ES</b> — lista oficial de <b>devedores contumazes de ICMS</b> (Lei 12.124/2024), publicada pela Secretaria da Fazenda: grupos que deixaram de recolher ICMS de 6 períodos em 12 meses acima de R$ 1 milhão, ou com mais de R$ 15 milhões em dívida ativa estadual. Cruzada pela raiz do CNPJ. Filtro "Devedor contumaz de ICMS (ES)". Não entra na nota de integridade. A dívida ativa estadual e a municipal (IPTU, ISS) não têm lista aberta: a consulta é individual</div>
+        <div class="item"><span class="tag nac" title="Fonte nacional (órgão ou base federal do Brasil)">nacional</span> <b>Recuperação judicial e falência</b> — o selo e o filtro vêm da <b>Receita Federal</b>, que acrescenta "EM RECUPERAÇÃO JUDICIAL" ou "MASSA FALIDA" à razão social. Os processos dessas classes no <b>DJEN</b> aparecem no modal só como informação: o polo da publicação não diz se a empresa é a devedora ou uma credora no processo de outra (bancos e fornecedores aparecem muito como "Autor" ou "Réu" em recuperações alheias). Filtro "Em recuperação judicial / falência". Não entra na nota de integridade</div>
         <div class="item"><span class="tag nac" title="Fonte nacional (órgão ou base federal do Brasil)">nacional</span> <b>CEIS/CNEP e CEPIM</b> (CGU) — sanções federais. Algumas empresas aparecem por <b>sócio em comum</b> com a entidade sancionada, não por sanção própria. Acordos de leniência: nenhum registro na base até agora</div>
         <div class="item"><span class="tag nac" title="Fonte nacional (órgão ou base federal do Brasil)">nacional</span> <b>MTE</b> — Lista Suja do trabalho escravo (cadastro de empregadores, publicado em PDF)</div>
         <div class="item"><span class="tag est" title="Fonte estadual (órgão do Espírito Santo)">estadual</span> <b>TCEES</b> — sanções do Tribunal de Contas do Espírito Santo</div>
@@ -2579,7 +2596,7 @@ function limpar(){
   // desmarcar cada <option> individualmente.
   ["f_proc_polo","f_proc_classe","f_sanc_tipo","f_ben_tipo","f_vinc_fonte","f_pncp_cat","f_ambiental_prox_tipo","f_risco_geo_grau"].forEach(id=>
     Array.from($(id).options).forEach(o=>o.selected=false));
-  ["f_tel","f_email","f_site","f_rede","f_wpp","f_proc","f_sanc","f_amb","f_div","f_contumaz","f_lenienc","f_contratos","f_ben","f_vinculo","f_pncp","f_dd","f_dd_forte","f_estrang","f_estrang_gafi","f_grupo","f_marca","f_uc","f_ambiental_prox","f_risco_geo"].forEach(id=>$(id).checked=false);
+  ["f_tel","f_email","f_site","f_rede","f_wpp","f_proc","f_sanc","f_amb","f_div","f_contumaz","f_insolv","f_lenienc","f_contratos","f_ben","f_vinculo","f_pncp","f_dd","f_dd_forte","f_estrang","f_estrang_gafi","f_grupo","f_marca","f_uc","f_ambiental_prox","f_risco_geo"].forEach(id=>$(id).checked=false);
   document.querySelectorAll("#f_proc_valid input, #f_grupo_rel input").forEach(cb=>cb.checked=false);
   $("f_grupo_min").value="";
   toggleSubmenuEstrang(); toggleSubmenuGrupo();

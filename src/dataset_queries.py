@@ -326,6 +326,17 @@ def _tem_coluna(tabela: str, coluna: str) -> bool:
 _TEM_REDE = ("(rs.instagram IS NOT NULL OR rs.facebook IS NOT NULL OR rs.linkedin IS NOT NULL "
              "OR rs.youtube IS NOT NULL OR rs.x IS NOT NULL OR rs.tiktok IS NOT NULL)")
 
+# Recuperação judicial / falência (desde 15/11/2026). A MARCA (selo e filtro)
+# vem só da Receita, que acrescenta "EM RECUPERACAO JUDICIAL" / "MASSA FALIDA"
+# à razão social — exato. Os processos do DJEN dessas classes aparecem no modal
+# como informação neutra: o polo do DJEN não identifica a devedora (testado em
+# 15/11/2026: Banco do Brasil "Réu" na falência da COFAVI; ADM, Ingram Micro e
+# Viatris "Autor" em recuperações de devedores delas).
+_INSOLV_NOME = ("(e.razao_social LIKE '%RECUPERACAO JUDICIAL%' OR e.razao_social LIKE '%RECUPERAÇÃO JUDICIAL%' "
+                "OR e.razao_social LIKE '%MASSA FALIDA%' OR e.razao_social LIKE '%EM FALENCIA%')")
+_INSOLV_CLASSE = ("(classe LIKE '%RECUPERA%O JUDICIAL%' OR classe LIKE '%RECUPERA%O EXTRAJUDICIAL%' "
+                  "OR classe LIKE 'FAL%NCIA DE EMPRES%' OR classe LIKE 'INSOLV%NCIA REQUERIDA%')")
+
 # Validação do vínculo empresa↔processo (processos_djen_resumo.validacao, ver
 # djen_completo.gerar_resumo no ETL). Só as que ficam no site — cnpj_divergente
 # e homonimo_provavel já são descartadas.
@@ -361,7 +372,7 @@ def _filtros_sql(*, tem_contato=False, tem_fts=False, tem_contratos=False,
                  com_contratos_governamentais=None,
                  com_renuncia_fiscal=None, com_imune_isento=None, com_habilitado_beneficio=None,
                  com_vinculo_politico=None, com_contrato_pncp=None, com_marca_registrada=None,
-                 com_incentivo_estadual=None, com_devedor_contumaz=None, processo_polo=None, processo_classe=None,
+                 com_incentivo_estadual=None, com_devedor_contumaz=None, com_insolvencia=None, processo_polo=None, processo_classe=None,
                  sancao_tipo=None, sancao_orgao=None,
                  com_beneficio_fiscal=None, beneficio_tipo=None,
                  vinculo_fonte=None, pncp_categoria=None,
@@ -760,6 +771,8 @@ def _filtros_sql(*, tem_contato=False, tem_fts=False, tem_contratos=False,
             where.append("0")
         else:
             where.append("substr(e.cnpj, 1, 8) IN (SELECT cnpj_basico FROM devedores_contumazes_es)")
+    if com_insolvencia:
+        where.append(_INSOLV_NOME)
     if com_rede_social or com_site or com_whatsapp:
         # Site/redes com prova de titularidade (ETL redes_sociais.py), por raiz.
         if not _tem_tabela("redes_sociais"):
@@ -883,6 +896,8 @@ def estatisticas() -> dict:
             empresas_por_flag["socio_estrangeiro_gafi"] = conn.execute(
                 "SELECT COUNT(*) FROM empresas WHERE substr(cnpj, 1, 8) IN (SELECT cnpj_basico FROM "
                 "risco_pais_socios WHERE gafi IS NOT NULL AND COALESCE(pais_confirmado, 1) != 0)").fetchone()[0]
+        empresas_por_flag["insolvencia"] = conn.execute(
+            f"SELECT COUNT(*) FROM empresas e WHERE {_INSOLV_NOME}").fetchone()[0]
         if _tabela_existe(conn, "devedores_contumazes_es"):
             empresas_por_flag["devedor_contumaz_es"] = conn.execute(
                 "SELECT COUNT(*) FROM empresas WHERE substr(cnpj, 1, 8) IN "
@@ -1001,7 +1016,7 @@ def buscar_empresas(municipio=None, cnae=None, cnae_prefix=None, porte=None,
                     com_renuncia_fiscal=None, com_imune_isento=None,
                     com_habilitado_beneficio=None, com_vinculo_politico=None,
                     com_contrato_pncp=None, com_marca_registrada=None,
-                    com_incentivo_estadual=None, com_devedor_contumaz=None, processo_polo=None, processo_classe=None,
+                    com_incentivo_estadual=None, com_devedor_contumaz=None, com_insolvencia=None, processo_polo=None, processo_classe=None,
                     sancao_tipo=None, sancao_orgao=None,
                     com_beneficio_fiscal=None, beneficio_tipo=None,
                     vinculo_fonte=None, pncp_categoria=None,
@@ -1050,6 +1065,7 @@ def buscar_empresas(municipio=None, cnae=None, cnae_prefix=None, porte=None,
             com_vinculo_politico=com_vinculo_politico,
             com_contrato_pncp=com_contrato_pncp, com_marca_registrada=com_marca_registrada,
             com_incentivo_estadual=com_incentivo_estadual, com_devedor_contumaz=com_devedor_contumaz,
+            com_insolvencia=com_insolvencia,
             processo_polo=processo_polo, processo_classe=processo_classe,
             sancao_tipo=sancao_tipo, sancao_orgao=sancao_orgao,
             com_beneficio_fiscal=com_beneficio_fiscal, beneficio_tipo=beneficio_tipo,
@@ -1592,6 +1608,21 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
             risco_pais_socios = [dict(r) for r in conn.execute(
                 "SELECT nome_socio, tipo, pais_nome, iso3, gafi, cpi_score, cpi_rank, pais_confirmado, observacao FROM risco_pais_socios "
                 "WHERE cnpj_basico = ? ORDER BY gafi IS NULL, cpi_score", (cnpj[:8],))]
+        # Recuperação judicial / falência: marcador da Receita na razão social +
+        # processos dessas classes como informação neutra (papel não identificado).
+        insolvencia = None
+        rs_upper = (empresa["razao_social"] or "").upper()
+        na_receita = any(t in rs_upper for t in ("RECUPERACAO JUDICIAL", "RECUPERAÇÃO JUDICIAL", "MASSA FALIDA", "EM FALENCIA"))
+        procs_ins = []
+        if _tabela_existe(conn, "processos_djen_resumo"):
+            vals = ",".join(f"'{v}'" for v in VALIDACOES_PROCESSO)
+            procs_ins = [dict(r) for r in conn.execute(
+                f"SELECT numero_processo, tribunal, classe, polo_empresa, orgao, ultima_publicacao, validacao "
+                f"FROM processos_djen_resumo WHERE cnpj_empresa = ? "
+                f"AND validacao IN ({vals}) AND {_INSOLV_CLASSE} ORDER BY ultima_publicacao DESC LIMIT 50",
+                (cnpj,))]
+        if na_receita or procs_ins:
+            insolvencia = {"na_razao_social": na_receita, "processos": procs_ins}
         # Devedor contumaz de ICMS (lista oficial da SEFAZ-ES), por raiz.
         devedor_contumaz_es = None
         if _tabela_existe(conn, "devedores_contumazes_es"):
@@ -1819,6 +1850,7 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
         "risco_pais_socios": risco_pais_socios,
         "redes_sociais": redes_sociais,
         "devedor_contumaz_es": devedor_contumaz_es,
+        "insolvencia": insolvencia,
         "sancoes_administrativas": sancoes,
         "infracoes_ambientais": ambiental,
         "dividas_ativas": dividas,
