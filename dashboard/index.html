@@ -435,6 +435,7 @@
       </div>
       <label class="chk" id="row_amb"><input type="checkbox" id="f_amb"> Com infração ambiental</label>
       <label class="chk" id="row_div"><input type="checkbox" id="f_div"> Com dívida ativa</label>
+      <label class="chk" id="row_par_es" style="display:none" title="Processo Administrativo de Responsabilização (Lei Anticorrupção 12.846/2013) aberto pelo Governo do ES — SECONT. Inclui processos em andamento"><input type="checkbox" id="f_par_es"> Processo anticorrupção no ES (PAR/SECONT)</label>
       <label class="chk" id="row_insolv" style="display:none" title="A Receita Federal registra EM RECUPERAÇÃO JUDICIAL ou MASSA FALIDA na razão social da empresa"><input type="checkbox" id="f_insolv"> Em recuperação judicial / falência</label>
       <label class="chk" id="row_contumaz" style="display:none" title="Grupo (raiz do CNPJ) na lista oficial de devedores contumazes de ICMS da SEFAZ-ES (Lei 12.124/2024)"><input type="checkbox" id="f_contumaz"> Devedor contumaz de ICMS (ES)</label>
       <label class="chk" id="row_lenienc"><input type="checkbox" id="f_lenienc"> Acordo de leniência</label>
@@ -447,6 +448,7 @@
           <option value="IMUNE_ISENTO">Imune/isenta de IRPJ</option>
           <option value="HABILITADO">Habilitada a benefício fiscal</option>
           <option value="COMPETE_ES">Incentivo fiscal ICMS (COMPETE-ES)</option>
+          <option value="INVEST_ES">Incentivo ao investimento (INVEST-ES)</option>
         </select>
       </div>
       <label class="chk" id="row_vinculo"><input type="checkbox" id="f_vinculo" onchange="toggleSubmenuVinculo()"> Vínculo político (sócio)</label>
@@ -457,6 +459,8 @@
           <option value="TSE_CANDIDATURA">Candidatura (TSE)</option>
         </select>
       </div>
+      <label class="chk" id="row_tcees_ct" style="display:none" title="Contratos de prefeituras, câmaras e órgãos estaduais capixabas, informados ao TCEES (desde 2021)"><input type="checkbox" id="f_tcees_ct"> Contrato com prefeitura/órgão do ES (TCEES)</label>
+      <label class="chk" id="row_est_ct" style="display:none" title="Contratos do Governo do Estado do ES (Portal da Transparência / SEGER)"><input type="checkbox" id="f_est_ct"> Contrato com o Governo do ES</label>
       <label class="chk" id="row_pncp"><input type="checkbox" id="f_pncp" onchange="toggleSubmenuPncp()"> Contrato via PNCP</label>
       <div id="pncp_submenu" style="display:none;margin:-4px 0 8px 22px">
         <div class="msdica">nada marcado = qualquer categoria; marcar mais de uma exige contrato de CADA categoria (E, não OU)</div>
@@ -639,6 +643,9 @@ function query(){
   if($("f_div").checked) p.set("com_divida","true");
   if($("f_contumaz").checked) p.set("com_devedor_contumaz","true");
   if($("f_insolv").checked) p.set("com_insolvencia","true");
+  if($("f_par_es").checked) p.set("com_par_es","true");
+  if($("f_tcees_ct").checked) p.set("com_contrato_tcees","true");
+  if($("f_est_ct").checked) p.set("com_contrato_estadual_es","true");
   if($("f_lenienc").checked) p.set("com_leniencia","true");
   if($("f_contratos").checked) p.set("com_contratos_governamentais","true");
   if($("f_ben").checked){
@@ -744,6 +751,9 @@ async function initEstat(){
     `<label class="chk"><input type="checkbox" value="${f}"> <span>${esc(_FONTE_DD_FILTRO[f]||_FONTE_DD[f][1])} (${fmtN(porFonte[f])})</span></label>`).join("");
   setCnt("row_contumaz", pf.devedor_contumaz_es);
   setCnt("row_insolv", pf.insolvencia);
+  setCnt("row_par_es", pf.par_es);
+  setCnt("row_tcees_ct", pf.contrato_tcees);
+  setCnt("row_est_ct", pf.contrato_estadual_es);
   setCnt("row_estrang", pf.socio_estrangeiro);
   setCnt("row_estrang_gafi", pf.socio_estrangeiro_gafi);
   setCnt("row_grupo", pf.grupo_economico);
@@ -1573,7 +1583,7 @@ function renderContratos(arr){
   }));
   return `<div class="sec">📄 Contratos com órgãos públicos (${arr.length})</div>${cards}`;
 }
-const _TIPO_BENEFICIO = {RENUNCIA:"💰 Renúncia fiscal", IMUNE_ISENTO:"⛪ Imune/isento", HABILITADO:"🏗️ Habilitado a benefício", COMPETE_ES:"💵 Incentivo ICMS (Compete-ES)"};
+const _TIPO_BENEFICIO = {RENUNCIA:"💰 Renúncia fiscal", IMUNE_ISENTO:"⛪ Imune/isento", HABILITADO:"🏗️ Habilitado a benefício", COMPETE_ES:"💵 Incentivo ICMS (Compete-ES)", INVEST_ES:"🏭 Incentivo ao investimento (Invest-ES)"};
 function renderBeneficios(arr, filtrado){
   if(!arr||!arr.length){
     return filtrado
@@ -1690,6 +1700,78 @@ function renderVinculos(arr, filtrado){
   }));
   const nota = filtrado ? ` <span style="font-size:11px;color:var(--muted);font-weight:normal;text-transform:none;letter-spacing:0">— filtrado pela fonte da busca atual</span>` : "";
   return `<div class="sec">🏛️ Vínculos políticos (${arr.length})${nota}</div>${cards}`;
+}
+// Contratos informados ao TCEES (prefeituras, câmaras e órgãos estaduais do ES).
+function _kvC(k,v){ return v?`<div><span class="k">${k}</span><span class="val">${v}</span></div>`:""; }
+function renderContratosTcees(c){
+  if(!c||!c.itens||!c.itens.length) return "";
+  const cards = _limitarCards(c.itens.map(x=>{
+    const valor = x.valor_atual||x.valor_total;
+    return `<details class="divida">
+      <summary><b>${valor?fmtBRL(valor):"valor n/d"}</b> <span style="color:var(--muted)">${esc(x.unidade_gestora||"")}</span>
+        ${x.data_assinatura?`<span style="color:var(--muted)">${fmtData(x.data_assinatura)}</span>`:""}</summary>
+      <div class="divida-det">
+        ${_kvC("Objeto", esc((x.objeto||"").slice(0,300)))}
+        ${_kvC("Contratante", esc(x.unidade_gestora))}
+        ${_kvC("Ente / poder", [x.esfera,x.poder].filter(Boolean).map(esc).join(" · "))}
+        ${_kvC("Instrumento", [x.tipo_instrumento, x.numero_instrumento&&("nº "+x.numero_instrumento), x.ano_instrumento].filter(Boolean).map(esc).join(" "))}
+        ${_kvC("Modalidade", esc(x.modalidade))}
+        ${_kvC("Situação", esc(x.situacao))}
+        ${_kvC("Vigência", [fmtData(x.inicio_vigencia),fmtData(x.fim_vigencia)].filter(Boolean).join(" — "))}
+        ${_kvC("Valor do instrumento", x.valor_total?fmtBRL(x.valor_total):"")}
+        ${_kvC("Valor atual", x.valor_atual?fmtBRL(x.valor_atual):"")}
+        ${/^https?:\/\//.test(x.url_instrumento||"")?_kvC("Documento", `<a href="${esc(x.url_instrumento)}" target="_blank" rel="noopener">abrir &#8599;</a>`):""}
+      </div></details>`;
+  }));
+  const mais = c.qtd>c.itens.length ? ` — mostrando os ${c.itens.length} mais recentes` : "";
+  return `<div class="sec">🏛️ Contratos com prefeituras e órgãos do ES — TCEES (${c.qtd} · ${fmtBRL(c.valor_total)})<span style="font-size:11px;color:var(--muted);font-weight:normal;text-transform:none;letter-spacing:0">${mais}</span></div>${cards}`;
+}
+// Contratos do Governo do Estado (Portal da Transparência / SEGER).
+function renderContratosEstaduais(c){
+  if(!c||!c.itens||!c.itens.length) return "";
+  const cards = _limitarCards(c.itens.map(x=>{
+    const valor = x.valor_final||x.valor_inicial;
+    return `<details class="divida">
+      <summary><b>${valor?fmtBRL(valor):"valor n/d"}</b> <span style="color:var(--muted)">${esc(x.orgao||"")}</span>
+        ${x.data_celebracao?`<span style="color:var(--muted)">${fmtData(x.data_celebracao)}</span>`:""}</summary>
+      <div class="divida-det">
+        ${_kvC("Objeto", esc((x.objeto||"").slice(0,300)))}
+        ${_kvC("Órgão", esc(x.orgao))}
+        ${_kvC("Documento", [x.tipo_documento, x.numero_documento].filter(Boolean).map(esc).join(" "))}
+        ${_kvC("Processo", esc(x.numero_processo))}
+        ${_kvC("Modalidade", esc(x.modalidade))}
+        ${_kvC("Tipo de aquisição", esc(x.tipo_aquisicao))}
+        ${_kvC("Situação", esc(x.situacao))}
+        ${_kvC("Vigência", [fmtData(x.inicio_vigencia),fmtData(x.fim_vigencia)].filter(Boolean).join(" — "))}
+        ${_kvC("Valor inicial", x.valor_inicial?fmtBRL(x.valor_inicial):"")}
+        ${_kvC("Valor final", x.valor_final?fmtBRL(x.valor_final):"")}
+      </div></details>`;
+  }));
+  const mais = c.qtd>c.itens.length ? ` — mostrando os ${c.itens.length} mais recentes` : "";
+  return `<div class="sec">🏛️ Contratos com o Governo do ES — Portal da Transparência (${c.qtd} · ${fmtBRL(c.valor_total)})<span style="font-size:11px;color:var(--muted);font-weight:normal;text-transform:none;letter-spacing:0">${mais}</span></div>${cards}`;
+}
+// PAR — processos anticorrupção do Governo do ES (SECONT). Inclui em andamento.
+function renderParEs(arr){
+  if(!arr||!arr.length) return "";
+  const linhas = arr.map(x=>{
+    const decidido = x.data_decisao;
+    return `<details class="divida">
+      <summary><b>Processo ${esc(x.numero_processo||"")}</b> <span class="tag ${decidido?"pend":"ok"}">${decidido?"decidido":"sem decisão publicada"}</span>
+        ${x.valor_multa?`<span style="color:var(--muted)">multa ${fmtBRL(x.valor_multa)}</span>`:""}</summary>
+      <div class="divida-det">
+        ${_kvC("Portaria de instauração", [x.portaria, x.data_portaria&&fmtData(x.data_portaria)].filter(Boolean).map(esc).join(" · "))}
+        ${_kvC("Relatório concluído", fmtData(x.data_relatorio))}
+        ${_kvC("Decisão publicada", fmtData(x.data_decisao))}
+        ${_kvC("Multa", x.valor_multa?fmtBRL(x.valor_multa):"")}
+        ${_kvC("Publicação extraordinária", esc(x.publicacao_extraordinaria))}
+        ${_kvC("Pena da lei de licitações", [x.pena_licitacao, x.periodo_pena].filter(Boolean).map(esc).join(" · "))}
+        ${_kvC("Recurso — decisão", fmtData(x.data_decisao_recurso))}
+        ${_kvC("Recurso — multa", x.valor_multa_recurso?fmtBRL(x.valor_multa_recurso):"")}
+        ${_kvC("Recurso — pena", [x.pena_licitacao_recurso, x.periodo_pena_recurso].filter(Boolean).map(esc).join(" · "))}
+      </div></details>`;
+  }).join("");
+  return `<div class="sec">⚖️ Processo anticorrupção no Governo do ES — PAR/SECONT (${arr.length})</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Processo Administrativo de Responsabilização (Lei 12.846/2013). Processo aberto não é condenação: veja se há decisão publicada.</div>${linhas}`;
 }
 function renderContratosPncp(arr, filtrado){
   if(!arr||!arr.length){
@@ -2152,6 +2234,7 @@ async function abrir(cnpj, viaPopstate){
       ${renderDescartados(d.processos_descartados)}
       ${renderProcessos(d.processos_judiciais, qsProc)}
       ${renderProcessos(d.processos_socios, qsProc, true)}
+      ${renderParEs(d.par_es)}
       ${renderInsolvencia(d.insolvencia)}
       ${renderContumaz(d.devedor_contumaz_es)}
       ${renderDividas(d.dividas_ativas, e.capital_social)}
@@ -2161,6 +2244,8 @@ async function abrir(cnpj, viaPopstate){
       ${renderBeneficios(d.beneficios_fiscais, qsBen)}
       ${renderVinculos(d.vinculos_politicos, qsVinc)}
       ${renderContratosPncp(d.contratos_pncp, qsPncp)}
+      ${renderContratosTcees(d.contratos_tcees)}
+      ${renderContratosEstaduais(d.contratos_estaduais_es)}
       ${renderMarcas(d.marcas_inpi)}
       ${renderOcorrenciasSocios(d.ocorrencias_socios)}
       ${renderRiscoPais(d.risco_pais_socios)}
@@ -2412,6 +2497,7 @@ function abrirSobre(){
         <div class="item"><span class="tag nac" title="Fonte nacional (órgão ou base federal do Brasil)">nacional</span> <b>CEIS/CNEP e CEPIM</b> (CGU) — sanções federais. Algumas empresas aparecem por <b>sócio em comum</b> com a entidade sancionada, não por sanção própria. Acordos de leniência: nenhum registro na base até agora</div>
         <div class="item"><span class="tag nac" title="Fonte nacional (órgão ou base federal do Brasil)">nacional</span> <b>MTE</b> — Lista Suja do trabalho escravo (cadastro de empregadores, publicado em PDF)</div>
         <div class="item"><span class="tag est" title="Fonte estadual (órgão do Espírito Santo)">estadual</span> <b>TCEES</b> — sanções do Tribunal de Contas do Espírito Santo</div>
+        <div class="item"><span class="tag est" title="Fonte estadual (órgão do Espírito Santo)">estadual</span> <b>SECONT-ES — Processos Administrativos de Responsabilização (PAR)</b> — empresas processadas pelo Governo do ES pela Lei Anticorrupção (12.846/2013): portaria, relatório, decisão, multa, pena da lei de licitações e recurso, pelo CNPJ (dados.es.gov.br). Inclui processos <b>sem decisão</b> — processo aberto não é condenação. O CNEP federal só recebe parte desses casos. Filtro "Processo anticorrupção no ES". Não entra na nota de integridade</div>
         <div class="item"><span class="tag nac" title="Fonte nacional (órgão ou base federal do Brasil)">nacional</span> <b>IBAMA</b> — infrações ambientais</div>
         <div class="item"><span class="tag nac" title="Fonte nacional (órgão ou base federal do Brasil)">nacional</span> <b>DJEN/CNJ</b> (Comunica API do PJe) — publicações dos processos, localizadas pelo nome da empresa (a fonte não publica CNPJ). O projeto guarda um <b>arquivo completo</b>: todas as publicações em que a razão social é destinatária confirmada, com partes intimadas, advogados (OAB), tipo de ato e texto. Só conta como pendência quando a empresa aparece como <b>ré</b>. Processos achados pelo <b>nome do sócio</b> aparecem numa seção separada, só de tribunais do ES (TJES, TRT17, TRF2, TRE-ES), e não contam como pendência da empresa</div>
         <div class="item"><span class="tag nac" title="Fonte nacional (órgão ou base federal do Brasil)">nacional</span> <b>DataJud/CNJ</b> (API pública) — o <b>motivo</b> do processo (assuntos da Tabela Processual Unificada do CNJ), classe, órgão julgador, instâncias, data de ajuizamento e movimentações, consultados pelo número do processo. O valor da causa não está no DataJud; quando aparece escrito numa publicação do DJEN, é mostrado com o trecho de onde saiu</div>
@@ -2424,6 +2510,9 @@ function abrirSobre(){
         <div class="item"><span class="tag nac" title="Fonte nacional (órgão ou base federal do Brasil)">nacional</span> <b>INPI</b> — marcas registradas (usado como sinal indireto de atividade/inovação)</div>
         <div class="item"><span class="tag nac" title="Fonte nacional (órgão ou base federal do Brasil)">nacional</span> Renúncia/benefício fiscal federal e habilitação a regime de benefício, quando disponíveis nas bases públicas correspondentes</div>
         <div class="item"><span class="tag est" title="Fonte estadual (órgão do Espírito Santo)">estadual</span> <b>SEDES-ES</b> — Programa COMPETE-ES: incentivo fiscal de ICMS estadual (portaria, vigência, exclusão)</div>
+        <div class="item"><span class="tag est" title="Fonte estadual (órgão do Espírito Santo)">estadual</span> <b>SEDES-ES — INVEST-ES</b> — beneficiários ativos do programa de incentivo ao investimento (lista mais recente publicada em dados.es.gov.br), pelo CNPJ. No filtro de benefício fiscal, tipo "Incentivo ao investimento (INVEST-ES)"</div>
+        <div class="item"><span class="tag est" title="Fonte estadual (órgão do Espírito Santo)">estadual</span> <b>TCEES — instrumentos contratuais</b> — contratos de prefeituras, câmaras e órgãos estaduais capixabas informados ao Tribunal de Contas (desde 2021), pelo CNPJ do contratado: contratante, objeto, vigência e valores. Cobre muito mais prefeituras que o PNCP. Filtro "Contrato com prefeitura/órgão do ES (TCEES)"</div>
+        <div class="item"><span class="tag est" title="Fonte estadual (órgão do Espírito Santo)">estadual</span> <b>Portal da Transparência do ES (SEGER)</b> — contratos do Governo do Estado desde os anos 2000, pelo CNPJ do fornecedor. Parte desses contratos também aparece no PNCP (desde 2021) e no TCEES; cada fonte é mostrada separada, sem somar. Filtro "Contrato com o Governo do ES"</div>
       </div>
       <div class="sec">Vínculos políticos</div>
       <div class="lista">
@@ -2596,7 +2685,7 @@ function limpar(){
   // desmarcar cada <option> individualmente.
   ["f_proc_polo","f_proc_classe","f_sanc_tipo","f_ben_tipo","f_vinc_fonte","f_pncp_cat","f_ambiental_prox_tipo","f_risco_geo_grau"].forEach(id=>
     Array.from($(id).options).forEach(o=>o.selected=false));
-  ["f_tel","f_email","f_site","f_rede","f_wpp","f_proc","f_sanc","f_amb","f_div","f_contumaz","f_insolv","f_lenienc","f_contratos","f_ben","f_vinculo","f_pncp","f_dd","f_dd_forte","f_estrang","f_estrang_gafi","f_grupo","f_marca","f_uc","f_ambiental_prox","f_risco_geo"].forEach(id=>$(id).checked=false);
+  ["f_tel","f_email","f_site","f_rede","f_wpp","f_proc","f_sanc","f_amb","f_div","f_contumaz","f_insolv","f_par_es","f_tcees_ct","f_est_ct","f_lenienc","f_contratos","f_ben","f_vinculo","f_pncp","f_dd","f_dd_forte","f_estrang","f_estrang_gafi","f_grupo","f_marca","f_uc","f_ambiental_prox","f_risco_geo"].forEach(id=>$(id).checked=false);
   document.querySelectorAll("#f_proc_valid input, #f_grupo_rel input").forEach(cb=>cb.checked=false);
   $("f_grupo_min").value="";
   toggleSubmenuEstrang(); toggleSubmenuGrupo();

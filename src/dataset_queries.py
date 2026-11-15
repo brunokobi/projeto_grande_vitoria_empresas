@@ -372,7 +372,7 @@ def _filtros_sql(*, tem_contato=False, tem_fts=False, tem_contratos=False,
                  com_contratos_governamentais=None,
                  com_renuncia_fiscal=None, com_imune_isento=None, com_habilitado_beneficio=None,
                  com_vinculo_politico=None, com_contrato_pncp=None, com_marca_registrada=None,
-                 com_incentivo_estadual=None, com_devedor_contumaz=None, com_insolvencia=None, processo_polo=None, processo_classe=None,
+                 com_incentivo_estadual=None, com_devedor_contumaz=None, com_insolvencia=None, com_par_es=None, com_contrato_tcees=None, com_contrato_estadual_es=None, processo_polo=None, processo_classe=None,
                  sancao_tipo=None, sancao_orgao=None,
                  com_beneficio_fiscal=None, beneficio_tipo=None,
                  vinculo_fonte=None, pncp_categoria=None,
@@ -771,6 +771,13 @@ def _filtros_sql(*, tem_contato=False, tem_fts=False, tem_contratos=False,
             where.append("0")
         else:
             where.append("substr(e.cnpj, 1, 8) IN (SELECT cnpj_basico FROM devedores_contumazes_es)")
+    # Bases do dados.es.gov.br (ETL dados_es_ingest.py), por CNPJ exato.
+    for flag, tabela in ((com_par_es, "processos_responsabilizacao_es"),
+                         (com_contrato_tcees, "contratos_tcees_es"),
+                         (com_contrato_estadual_es, "contratos_estaduais_es")):
+        if flag:
+            where.append(f"EXISTS (SELECT 1 FROM {tabela} x WHERE x.cnpj_empresa = e.cnpj)"
+                         if _tem_tabela(tabela) else "0")
     if com_insolvencia:
         where.append(_INSOLV_NOME)
     if com_rede_social or com_site or com_whatsapp:
@@ -896,6 +903,12 @@ def estatisticas() -> dict:
             empresas_por_flag["socio_estrangeiro_gafi"] = conn.execute(
                 "SELECT COUNT(*) FROM empresas WHERE substr(cnpj, 1, 8) IN (SELECT cnpj_basico FROM "
                 "risco_pais_socios WHERE gafi IS NOT NULL AND COALESCE(pais_confirmado, 1) != 0)").fetchone()[0]
+        for chave, tabela in (("par_es", "processos_responsabilizacao_es"),
+                              ("contrato_tcees", "contratos_tcees_es"),
+                              ("contrato_estadual_es", "contratos_estaduais_es")):
+            if _tabela_existe(conn, tabela):
+                empresas_por_flag[chave] = conn.execute(
+                    f"SELECT COUNT(DISTINCT cnpj_empresa) FROM {tabela}").fetchone()[0]
         empresas_por_flag["insolvencia"] = conn.execute(
             f"SELECT COUNT(*) FROM empresas e WHERE {_INSOLV_NOME}").fetchone()[0]
         if _tabela_existe(conn, "devedores_contumazes_es"):
@@ -942,6 +955,7 @@ def estatisticas() -> dict:
                 ("imune_isento", "IMUNE_ISENTO"),
                 ("habilitado_beneficio", "HABILITADO"),
                 ("incentivo_estadual", "COMPETE_ES"),
+                ("incentivo_invest_es", "INVEST_ES"),
             ):
                 empresas_por_flag[chave] = conn.execute(
                     "SELECT COUNT(DISTINCT cnpj_empresa) FROM beneficios_fiscais WHERE tipo = ?",
@@ -1016,7 +1030,7 @@ def buscar_empresas(municipio=None, cnae=None, cnae_prefix=None, porte=None,
                     com_renuncia_fiscal=None, com_imune_isento=None,
                     com_habilitado_beneficio=None, com_vinculo_politico=None,
                     com_contrato_pncp=None, com_marca_registrada=None,
-                    com_incentivo_estadual=None, com_devedor_contumaz=None, com_insolvencia=None, processo_polo=None, processo_classe=None,
+                    com_incentivo_estadual=None, com_devedor_contumaz=None, com_insolvencia=None, com_par_es=None, com_contrato_tcees=None, com_contrato_estadual_es=None, processo_polo=None, processo_classe=None,
                     sancao_tipo=None, sancao_orgao=None,
                     com_beneficio_fiscal=None, beneficio_tipo=None,
                     vinculo_fonte=None, pncp_categoria=None,
@@ -1065,7 +1079,8 @@ def buscar_empresas(municipio=None, cnae=None, cnae_prefix=None, porte=None,
             com_vinculo_politico=com_vinculo_politico,
             com_contrato_pncp=com_contrato_pncp, com_marca_registrada=com_marca_registrada,
             com_incentivo_estadual=com_incentivo_estadual, com_devedor_contumaz=com_devedor_contumaz,
-            com_insolvencia=com_insolvencia,
+            com_insolvencia=com_insolvencia, com_par_es=com_par_es, com_contrato_tcees=com_contrato_tcees,
+            com_contrato_estadual_es=com_contrato_estadual_es,
             processo_polo=processo_polo, processo_classe=processo_classe,
             sancao_tipo=sancao_tipo, sancao_orgao=sancao_orgao,
             com_beneficio_fiscal=com_beneficio_fiscal, beneficio_tipo=beneficio_tipo,
@@ -1608,6 +1623,34 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
             risco_pais_socios = [dict(r) for r in conn.execute(
                 "SELECT nome_socio, tipo, pais_nome, iso3, gafi, cpi_score, cpi_rank, pais_confirmado, observacao FROM risco_pais_socios "
                 "WHERE cnpj_basico = ? ORDER BY gafi IS NULL, cpi_score", (cnpj[:8],))]
+        # Bases do dados.es.gov.br: PAR (SECONT), contratos TCEES e do Estado.
+        par_es = []
+        if _tabela_existe(conn, "processos_responsabilizacao_es"):
+            par_es = [dict(r) for r in conn.execute(
+                "SELECT numero_processo, portaria, data_portaria, data_relatorio, data_decisao, valor_multa, "
+                "publicacao_extraordinaria, pena_licitacao, periodo_pena, data_decisao_recurso, "
+                "valor_multa_recurso, pena_licitacao_recurso, periodo_pena_recurso "
+                "FROM processos_responsabilizacao_es WHERE cnpj_empresa = ?", (cnpj,))]
+        def _contratos(tabela, cols, ordem):
+            if not _tabela_existe(conn, tabela):
+                return None
+            itens = [dict(r) for r in conn.execute(
+                # Datas com ano impossível na fonte (1753, 3024, 5024...) vão pro fim.
+                f"SELECT {cols} FROM {tabela} WHERE cnpj_empresa = ? ORDER BY "
+                f"CASE WHEN {ordem} BETWEEN '1990' AND strftime('%Y', 'now', '+2 years') THEN {ordem} END DESC "
+                f"LIMIT 100", (cnpj,))]  # em DESC o SQLite já põe NULL por último
+            tot = conn.execute(f"SELECT COUNT(*), SUM(COALESCE(valor_atual_ou_final, 0)) FROM "
+                               f"(SELECT {'COALESCE(valor_atual, valor_total)' if tabela == 'contratos_tcees_es' else 'COALESCE(valor_final, valor_inicial)'} "
+                               f"AS valor_atual_ou_final FROM {tabela} WHERE cnpj_empresa = ?)", (cnpj,)).fetchone()
+            return {"qtd": tot[0], "valor_total": tot[1] or 0, "itens": itens} if tot[0] else None
+        contratos_tcees = _contratos(
+            "contratos_tcees_es", "unidade_gestora, poder, esfera, numero_instrumento, ano_instrumento, "
+            "tipo_instrumento, situacao, modalidade, objeto, data_assinatura, inicio_vigencia, fim_vigencia, "
+            "valor_total, valor_atual, url_instrumento", "COALESCE(data_assinatura, ano_instrumento)")
+        contratos_estaduais = _contratos(
+            "contratos_estaduais_es", "orgao, numero_processo, modalidade, numero_documento, tipo_documento, "
+            "objeto, tipo_aquisicao, situacao, data_celebracao, inicio_vigencia, fim_vigencia, valor_inicial, "
+            "valor_final", "data_celebracao")
         # Recuperação judicial / falência: marcador da Receita na razão social +
         # processos dessas classes como informação neutra (papel não identificado).
         insolvencia = None
@@ -1851,6 +1894,9 @@ def obter_empresa(cnpj: str, processo_polo: str = None, processo_classe: str = N
         "redes_sociais": redes_sociais,
         "devedor_contumaz_es": devedor_contumaz_es,
         "insolvencia": insolvencia,
+        "par_es": par_es,
+        "contratos_tcees": contratos_tcees,
+        "contratos_estaduais_es": contratos_estaduais,
         "sancoes_administrativas": sancoes,
         "infracoes_ambientais": ambiental,
         "dividas_ativas": dividas,
