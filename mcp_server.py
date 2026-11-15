@@ -30,7 +30,11 @@ mcp = FastMCP("grande-vitoria-empresas")
 def estatisticas() -> dict:
     """Panorama geral do dataset: total de empresas, distribuição por
     município/porte/regime tributário, top CNAEs, quantas têm telefone/e-mail
-    e contagem de registros de cada fonte (processos, sanções, etc.)."""
+    e contagem de registros de cada fonte (processos, sanções, etc.), mais
+    `empresas_por_flag` (quantas empresas em cada filtro, inclusive os novos:
+    devedor_contumaz_es, insolvencia, par_es, contrato_tcees,
+    contrato_estadual_es, incentivo_invest_es, socio_estrangeiro, grupo_economico)
+    e a distribuição da nota de integridade."""
     return dataset_queries.estatisticas()
 
 
@@ -113,6 +117,17 @@ def buscar_empresas(
     ambiental_proximidade_tipo: list = None,
     com_risco_geologico: bool = None,
     risco_geologico_grau: list = None,
+    cnpj: str = None,
+    nivel_integridade: list = None,
+    com_ocorrencia_socio: bool = None,
+    ocorrencia_fonte: list = None,
+    ocorrencia_criterio_forte: bool = None,
+    com_socio_estrangeiro: bool = None,
+    socio_estrangeiro_gafi: bool = None,
+    com_grupo_economico: bool = None,
+    grupo_relacao: list = None,
+    grupo_min_empresas: int = None,
+    processo_validacao: list = None,
     capital_min: float = None,
     capital_max: float = None,
     ordenar_por: str = "razao_social",
@@ -155,6 +170,27 @@ def buscar_empresas(
     - com_rede_social: True exige rede social (Instagram, Facebook, LinkedIn,
       YouTube, X ou TikTok) publicada nesse site confirmado.
     - capital_min / capital_max: faixa de capital social (R$).
+    - cnpj: CNPJ (14 dígitos ou só a raiz de 8) — atalho pra achar a empresa.
+    - nivel_integridade: nível da nota de risco de integridade —
+      "Baixo"/"Moderado"/"Alto"/"Crítico" (lista = OU). Pré-calculado com a
+      mesma função do modal; metodologia na página de fontes do site.
+    - com_ocorrencia_socio: True exige sócio com ocorrência em fonte pública
+      (due diligence: cruzamento por CPF mascarado + nome ou só nome, sempre
+      "possível correspondência"). ocorrencia_fonte restringe a fonte(s):
+      PGFN_PF, SERVIDOR_FEDERAL, CEAF, BOLSA_FAMILIA, IBAMA_EMBARGO,
+      BCB_INABILITADO, CVM_SANCIONADOR, TCU_INABILITADO, OFAC, ONU,
+      UK_SANCOES, ICIJ_OFFSHORE (lista = OU). ocorrencia_criterio_forte=True
+      exige o critério mais forte (CPF mascarado + nome).
+    - com_socio_estrangeiro: True exige sócio residente no exterior;
+      socio_estrangeiro_gafi=True só país da lista do GAFI (país com código
+      ambíguo na Receita fica de fora).
+    - com_grupo_economico: True exige ligação societária com outras empresas
+      (base nacional da Receita). grupo_relacao: "socio_em_comum",
+      "empresa_socia", "participacao" (lista = OU); grupo_min_empresas: nº
+      mínimo de OUTRAS empresas ligadas.
+    - processo_validacao: com com_processos, só processos cujo vínculo com a
+      empresa foi conferido: "cnpj_confirmado", "nome_unico_brasil",
+      "nome_repetido", "homonimo_mesmo_estado" (lista = OU).
     - com_contratos_governamentais: True exige contrato com órgão público
       federal (Portal da Transparência).
     - com_renuncia_fiscal: True exige renúncia fiscal federal registrada
@@ -189,7 +225,7 @@ def buscar_empresas(
     - com_beneficio_fiscal: True exige qualquer benefício fiscal (renúncia,
       imune/isento, habilitado ou incentivo ICMS — engloba os 4 filtros
       acima num só). beneficio_tipo restringe o(s) tipo(s) específico(s)
-      (RENUNCIA/IMUNE_ISENTO/HABILITADO/COMPETE_ES) — uma lista é AND,
+      (RENUNCIA/IMUNE_ISENTO/HABILITADO/COMPETE_ES/INVEST_ES) — uma lista é AND,
       exige benefício de CADA tipo listado.
     - com_unidade_conservacao: True exige que a empresa esteja geolocalizada
       DENTRO de alguma Unidade de Conservação ou Zona de Amortecimento
@@ -241,6 +277,12 @@ def buscar_empresas(
         ambiental_proximidade_tipo=ambiental_proximidade_tipo,
         com_risco_geologico=com_risco_geologico,
         risco_geologico_grau=risco_geologico_grau,
+        cnpj=cnpj, nivel_integridade=nivel_integridade,
+        com_ocorrencia_socio=com_ocorrencia_socio, ocorrencia_fonte=ocorrencia_fonte,
+        ocorrencia_criterio_forte=ocorrencia_criterio_forte,
+        com_socio_estrangeiro=com_socio_estrangeiro, socio_estrangeiro_gafi=socio_estrangeiro_gafi,
+        com_grupo_economico=com_grupo_economico, grupo_relacao=grupo_relacao,
+        grupo_min_empresas=grupo_min_empresas, processo_validacao=processo_validacao,
         capital_min=capital_min, capital_max=capital_max, ordenar_por=ordenar_por,
         limite=limite, offset=offset,
     )
@@ -306,10 +348,30 @@ def obter_empresa(cnpj: str, processo_polo: list = None, processo_classe: list =
     de risco geológico/inundação (se a empresa está DENTRO de algum, Defesa
     Civil/CPRM/PMRR Serra-Viana), com um resumo agregado.
 
+    Também traz (quando há dado):
+    - avaliacao_integridade: nota de risco de integridade 0-100, nível e os
+      fatores com fonte e motivo;
+    - processos_descartados (homônimos fora da lista) e processos_socios
+      (processos pessoais dos sócios, só por nome, tribunais do ES);
+    - ocorrencias_socios: due diligence dos sócios (PGFN PF, servidor, CEAF,
+      Bolsa Família, IBAMA, BCB, CVM, OFAC/ONU/UK, ICIJ...);
+    - grupo_economico e risco_pais_socios (GAFI + IPC dos sócios estrangeiros);
+    - redes_sociais: site confirmado (prova: Registro.br, CNPJ no site ou
+      e-mail compatível), redes e WhatsApp publicados no site — dado provável;
+    - devedor_contumaz_es: lista de devedores contumazes de ICMS da SEFAZ-ES;
+    - insolvencia: recuperação judicial/falência (marcador da Receita na
+      razão social + processos dessas classes, papel não identificado);
+    - par_es: processos anticorrupção (PAR) do Governo do ES — SECONT;
+    - contratos_tcees: contratos com prefeituras/órgãos do ES (TCEES, desde
+      2021) e contratos_estaduais_es: contratos do Governo do ES (SEGER),
+      cada um com qtd, valor_total e os 100 mais recentes;
+    - dividas_ativas inclui FGTS e previdenciário (tipo_tributo "FGTS — ..." /
+      "Previdenciário — ..."); beneficios_fiscais inclui COMPETE_ES e INVEST_ES.
+
     processo_polo (Réu/Autor/Terceiro/TODOS) e processo_classe filtram só a
     LISTA de processos devolvida; sancao_tipo/sancao_orgao filtram só a
     LISTA de sanções; beneficio_tipo filtra a LISTA de benefícios fiscais
-    (RENUNCIA/IMUNE_ISENTO/HABILITADO/COMPETE_ES); vinculo_fonte filtra a
+    (RENUNCIA/IMUNE_ISENTO/HABILITADO/COMPETE_ES/INVEST_ES); vinculo_fonte filtra a
     LISTA de vínculos políticos (TSE_DOACAO/TSE_CANDIDATURA); pncp_categoria
     filtra a LISTA de contratos PNCP; ambiental_proximidade_tipo filtra a
     LISTA de proximidade ambiental (fiscalizacao/barragem/outorga) — todos

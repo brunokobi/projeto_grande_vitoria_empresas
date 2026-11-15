@@ -15,12 +15,30 @@ Grande Vitória direto, com estas ferramentas:
 | `classes_processos` | Classes de processo judicial disponíveis (com contagem), pra refinar `com_processos` por `processo_classe` |
 | `orgaos_sancionadores` | Órgãos sancionadores disponíveis (com contagem), pra refinar `com_sancoes` por `sancao_orgao` |
 
-Os filtros mais novos do dashboard (due diligence dos sócios, nível da nota de integridade,
-sócio estrangeiro/GAFI, grupo econômico, vínculo conferido do processo) estão só na
-[API REST](https://empresas.brunokobi.tech/docs), ainda não no MCP. Os filtros
-`com_site` (site confirmado) e `com_rede_social` (rede publicada nesse site) leem a
-tabela `redes_sociais` — dado provável, e a coleta começa pelas maiores empresas.
-`com_whatsapp` exige o WhatsApp que a própria empresa publica nesse site (link wa.me / api.whatsapp.com).
+Desde 15/11/2026 o `buscar_empresas` do MCP tem **todos os filtros da
+[API REST](https://empresas.brunokobi.tech/docs)**, além dos clássicos (município, CNAE,
+porte, pendências, sanções, processos, benefícios, contratos PNCP, ambiental):
+
+| Filtro | O que exige |
+|---|---|
+| `cnpj` | CNPJ (14 dígitos) ou raiz (8) |
+| `nivel_integridade` | Nível da nota de risco de integridade: `Baixo`, `Moderado`, `Alto`, `Crítico` |
+| `com_ocorrencia_socio` / `ocorrencia_fonte` / `ocorrencia_criterio_forte` | Due diligence dos sócios (PGFN PF, servidor, CEAF, Bolsa Família, IBAMA, BCB, CVM, OFAC/ONU/UK, ICIJ) |
+| `com_socio_estrangeiro` / `socio_estrangeiro_gafi` | Sócio no exterior / em país da lista do GAFI |
+| `com_grupo_economico` / `grupo_relacao` / `grupo_min_empresas` | Ligação societária com outras empresas (base nacional da Receita) |
+| `processo_validacao` | Com `com_processos`: só processos com vínculo conferido (`cnpj_confirmado`, `nome_unico_brasil`...) |
+| `com_devedor_contumaz` | Lista de devedores contumazes de ICMS da SEFAZ-ES |
+| `com_insolvencia` | Recuperação judicial / falência (marcador da Receita na razão social) |
+| `com_par_es` | Processo anticorrupção (PAR) no Governo do ES — SECONT |
+| `com_contrato_tcees` / `com_contrato_estadual_es` | Contrato com prefeitura/órgão do ES (TCEES) / com o Governo do ES (SEGER) |
+| `beneficio_tipo` | Inclui `INVEST_ES` além de `COMPETE_ES`, `RENUNCIA`, `IMUNE_ISENTO`, `HABILITADO` |
+| `com_site` / `com_rede_social` / `com_whatsapp` | Site confirmado, rede social e WhatsApp publicados no site da empresa (`redes_sociais`; dado provável, a coleta começa pelas maiores empresas) |
+
+`obter_empresa` devolve todos os blocos do modal: nota de integridade com fatores, due
+diligence, grupo econômico, risco-país, redes sociais, devedor contumaz, recuperação
+judicial, PAR, contratos TCEES e estaduais, dívida ativa (incluindo FGTS e previdenciário)
+e benefícios (incluindo INVEST-ES). `estatisticas` traz em `empresas_por_flag` a contagem
+de cada filtro.
 
 Exemplos de perguntas: *"quantas empresas ativas há em Vila Velha?"*, *"restaurantes
 em Vitória com e-mail e sem dívida ativa"*, *"classifique como lead de contabilidade

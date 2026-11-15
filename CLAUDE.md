@@ -152,9 +152,10 @@ circularidade com a hipótese de metapath sócio-comum daquela dissertação (ve
   `buscar_empresas`, `buscar_empresas_perto`, `obter_empresa`,
   `classificar_empresas`, `ranking_doacoes_eleitorais`, `classes_processos`
   e `orgaos_sancionadores`. Remoto em `https://empresas.brunokobi.tech/mcp/`
-  (montado em `/mcp` pela API); local via `.mcp.json`. Os filtros novos do
-  dashboard (due diligence, nível de integridade, sócio estrangeiro, grupo
-  econômico, vínculo do processo) estão só na API, não no MCP.
+  (montado em `/mcp` pela API); local via `.mcp.json`. Desde 15/11/2026 o
+  `buscar_empresas` do MCP tem os mesmos filtros da API (ver `MCP.md`); ao
+  criar filtro novo em `api.filtros_comuns`, acrescente também no
+  `mcp_server.buscar_empresas`.
 - **API REST** (`api.py`, FastAPI): `/estatisticas`, `/empresas` (com
   filtros), `/empresas/{cnpj}`, `/empresas/perto`, `/mapa`,
   `/empresas/{cnpj}/midia`, `/processos/{numero}/detalhes`, `/classificar`,
