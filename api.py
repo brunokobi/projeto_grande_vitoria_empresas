@@ -20,6 +20,9 @@ from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse, JSO
 import config
 from src import dataset_queries, geocode as geocode_lib, midia, notificar_telegram, processo_detalhes
 from mcp_server import mcp
+from src import contas
+from src.contas_rotas import router as contas_router, exigir_usuario, SITE_URL as _SITE_URL_CONTAS
+from src import seo_paginas, oauth_mcp
 
 # Expõe o mesmo servidor MCP (mcp_server.py) por HTTP em /mcp, além do uso
 # local via stdio (.mcp.json). streamable_http_path vira "/" porque o mount
@@ -61,7 +64,13 @@ app = FastAPI(
     version="2.0.0",
     lifespan=lifespan,
 )
+app.include_router(contas_router)
+app.include_router(seo_paginas.router)
+app.include_router(oauth_mcp.router)
 app.mount("/mcp", mcp_app)
+# Mesmo servidor MCP, mas exigindo login (OAuth 2.1): é o endereço para os
+# conectores do claude.ai e outros clientes que fazem o login sozinhos.
+app.mount("/mcp-conta", oauth_mcp.ExigirToken(mcp_app))
 
 DASHBOARD_HTML = config.BASE_DIR / "dashboard" / "index.html"
 MUNICIPIOS_GEOJSON = config.BASE_DIR / "reference" / "municipios_grande_vitoria.geojson"
@@ -213,7 +222,21 @@ def _dashboard_com_numeros() -> str:
         valores = {"EMPRESAS": "367 mil", "SOCIOS": "243 mil", "PROCESSOS": "5,2 milhões"}
     for chave, valor in valores.items():
         html = html.replace("{{" + chave + "}}", valor)
+    if config.ADSENSE_CLIENT:
+        # Dashboard não exibe anúncio: só a marca de verificação da conta e o
+        # aviso para a política de privacidade mencionar os anúncios das páginas públicas.
+        html = html.replace("</head>", f'<meta name="google-adsense-account" content="{config.ADSENSE_CLIENT}">'
+                            "<script>window.GV_ANUNCIOS=true</script></head>", 1)
     return html
+
+
+@app.get("/ads.txt", include_in_schema=False)
+def ads_txt():
+    """Declaração de vendedor autorizado do AdSense (exigida pelo Google)."""
+    if not config.ADSENSE_CLIENT:
+        return Response("# anúncios desligados\n", media_type="text/plain")
+    pub = config.ADSENSE_CLIENT.replace("ca-pub-", "pub-")
+    return Response(f"google.com, {pub}, DIRECT, f08c47fec0942fa0\n", media_type="text/plain")
 
 
 @app.get("/robots.txt", include_in_schema=False)
@@ -221,29 +244,21 @@ def robots_txt():
     """Libera indexação geral pra buscadores e aponta o sitemap — sem isso
     o Google segue o default (rastreia mesmo assim), mas ficar explícito
     evita qualquer robots.txt "fantasma" de proxy/CDN no meio do caminho."""
-    conteudo = f"User-agent: *\nAllow: /\nSitemap: {SITE_URL}/sitemap.xml\n"
+    # Páginas indexáveis: home, /cidade/... e /empresa/... (src/seo_paginas.py).
+    # Rotas de API/JSON, login e conta ficam de fora (respostas 401 ou sem valor de busca).
+    bloqueadas = ["/empresas", "/mapa", "/export/", "/auth/", "/conta", "/mcp/", "/classificar",
+                  "/geocode", "/processos/", "/kobi-api/", "/oauth/", "/mcp-conta/"]
+    conteudo = ("User-agent: *\nAllow: /\n" + "".join(f"Disallow: {b}\n" for b in bloqueadas)
+                + f"Sitemap: {SITE_URL}/sitemap.xml\n")
     return Response(content=conteudo, media_type="text/plain")
 
 
 @app.get("/sitemap.xml", include_in_schema=False)
 def sitemap_xml():
-    """Sitemap mínimo — só a home (dashboard) e a doc pública da API, que
-    são as páginas com conteúdo pra indexar; /empresas/{cnpj} não entra
-    (são 344 mil páginas dinâmicas, sem valor de SEO individual)."""
-    urls = [
-        (f"{SITE_URL}/", "daily", "1.0"),
-        (f"{SITE_URL}/api", "weekly", "0.5"),
-        (f"{SITE_URL}/docs", "weekly", "0.4"),
-    ]
-    itens = "".join(
-        f"<url><loc>{loc}</loc><changefreq>{freq}</changefreq><priority>{pri}</priority></url>"
-        for loc, freq, pri in urls
-    )
-    conteudo = (
-        '<?xml version="1.0" encoding="UTF-8"?>'
-        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' + itens + "</urlset>"
-    )
-    return Response(content=conteudo, media_type="application/xml")
+    """Índice de sitemaps: páginas fixas, cidades, cidade+atividade e
+    cidade+bairro (/sitemaps/paginas.xml) e uma página por empresa, dividida
+    em blocos de 45 mil (/sitemaps/empresas-N.xml). Ver src/seo_paginas.py."""
+    return seo_paginas.sitemap_indice()
 
 
 @app.get("/og-image.png", include_in_schema=False)
@@ -512,9 +527,36 @@ def geocode(q: str = Query(..., min_length=4)):
     return {"lat": ponto["lat"], "lng": ponto["lon"]}
 
 
-@app.get("/empresas/{cnpj}", summary="Visão 360º de uma empresa pelo CNPJ")
+def _cobrar_relatorio(request: Request, cnpj: str, origem: str) -> dict:
+    """Login + cota mensal do relatório (visão 360º). Sem login → 401; cota
+    esgotada → 429. Os dois devolvem os dados básicos da empresa, pra tela de
+    bloqueio mostrar de quem é o relatório. Rever o mesmo CNPJ no mês não
+    conta de novo."""
+    basico = dataset_queries.dados_basicos_empresa(cnpj)
+    if basico is None:
+        raise HTTPException(status_code=404, detail=f"CNPJ {cnpj} não encontrado.")
+    basico = {"cnpj": cnpj, **basico}
+    if not contas.cadastro_ativo():
+        return None  # cadastro ainda não configurado: relatório aberto, sem cota
+    usuario = contas.usuario_da_requisicao(request)
+    if usuario is None:
+        raise HTTPException(status_code=401, detail={
+            "erro": "login_necessario", "empresa": basico, "cota_gratis": contas.COTA_MENSAL,
+            "mensagem": f"Cadastre-se grátis em {_SITE_URL_CONTAS} para ver {contas.COTA_MENSAL} "
+                        "relatórios completos por mês. Pela API, envie a chave em 'Authorization: Bearer gv_...'."})
+    uso = contas.consumir(usuario, cnpj, origem)
+    if not uso["ok"]:
+        raise HTTPException(status_code=429, detail={
+            "erro": "cota_esgotada", "empresa": basico, **uso,
+            "mensagem": f"Você já usou os {uso['cota']} relatórios de {uso['mes']}. A cota renova no dia 1º; "
+                        "relatórios já abertos neste mês continuam liberados."})
+    return uso
+
+
+@app.get("/empresas/{cnpj}", summary="Visão 360º de uma empresa pelo CNPJ (requer login ou chave; gasta 1 relatório da cota mensal)")
 def get_empresa(
     cnpj: str,
+    request: Request,
     processo_polo: list[str] = Query(None, description="Filtra a lista de processos exibida por polo (Réu/Autor/Terceiro/TODOS, repita o parâmetro pra combinar mais de um) — não afeta o resumo/pendência, que sempre considera o total real"),
     processo_classe: list[str] = Query(None, description="Filtra a lista de processos exibida pela(s) classe(s) exata(s) — repita o parâmetro pra combinar mais de uma"),
     sancao_tipo: list[str] = Query(None, description="Filtra a lista de sanções exibida por tipo (CEIS/CNEP/CEPIM/TRABALHO_ESCRAVO/TCEES - Contas Irregulares/TODOS, repita o parâmetro pra combinar mais de um) — não afeta o resumo/pendência"),
@@ -524,19 +566,29 @@ def get_empresa(
     pncp_categoria: list[str] = Query(None, description="Filtra a lista de contratos PNCP exibida pela(s) categoria(s) exata(s) — repita o parâmetro pra combinar mais de uma; não afeta o resumo"),
     ambiental_proximidade_tipo: list[str] = Query(None, description="Filtra a lista de proximidade ambiental exibida por tipo (fiscalizacao/barragem/outorga) — não afeta o resumo"),
 ):
-    resultado = dataset_queries.obter_empresa(
-        cnpj, processo_polo=processo_polo, processo_classe=processo_classe,
-        sancao_tipo=sancao_tipo, sancao_orgao=sancao_orgao,
-        beneficio_tipo=beneficio_tipo, vinculo_fonte=vinculo_fonte,
-        pncp_categoria=pncp_categoria,
-        ambiental_proximidade_tipo=ambiental_proximidade_tipo)
+    cnpj = "".join(ch for ch in cnpj if ch.isdigit())
+    uso = _cobrar_relatorio(request, cnpj, "site" if request.cookies.get(contas.COOKIE_SESSAO) else "api")
+    try:
+        resultado = dataset_queries.obter_empresa(
+            cnpj, processo_polo=processo_polo, processo_classe=processo_classe,
+            sancao_tipo=sancao_tipo, sancao_orgao=sancao_orgao,
+            beneficio_tipo=beneficio_tipo, vinculo_fonte=vinculo_fonte,
+            pncp_categoria=pncp_categoria,
+            ambiental_proximidade_tipo=ambiental_proximidade_tipo)
+    except Exception:
+        if uso and uso.get("novo"):  # falhou depois de cobrar: devolve a cota
+            contas.estornar(contas.usuario_da_requisicao(request), cnpj, uso["mes"])
+        raise
     if resultado is None:
         raise HTTPException(status_code=404, detail=f"CNPJ {cnpj} não encontrado.")
+    if uso:
+        resultado["cota"] = {k: uso[k] for k in ("usados", "cota", "mes")}
     return resultado
 
 
 @app.get("/empresas/{cnpj}/midia", summary="Menções da empresa na mídia (Google Notícias + GDELT), sob demanda com cache de 7 dias")
-def get_midia_empresa(cnpj: str, forcar: bool = Query(False, description="Ignora o cache e busca de novo")):
+def get_midia_empresa(cnpj: str, forcar: bool = Query(False, description="Ignora o cache e busca de novo"),
+                      _usuario: dict = Depends(exigir_usuario)):
     """Busca a razão social (sem sufixo societário) e o nome fantasia entre aspas
     no Google Notícias e no GDELT. Termos como "fraude"/"operação"/"lavagem" só
     destacam a manchete como *possível* menção negativa (triagem de mídia
@@ -555,6 +607,7 @@ def get_processo_detalhes(
     tribunal: str = Query(..., description="Sigla do tribunal (ex.: TJES, TRT17, TRF2)"),
     fonte: str = Query(..., pattern="^(datajud|djen)$", description="datajud = metadados e movimentações por instância; djen = intimações publicadas (texto, partes, advogados)"),
     forcar: bool = Query(False),
+    _usuario: dict = Depends(exigir_usuario),
 ):
     """Consulta pelo NÚMERO do processo — sem cruzamento por nome. Os campos são
     repassados como a fonte oficial entrega."""
@@ -617,6 +670,7 @@ def _fmt_valor_export(v):
 def export_xlsx(
     filtros: dict = Depends(filtros_comuns),
     colunas: list[str] = Query(None, description="Chaves de /export/colunas — vazio usa a seleção padrão"),
+    _usuario: dict = Depends(exigir_usuario),
 ):
     import pandas as pd
     colunas_validas = dataset_queries.colunas_export_valida(colunas)
@@ -639,6 +693,7 @@ def export_xlsx(
 def export_pdf(
     filtros: dict = Depends(filtros_comuns),
     colunas: list[str] = Query(None, description="Chaves de /export/colunas — vazio usa a seleção padrão"),
+    _usuario: dict = Depends(exigir_usuario),
 ):
     from reportlab.lib.pagesizes import A4, landscape
     from reportlab.lib import colors

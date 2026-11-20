@@ -38,6 +38,14 @@
 | 🖥️ **Dashboard** | **[empresas.brunokobi.tech](https://empresas.brunokobi.tech)** |
 | 🔌 **API REST** | [empresas.brunokobi.tech/docs](https://empresas.brunokobi.tech/docs) |
 | 🤖 **MCP** (Claude, Cursor, Windsurf, VS Code, Cline...) | `https://empresas.brunokobi.tech/mcp/` — instruções por cliente em **[MCP.md](MCP.md)** |
+| 👤 **Cadastro grátis** (Google ou link por e-mail, sem senha) | **10 relatórios completos por mês** (visão 360º de uma empresa), a mesma cota no site, na API e no MCP |
+| 💛 **Apoie** | Pix (celular) `(27) 99945-2979` ou [GitHub Sponsors](https://github.com/sponsors/brunokobi) — botão **Apoiar** no site |
+
+Busca, filtros, mapa, estatísticas e ranking de doações continuam livres, sem
+cadastro. O relatório completo de cada empresa, a exportação Excel/PDF, as
+notícias e os detalhes de processo pedem login. O banco completo continua
+público para download no Release (ver "Começar em 1 comando"): rodando sua
+própria instância, não há cota.
 
 ---
 
@@ -226,19 +234,43 @@ Lógica de consulta compartilhada (`src/dataset_queries.py`) entre dashboard, AP
 - `GET /processos/classes` · `GET /sancoes/orgaos` — valores disponíveis pra `processo_classe`/`sancao_orgao`, com contagem
 - `GET /empresas/perto` — busca por **raio (km) a partir de um ponto** (`lat`/`lon`), ordenado por distância, combinável com os mesmos filtros de `/empresas`
 - `GET /mapa` — pontos geolocalizados (lat/lng) com os mesmos filtros, para o mapa
-- `GET /empresas/{cnpj}` — visão 360º (cadastro, sócios+rede, pendências detalhadas, geo)
+- `GET /empresas/{cnpj}` — visão 360º (cadastro, sócios+rede, pendências detalhadas, geo). **Exige login no site ou chave de API** (`Authorization: Bearer gv_...` ou `X-API-Key`) e gasta 1 relatório da cota mensal (10 grátis; o mesmo CNPJ no mesmo mês não conta de novo). Sem login → `401 login_necessario`; cota esgotada → `429 cota_esgotada` (os dois trazem os dados básicos da empresa)
+- `GET /conta` · `POST /conta/chaves` · `DELETE /conta/chaves/{prefixo}` · `DELETE /conta` — conta, uso do mês, chaves de API e exclusão da conta
+- `GET /doacao` · `GET /doacao/pix.svg` — Pix copia e cola + QR Code e link do GitHub Sponsors
+- `/mcp-conta/` — o mesmo MCP, exigindo login por **OAuth 2.1** (registro dinâmico, PKCE S256): para os conectores do Claude e outros clientes que fazem login sozinhos. Rotas `/.well-known/oauth-*` e `/oauth/{register,authorize,token,revoke}`; `DELETE /conta/aplicativos/{client_id}` desconecta um aplicativo
 - `GET /geocode` — resolve um endereço em lat/lng (fallback do mapa quando a empresa ainda não tem coordenada; combine com `/empresas/perto` pra buscar por endereço)
-- `GET /empresas/{cnpj}/midia` — menções na mídia (Google Notícias + GDELT), cache de 7 dias
-- `GET /processos/{numero}/detalhes` — detalhes de um processo pelo número (DataJud/DJEN), cache de 7 dias
+- `GET /empresas/{cnpj}/midia` — menções na mídia (Google Notícias + GDELT), cache de 7 dias (exige login/chave, não gasta cota)
+- `GET /processos/{numero}/detalhes` — detalhes de um processo pelo número (DataJud/DJEN), cache de 7 dias (exige login/chave, não gasta cota)
 - `GET /classificar` — pontua e ranqueia leads por objetivo comercial
-- `GET /export/empresas.xlsx` · `GET /export/empresas.pdf`
+- `GET /export/empresas.xlsx` · `GET /export/empresas.pdf` (exigem login/chave, não gastam cota)
 - `GET /robots.txt` · `GET /sitemap.xml` · `GET /og-image.png` — SEO/indexação (ver seção abaixo)
 
 ### SEO / indexação em buscadores
-O dashboard tem meta description/keywords, `robots.txt`+`sitemap.xml`, Open Graph/Twitter Card (preview de link) e um bloco **JSON-LD schema.org/Dataset** — esse último é o que alimenta o [Google Dataset Search](https://datasetsearch.research.google.com/). Nada disso muda o layout: são só tags no `<head>` do `dashboard/index.html` e 3 rotas novas na API.
+O dashboard tem meta description/keywords, Open Graph/Twitter Card (preview de link) e um bloco **JSON-LD schema.org/Dataset** — esse último é o que alimenta o [Google Dataset Search](https://datasetsearch.research.google.com/).
+
+Desde 20/11/2026 há **páginas públicas geradas no servidor** (`src/seo_paginas.py`), feitas para buscadores:
+
+| Página | Exemplo |
+|---|---|
+| Empresa | `/empresa/{cnpj}-{nome}` (endereço sem o nome certo redireciona 301) |
+| Cidade | `/cidade/vila-velha` — totais, todas as atividades e bairros |
+| Cidade + atividade (CNAE) | `/cidade/serra/atividade/5611201-restaurantes-e-similares` |
+| Cidade + bairro | `/cidade/vitoria/bairro/jardim-da-penha` (junta grafias diferentes do mesmo bairro) |
+| Inglês | `/en/city/serra`, `/en/city/serra/activity/5611201-restaurants-and-similar-establishments`, `/en/city/vitoria/neighborhood/...` |
+| Espanhol | `/es/ciudad/serra`, `/es/ciudad/serra/actividad/5611201-restaurantes-y-similares`, `/es/ciudad/vitoria/barrio/...` |
+
+As páginas de cidade, atividade e bairro existem em **português, inglês e espanhol**, com `hreflang` (inclusive no sitemap) e seletor PT · EN · ES. As descrições de atividade vêm de `reference/cnaes_en.json` e `reference/cnaes_es.json` (as 1.359 subclasses CNAE, traduzidas no estilo ISIC/CIIU Rev.4; não são tradução oficial do IBGE). A página de cada empresa e o relatório ficam só em português: nome, endereço e registros não se traduzem.
+
+- **Só dado cadastral neutro** da Receita: nome, CNPJ, situação, porte, regime, atividades, endereço e mapa. Processos, dívidas, sanções, sócios, contratos e nota de integridade ficam no relatório completo, com login (botão "Ver relatório completo" em cada página).
+- **MEI:** só bairro e cidade (sem logradouro, número, CEP, mapa ou coordenadas). Telefone e e-mail não aparecem em nenhuma página.
+- **Anúncios (opcional):** com `ADSENSE_CLIENT=ca-pub-...` no ambiente, as páginas públicas exibem anúncios automáticos do Google AdSense e `/ads.txt` declara o vendedor; o dashboard e o relatório nunca têm anúncio. Sem a variável, nada muda.
+- **Remoção a pedido:** CNPJs em `data/seo_remocoes.txt` (um por linha, fora do git) respondem 410 e saem do sitemap.
+- Atividade com menos de 3 empresas ou bairro com menos de 5 ficam `noindex` e fora do sitemap.
+- `GET /sitemap.xml` é um índice: `/sitemaps/paginas.xml` (cidades, atividades e bairros) e `/sitemaps/empresas-N.xml` (45 mil empresas cada). `robots.txt` bloqueia as rotas de API, login e conta.
+- Páginas com cache em memória, renovado quando o banco é trocado; `refresh_dataset.py` cria os índices `empresas(municipio, cnae_principal)` e `empresas(municipio, bairro)`.
 
 ### Servidor MCP
-Ferramentas `estatisticas`, `buscar_empresas`, `buscar_empresas_perto` (busca por raio — aceita coordenada ou um **endereço em texto livre**, geocodificado automaticamente), `obter_empresa`, `classificar_empresas`, `ranking_doacoes_eleitorais`, `classes_processos` e `orgaos_sancionadores` para o Claude e outros clientes MCP. Duas formas de conectar: **remoto**, direto em `https://empresas.brunokobi.tech/mcp/` (sem instalar nada); ou **local**, via `.mcp.json` (detectado automaticamente pelo Claude Code após o `setup.sh`).
+Ferramentas `estatisticas`, `buscar_empresas`, `buscar_empresas_perto` (busca por raio — aceita coordenada ou um **endereço em texto livre**, geocodificado automaticamente), `obter_empresa`, `classificar_empresas`, `ranking_doacoes_eleitorais`, `classes_processos` e `orgaos_sancionadores` para o Claude e outros clientes MCP. Duas formas de conectar: **remoto**, direto em `https://empresas.brunokobi.tech/mcp/` (sem instalar nada); ou **local**, via `.mcp.json` (detectado automaticamente pelo Claude Code após o `setup.sh`). No remoto, `obter_empresa` exige a chave de API da conta e usa a cota mensal; as outras ferramentas são livres. Local não tem limite.
 
 `obter_empresa` já devolve um `resumo` agregado (mesma lógica dos cards do dashboard) com quantidade **e** valor total em R$ de cada categoria — processos, sanções, infrações ambientais, dívida ativa, contratos públicos, renúncia fiscal e contratos PNCP — além do **link direto pro Jusbrasil** em cada processo (`url_jusbrasil`). É dado suficiente pra pedir ao Claude (ou outro cliente MCP) **"me dá um parecer completo dessa empresa"** e receber uma análise em cima de tudo isso, sem precisar cruzar nada manualmente.
 
@@ -294,7 +326,15 @@ e no [Currículo Lattes/CNPq](http://lattes.cnpq.br/3842437456265629) do autor.
 
 ## 💛 Apoie o projeto
 
+**Pix (celular): `(27) 99945-2979`** — o site tem QR Code e Pix copia e cola no botão **💛 Apoiar**.
+Doação é apoio voluntário: não dá cota extra nem outro benefício.
+
 [![GitHub Sponsors](https://img.shields.io/badge/❤%EF%B8%8F%20Apoiar-github.com%2Fsponsors%2Fbrunokobi-ea4aaa?style=flat-square&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/brunokobi) · níveis em [![SPONSORS.md](https://img.shields.io/badge/SPONSORS.md-24292e?style=flat-square&logo=markdown&logoColor=white)](SPONSORS.md)
+
+## 🗺️ Planos
+
+O que já está no ar e o que vem a seguir (cadastro e cota, SEO por CNPJ,
+versões em inglês e espanhol, OAuth no MCP) está em **[docs/PLANOS.md](docs/PLANOS.md)**.
 
 ## 💬 Contato, sugestões e contribuições
 

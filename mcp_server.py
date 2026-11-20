@@ -19,9 +19,9 @@ Configuração no cliente MCP (ex.: claude_desktop_config.json ou .mcp.json):
       }
     }
 """
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 
-from src import dataset_queries, geocode
+from src import contas, dataset_queries, geocode
 
 mcp = FastMCP("grande-vitoria-empresas")
 
@@ -334,7 +334,7 @@ def obter_empresa(cnpj: str, processo_polo: list = None, processo_classe: list =
                    sancao_tipo: list = None, sancao_orgao: str = None,
                    beneficio_tipo: list = None, vinculo_fonte: list = None,
                    pncp_categoria: list = None,
-                   ambiental_proximidade_tipo: list = None) -> dict:
+                   ambiental_proximidade_tipo: list = None, ctx: Context = None) -> dict:
     """Visão 360º de uma empresa pelo CNPJ (14 dígitos): dados cadastrais,
     sócios, complemento JUCEES, geolocalização, todas as pendências
     (processos, sanções, infrações ambientais, dívida ativa), vínculos
@@ -383,16 +383,71 @@ def obter_empresa(cnpj: str, processo_polo: list = None, processo_classe: list =
     risco geológico NÃO contam como pendência jurídico-fiscal (são sinal de
     contexto, não de sanção).
 
-    Retorna null se o CNPJ não estiver na base."""
-    resultado = dataset_queries.obter_empresa(
-        cnpj, processo_polo=processo_polo, processo_classe=processo_classe,
-        sancao_tipo=sancao_tipo, sancao_orgao=sancao_orgao,
-        beneficio_tipo=beneficio_tipo, vinculo_fonte=vinculo_fonte,
-        pncp_categoria=pncp_categoria,
-        ambiental_proximidade_tipo=ambiental_proximidade_tipo)
+    No servidor remoto (https://empresas.brunokobi.tech/mcp/) exige a chave
+    de API da conta (cadastro grátis no site; envie em 'Authorization: Bearer
+    gv_...' ou na URL '?chave=gv_...') e gasta 1 relatório da cota mensal —
+    rever o mesmo CNPJ no mesmo mês não conta de novo. Rodando localmente
+    (stdio), não há limite.
+
+    Retorna {"erro": ...} se o CNPJ não estiver na base."""
+    cnpj = "".join(ch for ch in str(cnpj) if ch.isdigit())
+    uso = _cobrar_relatorio_mcp(ctx, cnpj)
+    if uso is not None and not uso.get("ok"):
+        return uso["bloqueio"]
+    try:
+        resultado = dataset_queries.obter_empresa(
+            cnpj, processo_polo=processo_polo, processo_classe=processo_classe,
+            sancao_tipo=sancao_tipo, sancao_orgao=sancao_orgao,
+            beneficio_tipo=beneficio_tipo, vinculo_fonte=vinculo_fonte,
+            pncp_categoria=pncp_categoria,
+            ambiental_proximidade_tipo=ambiental_proximidade_tipo)
+    except Exception:
+        if uso is not None and uso.get("novo"):  # falhou depois de cobrar: devolve a cota
+            contas.estornar(uso["usuario"], cnpj, uso["mes"])
+        raise
     if resultado is None:
         return {"erro": f"CNPJ {cnpj} não encontrado na base."}
+    if uso is not None:
+        resultado["cota"] = {k: uso[k] for k in ("usados", "cota", "mes")}
     return resultado
+
+
+def _requisicao_http(ctx):
+    """Request HTTP do servidor remoto, ou None no uso local (stdio)."""
+    try:
+        return getattr(ctx.request_context, "request", None) if ctx is not None else None
+    except (ValueError, LookupError, AttributeError):
+        return None
+
+
+def _cobrar_relatorio_mcp(ctx, cnpj: str):
+    """None no uso local (sem cota). No remoto: {"ok": True, ...uso} ou
+    {"ok": False, "bloqueio": {...}} com os dados básicos e a explicação."""
+    req = _requisicao_http(ctx)
+    if req is None or not contas.cadastro_ativo():
+        return None
+    basico = dataset_queries.dados_basicos_empresa(cnpj)
+    if basico is None:
+        return {"ok": False, "bloqueio": {"erro": f"CNPJ {cnpj} não encontrado na base."}}
+    basico = {"cnpj": cnpj, **basico}
+    usuario = contas.usuario_da_requisicao(req)
+    if usuario is None:
+        return {"ok": False, "bloqueio": {
+            "erro": "chave_necessaria", "empresa": basico,
+            "mensagem": "O relatório completo (visão 360º) pelo MCP remoto exige uma chave de API. "
+                        "Cadastre-se grátis em https://empresas.brunokobi.tech (Google ou e-mail), gere a "
+                        "chave em 'Minha conta' e configure o cliente MCP com o cabeçalho "
+                        "'Authorization: Bearer gv_...' ou a URL https://empresas.brunokobi.tech/mcp/?chave=gv_... "
+                        f"— {contas.COTA_MENSAL} relatórios por mês. As outras ferramentas (busca, estatísticas, "
+                        "classificação) continuam livres."}}
+    uso = contas.consumir(usuario, cnpj, "mcp")
+    uso["usuario"] = usuario
+    if not uso["ok"]:
+        return {"ok": False, "bloqueio": {
+            "erro": "cota_esgotada", "empresa": basico, "usados": uso["usados"], "cota": uso["cota"],
+            "mensagem": f"A cota de {uso['cota']} relatórios de {uso['mes']} acabou; renova no dia 1º. "
+                        "Relatórios já abertos neste mês continuam liberados."}}
+    return uso
 
 
 @mcp.tool()

@@ -85,6 +85,18 @@
   .helpbtn{width:36px;height:36px;flex:none;border-radius:50%;background:var(--green-deep);
     border:1px solid var(--green-dim);color:var(--green);font-weight:800;font-size:15px;
     cursor:pointer;font-family:'Courier New',monospace}
+  .btn.conta-on{border-color:var(--green);box-shadow:0 0 10px rgba(0,255,136,.25)}
+  .login-box{max-width:420px;margin:6px auto 0;display:flex;flex-direction:column;gap:10px}
+  .login-box .btn{justify-content:center;padding:11px 15px;font-size:14px}
+  .login-box input{width:100%;box-sizing:border-box;padding:10px 12px}
+  .login-ou{text-align:center;color:var(--muted);font-size:12px}
+  .cota-barra{height:8px;border-radius:5px;background:var(--bg2);border:1px solid var(--line);overflow:hidden;margin:6px 0 4px}
+  .cota-barra > div{height:100%;background:var(--green-dim)}
+  .chave-nova{font-family:'Courier New',monospace;word-break:break-all;background:var(--bg2);border:1px dashed var(--green-dim);
+    border-radius:8px;padding:10px;color:var(--green);margin:6px 0}
+  pre.cfg{background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:10px;overflow:auto;font-size:12px;white-space:pre-wrap;word-break:break-all}
+  .pix-qr{background:#fff;border-radius:10px;padding:8px;width:220px;max-width:70vw;display:block;margin:8px auto}
+  .bloqueio{text-align:center;max-width:520px;margin:0 auto}
   .helpbtn:hover{background:var(--green-dim);color:#04060a;box-shadow:0 0 14px rgba(0,255,136,.4)}
   main{max-width:1500px;margin:0 auto;padding:20px}
   /* stat cards */
@@ -337,8 +349,10 @@
   <button class="btn" onclick="atualizar()" title="Recarregar dados">↻<span class="lbl"> Atualizar</span></button>
   <button class="btn" onclick="abrirExportar('xlsx')" title="Exportar Excel">⬇<span class="lbl"> Excel</span></button>
   <button class="btn" onclick="abrirExportar('pdf')" title="Exportar PDF">⬇<span class="lbl"> PDF</span></button>
-  <button class="btn" onclick="abrirRankingDoacoes()" title="Ranking de doações eleitorais">🗳️<span class="lbl"> Doações</span></button>
+  <button class="btn" onclick="abrirRankingDoacoes()" title="Ranking de doações eleitorais">🗳️<span class="lbl"> Doações TSE</span></button>
   <a class="btn" href="https://github.com/brunokobi/projeto_grande_vitoria_empresas" target="_blank" rel="noopener" title="Ver no GitHub" style="text-decoration:none">🐙<span class="lbl"> GitHub</span></a>
+  <button class="btn" onclick="abrirDoacao()" title="Apoie o projeto (Pix ou GitHub Sponsors)">💛<span class="lbl"> Apoiar</span></button>
+  <button class="btn" id="btnConta" onclick="abrirConta()" title="Entrar / minha conta">👤<span class="lbl" id="btnContaLbl"> Entrar</span></button>
   <button class="helpbtn" onclick="abrirSobre()" title="Sobre as fontes de dados">?</button>
 </header>
 
@@ -573,9 +587,11 @@
 </main>
 
 <footer style="max-width:1500px;margin:8px auto 0;padding:20px 22px 30px;border-top:1px solid var(--line);text-align:center;color:var(--muted);font-size:12px;letter-spacing:.3px">
+  Empresas por cidade: <a href="/cidade/vitoria">Vitória</a> · <a href="/cidade/vila-velha">Vila Velha</a> · <a href="/cidade/serra">Serra</a> · <a href="/cidade/cariacica">Cariacica</a> · <a href="/cidade/viana">Viana</a> · <a href="/cidade/guarapari">Guarapari</a> · <a href="/cidade/fundao">Fundão</a><br>
   © 2026 <a href="https://brunokobi.tech/" target="_blank" rel="noopener" style="font-weight:600">Bruno Kobi</a>. Todos os direitos reservados.<br>
   Dados de fontes públicas oficiais (CPF sempre mascarado) — uso responsável e conforme a LGPD.<br>
   <a href="#" onclick="abrirPrivacidade();return false">Política de privacidade</a> ·
+  <a href="#" onclick="abrirDoacao();return false">💛 Apoie o projeto (Pix)</a> ·
   <a href="mailto:brunokobi2@hotmail.com?subject=LGPD%20-%20pedido%20do%20titular">Solicitar correção ou remoção de dados</a>
 </footer>
 
@@ -596,7 +612,12 @@ const CACHE_MAX = 100;
 async function fetchJSONCached(url){
   if(_reqCache.has(url)) return _reqCache.get(url);
   const resp = await fetch(url);
-  if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  if(!resp.ok){
+    const err = new Error(`HTTP ${resp.status}`);
+    err.status = resp.status;
+    try{ err.body = await resp.json(); }catch(_){}
+    throw err;
+  }
   const data = await resp.json();
   if(_reqCache.size >= CACHE_MAX) _reqCache.delete(_reqCache.keys().next().value);
   _reqCache.set(url, data);
@@ -2094,7 +2115,15 @@ async function abrir(cnpj, viaPopstate){
     qsAmbProx = true;
   }
   const qs = qp.toString() ? "?"+qp.toString() : "";
-  const d = await fetchJSONCached("/empresas/"+cnpj+qs);
+  let d;
+  try{ d = await fetchJSONCached("/empresas/"+cnpj+qs); }
+  catch(err){
+    if(err.status===401 || err.status===429){ renderBloqueio(err.status, (err.body||{}).detail||{}, cnpj); return; }
+    $("modal").innerHTML = `<div class="top"><span class="close" onclick="fechar()">&times;</span><h2>Não foi possível carregar</h2></div>
+      <div class="body"><p>${err.status===404?"CNPJ não encontrado na base.":"Erro ao carregar a empresa. Tente de novo em instantes."}</p></div>`;
+    return;
+  }
+  if(d.cota && _conta && _conta.logado){ _conta.uso.usados = d.cota.usados; atualizarBotaoConta(); }
   const e = d.empresa, c = d.contato||{}, j = d.jucees, rz = d.resumo;
   _empresaModal = e;
   const kv = (icon,k,v)=> `<div><div class="k">${icon} ${k}</div><div class="v">${esc(v)||"-"}</div></div>`;
@@ -2592,20 +2621,207 @@ function mailtoTitular(cnpj, razao){
     `Seu nome:\nQual dado está errado ou você quer remover/se opor:\nPedido (correção / remoção / oposição / acesso):\n`;
   return `mailto:${EMAIL_TITULAR}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(corpo)}`;
 }
+
+// ---------------------------------------------------------------- conta, cota e doação
+// Relatório = visão 360º de uma empresa. Grátis com cadastro (Google ou link por
+// e-mail): N relatórios/mês, mesmo CNPJ no mesmo mês não conta de novo. A mesma
+// cota vale pra API e pro MCP remoto, com chave de API gerada aqui.
+let _conta = null;
+async function carregarConta(){
+  try{ _conta = await (await fetch("/conta", {cache:"no-store"})).json(); }catch(_){ _conta = null; }
+  atualizarBotaoConta();
+  return _conta;
+}
+function atualizarBotaoConta(){
+  const b = $("btnConta"), l = $("btnContaLbl");
+  if(!b || !l) return;
+  // Sem método de login configurado no servidor, o site segue aberto: some o botão.
+  b.style.display = (_conta && _conta.cadastro_ativo === false) ? "none" : "";
+  if(_conta && _conta.logado){
+    l.textContent = ` ${_conta.uso.usados}/${_conta.uso.cota}`;
+    b.title = `${_conta.email} — ${_conta.uso.usados} de ${_conta.uso.cota} relatórios usados este mês`;
+    b.classList.add("conta-on");
+  }else{
+    l.textContent = " Entrar"; b.title = "Entrar / cadastrar (grátis)"; b.classList.remove("conta-on");
+  }
+}
+function htmlLogin(voltarCnpj){
+  const m = (_conta && _conta.metodos_login) || {};
+  const cota = (_conta && _conta.cota_gratis) || 10;
+  voltarCnpj = String(voltarCnpj||"").replace(/\D/g,"");
+  const v = voltarCnpj;
+  if(!m.google && !m.email)
+    return `<p class="bloqueio">O cadastro está sendo ativado. Volte em breve.</p>`;
+  return `<div class="login-box">
+    <p style="margin:0;color:var(--muted);text-align:center">Cadastro grátis, sem senha: <b>${cota} relatórios completos por mês</b> no site, na API e no MCP.</p>
+    ${m.google?`<a class="btn" href="/auth/google${v?`?voltar=${v}`:""}" style="text-decoration:none">🔑 Entrar com Google</a>`:""}
+    ${m.google&&m.email?`<div class="login-ou">ou receba um link no e-mail</div>`:""}
+    ${m.email?`<form onsubmit="pedirLinkEmail(event,'${esc(voltarCnpj||"")}')" style="display:flex;flex-direction:column;gap:8px">
+      <input type="email" id="loginEmail" required placeholder="seu@email.com" autocomplete="email">
+      <button class="btn" type="submit">✉️ Enviar link de acesso</button>
+      <div id="loginMsg" style="font-size:12.5px;color:var(--muted);text-align:center"></div>
+    </form>`:""}
+    <p style="font-size:11.5px;color:var(--muted);text-align:center;margin:4px 0 0">Ao entrar, você concorda com a <a href="#" onclick="abrirPrivacidade();return false">política de privacidade</a>.</p>
+  </div>`;
+}
+async function pedirLinkEmail(ev, voltar){
+  ev.preventDefault();
+  const msg = $("loginMsg"), email = $("loginEmail").value.trim();
+  msg.textContent = "enviando…";
+  try{
+    const r = await fetch("/auth/email", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({email, voltar})});
+    const j = await r.json().catch(()=>({}));
+    msg.textContent = r.ok ? j.mensagem : (j.detail || "Não foi possível enviar agora.");
+  }catch(_){ msg.textContent = "Não foi possível enviar agora."; }
+}
+function renderBloqueio(status, det, cnpj){
+  const emp = det.empresa || {};
+  const nome = esc(emp.razao_social || cnpj);
+  const fant = emp.nome_fantasia ? ` <span style="color:var(--muted)">(${esc(emp.nome_fantasia)})</span>` : "";
+  const corpo = status === 401
+    ? `<p>O relatório completo (processos, dívidas, sanções, sócios, contratos e nota de integridade) é liberado para quem tem cadastro.</p>${htmlLogin(cnpj)}`
+    : `<p>${esc(det.mensagem || "A cota de relatórios deste mês acabou.")}</p>
+       <p style="color:var(--muted);font-size:13px">Gosta do projeto? Uma doação ajuda a manter o servidor e as coletas.</p>
+       <button class="btn" onclick="abrirDoacao()">💛 Apoiar o projeto</button>`;
+  $("modal").innerHTML = `<div class="top"><span class="close" onclick="fechar()">&times;</span>
+      <h2>${nome}${fant}</h2>
+      <div class="sub">CNPJ ${esc(cnpj)}${emp.municipio?` · ${esc(emp.municipio)}`:""}</div></div>
+    <div class="body bloqueio">${corpo}</div>`;
+}
+async function abrirConta(aviso){
+  $("overlay").classList.add("open");
+  $("modal").innerHTML = `<div class="body loading">carregando…</div>`;
+  await carregarConta();
+  const topo = (t)=>`<div class="top"><span class="close" onclick="fechar()">&times;</span><h2>${t}</h2>
+    <div class="sub">Cadastro grátis · ${(_conta&&_conta.cota_gratis)||10} relatórios completos por mês</div></div>`;
+  if(!(_conta && _conta.logado)){
+    $("modal").innerHTML = topo("👤 Entrar ou cadastrar") + `<div class="body">
+      ${aviso?`<p class="bloqueio">${esc(aviso)}</p>`:""}${htmlLogin("")}
+      <div class="sec">O que é livre e o que precisa de cadastro</div>
+      <div class="lista">
+        <div class="item"><b>Livre:</b> busca, filtros, mapa, estatísticas e ranking de doações.</div>
+        <div class="item"><b>Com cadastro:</b> relatório completo de cada empresa (visão 360º), exportação Excel/PDF, notícias e detalhes de processos, e chave para a API e o MCP.</div>
+      </div></div>`;
+    return;
+  }
+  const u = _conta.uso, pct = Math.min(100, Math.round(100*u.usados/Math.max(1,u.cota)));
+  const [ano, mes] = u.mes.split("-");
+  const consultas = u.consultas.length
+    ? u.consultas.map(x=>`<div class="item"><a href="#" onclick="abrir('${esc(x.cnpj)}');return false" class="mono">${esc(x.cnpj)}</a>
+        <span style="color:var(--muted);font-size:12px"> · ${x.origem==="mcp"?"MCP":x.origem==="api"?"API":"site"} · ${new Date(x.criado_em*1000).toLocaleDateString("pt-BR")}</span></div>`).join("")
+    : `<div class="item" style="color:var(--muted)">Nenhum relatório aberto este mês.</div>`;
+  const chaves = _conta.chaves.length
+    ? _conta.chaves.map(k=>`<div class="item" style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <span><span class="mono">${esc(k.prefixo)}…</span> ${k.nome?`· ${esc(k.nome)}`:""}
+          <span style="color:var(--muted);font-size:12px">· ${k.ultimo_uso?"último uso "+new Date(k.ultimo_uso*1000).toLocaleDateString("pt-BR"):"nunca usada"}</span></span>
+        <button class="btn ghost" onclick="revogarChave('${esc(k.prefixo)}')">Revogar</button></div>`).join("")
+    : `<div class="item" style="color:var(--muted)">Nenhuma chave criada.</div>`;
+  const apps = (_conta.aplicativos||[]).length
+    ? _conta.aplicativos.map(a=>`<div class="item" style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <span>${esc(a.nome)} <span style="color:var(--muted);font-size:12px">· conectado em ${new Date(a.desde*1000).toLocaleDateString("pt-BR")}</span></span>
+        <button class="btn ghost" onclick="revogarApp('${esc(String(a.client_id).replace(/[^A-Za-z0-9_-]/g,""))}')">Desconectar</button></div>`).join("")
+    : `<div class="item" style="color:var(--muted)">Nenhum aplicativo conectado.</div>`;
+  $("modal").innerHTML = topo("👤 Minha conta") + `<div class="body">
+    <p style="margin-top:0"><b>${esc(_conta.nome||_conta.email)}</b>${_conta.nome?` <span style="color:var(--muted)">· ${esc(_conta.email)}</span>`:""}</p>
+    <div class="sec">Relatórios de ${mes}/${ano}</div>
+    <div class="cota-barra"><div style="width:${pct}%"></div></div>
+    <div style="font-size:13px"><b>${u.usados}</b> de <b>${u.cota}</b> usados · renova no dia 1º · rever a mesma empresa no mês não conta de novo</div>
+    <div class="lista" style="margin-top:8px">${consultas}</div>
+    <div class="sec">Chaves de API (API REST e MCP)</div>
+    <p style="font-size:13px;color:var(--muted);margin-top:0">A chave usa a mesma cota. No MCP, só o relatório completo (<span class="mono">obter_empresa</span>) gasta cota; busca e estatísticas são livres.</p>
+    <div class="lista">${chaves}</div>
+    <div id="chaveNova"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+      <input id="chaveNome" placeholder="nome da chave (ex.: Claude Desktop)" maxlength="60" style="flex:1;min-width:180px">
+      <button class="btn" onclick="criarChave()">+ Criar chave</button></div>
+    <div class="sec">Aplicativos conectados (MCP com login)</div>
+    <p style="font-size:13px;color:var(--muted);margin-top:0">Conectores que fazem login sozinhos (ex.: conector personalizado do Claude) usam o endereço <span class="mono">${esc(location.origin)}/mcp-conta/</span>, sem chave na URL.</p>
+    <div class="lista">${apps}</div>
+    <div class="sec">Conta</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn ghost" onclick="sairConta()">Sair</button>
+      <button class="btn ghost" onclick="abrirDoacao()">💛 Apoiar o projeto</button>
+      <button class="btn ghost" style="border-color:#c0392b;color:#ff8a80" onclick="excluirConta()">Excluir minha conta</button></div>
+  </div>`;
+}
+async function criarChave(){
+  const r = await fetch("/conta/chaves", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({nome:$("chaveNome").value})});
+  const j = await r.json().catch(()=>({}));
+  if(!r.ok){ alert(j.detail || "Não foi possível criar a chave."); return; }
+  const url = `${location.origin}/mcp/`;
+  await abrirConta();
+  $("chaveNova").innerHTML = `<div class="sec">Sua nova chave (copie agora: ela não aparece de novo)</div>
+    <div class="chave-nova" id="chaveTxt">${esc(j.chave)}</div>
+    <button class="btn ghost" onclick="navigator.clipboard.writeText($('chaveTxt').textContent)">Copiar chave</button>
+    <p style="font-size:13px;margin-bottom:4px">Claude Code:</p>
+    <pre class="cfg">claude mcp add --transport http grande-vitoria ${esc(url)} --header "Authorization: Bearer ${esc(j.chave)}"</pre>
+    <p style="font-size:13px;margin-bottom:4px">Clientes que só aceitam a URL (ex.: conector personalizado):</p>
+    <pre class="cfg">${esc(url)}?chave=${esc(j.chave)}</pre>
+    <p style="font-size:13px;margin-bottom:4px">API REST:</p>
+    <pre class="cfg">curl -H "Authorization: Bearer ${esc(j.chave)}" ${esc(location.origin)}/empresas/CNPJ</pre>`;
+}
+async function revogarChave(prefixo){
+  if(!confirm("Revogar esta chave? Os clientes que a usam deixam de funcionar.")) return;
+  await fetch(`/conta/chaves/${encodeURIComponent(prefixo)}`, {method:"DELETE"});
+  abrirConta();
+}
+async function revogarApp(clientId){
+  if(!confirm("Desconectar este aplicativo? Ele perde o acesso à sua conta.")) return;
+  await fetch(`/conta/aplicativos/${encodeURIComponent(clientId)}`, {method:"DELETE"});
+  abrirConta();
+}
+async function sairConta(){
+  await fetch("/auth/sair", {method:"POST"});
+  _reqCache.clear(); await carregarConta(); fechar();
+}
+async function excluirConta(){
+  if(!confirm("Excluir sua conta? Apaga e-mail, histórico de consultas e chaves de API. Não dá para desfazer.")) return;
+  const r = await fetch("/conta", {method:"DELETE"});
+  if(r.ok){ _reqCache.clear(); await carregarConta(); alert("Conta excluída."); fechar(); }
+  else alert("Não foi possível excluir agora.");
+}
+async function abrirDoacao(){
+  $("overlay").classList.add("open");
+  $("modal").innerHTML = `<div class="body loading">carregando…</div>`;
+  let d = {};
+  try{ d = await (await fetch("/doacao")).json(); }catch(_){}
+  const pix = d.pix || {};
+  $("modal").innerHTML = `<div class="top"><span class="close" onclick="fechar()">&times;</span>
+      <h2>💛 Apoie o projeto</h2><div class="sub">Servidor, coletas diárias e novas fontes públicas</div></div>
+    <div class="body" style="text-align:center">
+      <p style="max-width:520px;margin:0 auto 6px">O site é mantido por uma pessoa, com dinheiro do próprio bolso. Qualquer valor ajuda a pagar o servidor e a manter as fontes atualizadas.</p>
+      <div class="sec" style="text-align:left">Pix (qualquer valor)</div>
+      <img class="pix-qr" src="${esc(pix.qrcode_svg||"/doacao/pix.svg")}" alt="QR Code Pix">
+      <div style="font-size:13px">Chave Pix (celular): <b class="mono">(27) 99945-2979</b></div>
+      <div class="chave-nova" id="pixCopia" style="font-size:11px">${esc(pix.copia_e_cola||"")}</div>
+      <button class="btn" onclick="navigator.clipboard.writeText($('pixCopia').textContent).then(()=>this.textContent='Copiado!')">Copiar Pix copia e cola</button>
+      <div class="sec" style="text-align:left">Outras formas</div>
+      <a class="btn ghost" href="${esc(d.github_sponsors||"https://github.com/sponsors/brunokobi")}" target="_blank" rel="noopener" style="text-decoration:none">🐙 GitHub Sponsors (mensal ou única)</a>
+      <p style="font-size:11.5px;color:var(--muted);margin-top:14px">Doação é apoio voluntário: não dá direito a cota extra nem a outro benefício.</p>
+    </div>`;
+}
 function abrirPrivacidade(){
   $("overlay").classList.add("open");
   $("modal").innerHTML = `
     <div class="top">
       <span class="close" onclick="fechar()">&times;</span>
       <h2>&#128274; Política de privacidade</h2>
-      <div class="sub">Como este site trata dados pessoais (Lei 13.709/2018 — LGPD) · atualizada em 15/11/2026</div>
+      <div class="sub">Como este site trata dados pessoais (Lei 13.709/2018 — LGPD) · atualizada em 20/11/2026</div>
     </div>
     <div class="body">
       <div class="sec">Quem é o responsável</div>
       <p>Projeto independente mantido por <b>Bruno Kobi</b> (pessoa física), que atua como controlador e encarregado pelo tratamento de dados. Contato para qualquer assunto de privacidade: <a href="mailto:${EMAIL_TITULAR}">${EMAIL_TITULAR}</a>.</p>
 
       <div class="sec">Finalidade</div>
-      <p>Reunir, numa consulta só, informações <b>públicas</b> sobre as empresas ativas da Grande Vitória (ES) para transparência, pesquisa, avaliação de risco de integridade antes de contratar ou se relacionar com uma empresa (due diligence) e prospecção comercial entre empresas. O site não vende dados e não faz publicidade.</p>
+      <p>Reunir, numa consulta só, informações <b>públicas</b> sobre as empresas ativas da Grande Vitória (ES) para transparência, pesquisa, avaliação de risco de integridade antes de contratar ou se relacionar com uma empresa (due diligence) e prospecção comercial entre empresas. ${window.GV_ANUNCIOS ? "O site não vende dados. As páginas públicas de cidades, atividades, bairros e empresas exibem anúncios do Google AdSense (veja \"Anúncios\" abaixo); o painel, o relatório e a conta não têm anúncios." : "O site não vende dados e não faz publicidade."}</p>
+
+      <div class="sec">Se você cria uma conta</div>
+      <div class="lista">
+        <div class="item"><b>O que guardamos:</b> seu e-mail, o nome que o Google informa (se entrar com Google), a data do cadastro e do último acesso, os CNPJs cujo relatório você abriu no mês (para contar a cota) e as chaves de API que você criar (guardadas só de forma cifrada, sem como recuperar o valor).</div>
+        <div class="item"><b>Para quê:</b> só para identificar você, controlar a cota mensal de relatórios e permitir o uso pela API e pelo MCP (base legal: execução do serviço que você pediu, art. 7º, V). Não enviamos e-mail de marketing e não repassamos esses dados a ninguém.</div>
+        <div class="item"><b>Serviços envolvidos:</b> o Google, se você escolher entrar com Google, e o serviço que entrega o e-mail com o link de acesso, se escolher o link.</div>
+        <div class="item"><b>Excluir:</b> em <a href="#" onclick="abrirConta();return false">Minha conta</a> → "Excluir minha conta", tudo isso é apagado na hora.</div>
+      </div>
 
       <div class="sec">Quais dados pessoais aparecem</div>
       <div class="lista">
@@ -2621,13 +2837,17 @@ function abrirPrivacidade(){
 
       <div class="sec">Com quem os dados são compartilhados</div>
       <div class="lista">
+        <div class="item"><b>Páginas públicas para buscadores</b> (Google e outros): cada empresa tem uma página só com dados cadastrais da Receita (nome, CNPJ, situação, porte, atividades e endereço). Telefone, e-mail, sócios, processos, dívidas e sanções não aparecem nelas. Em <b>MEI</b>, cujo endereço costuma ser a residência do titular, a página mostra só bairro e cidade, sem mapa. A página pode ser retirada a pedido, pelo e-mail abaixo.</div>
         <div class="item">O conteúdo do site é público, e também fica disponível pela <b>API</b>, pelo <b>servidor MCP</b> e como <b>banco de dados para download</b> no GitHub do projeto.</div>
         <div class="item">Ao gerar o <b>Dossiê com IA</b> (só quando alguém clica no botão), dados da empresa e dos sócios são enviados ao serviço externo <b>OpenRouter</b> para redigir o parecer.</div>
         <div class="item">A busca de <b>notícias</b> (sob demanda) consulta o Google Notícias e o GDELT com o nome da empresa.</div>
       </div>
 
       <div class="sec">Cookies e registros</div>
-      <p>O site não usa cookies de rastreamento nem ferramentas de análise de visitantes. O servidor pode manter registros técnicos de acesso (como endereço IP, data e página) para segurança e funcionamento.</p>
+      <p>${window.GV_ANUNCIOS ? "Fora os cookies do Google AdSense nas páginas públicas (veja \"Anúncios\"), o site não usa cookies de rastreamento nem ferramentas de análise de visitantes." : "O site não usa cookies de rastreamento nem ferramentas de análise de visitantes."} Quem entra na conta recebe um único cookie essencial de sessão (dura 30 dias ou até sair), usado só para manter o login. O servidor pode manter registros técnicos de acesso (como endereço IP, data e página) para segurança e funcionamento.</p>
+
+      ${window.GV_ANUNCIOS ? `<div class="sec">Anúncios</div>
+      <p>As páginas públicas (cidades, atividades, bairros e empresas) exibem anúncios do <b>Google AdSense</b>. O Google e seus parceiros podem usar cookies e identificadores para exibir e medir anúncios, inclusive com base em visitas anteriores a este e a outros sites. Este site não envia ao Google dados das empresas consultadas, da sua conta ou do relatório. Veja <a href="https://policies.google.com/technologies/partner-sites?hl=pt-BR" target="_blank" rel="noopener">como o Google usa dados de sites parceiros</a> e desative anúncios personalizados em <a href="https://adssettings.google.com" target="_blank" rel="noopener">Configurações de anúncios</a>.</p>` : ""}
 
       <div class="sec">Seus direitos como titular (art. 18)</div>
       <p>Você pode pedir <b>confirmação e acesso</b> aos dados, <b>correção</b> de dado incompleto ou errado (por exemplo, um homônimo atribuído a você), <b>oposição</b> ao tratamento e <b>eliminação</b> do que não for necessário à finalidade. Escreva para <a href="mailto:${EMAIL_TITULAR}?subject=${encodeURIComponent("LGPD - pedido do titular")}">${EMAIL_TITULAR}</a> dizendo o CNPJ ou a página e o que deseja. Em cada empresa, o link "Solicitar correção ou remoção" no fim da página já preenche o e-mail. A resposta vem em até 15 dias. Correções feitas aqui não alteram a fonte original: se o erro estiver lá, indicamos onde pedir a correção.</p>
@@ -2638,6 +2858,7 @@ function abrirPrivacidade(){
     </div>`;
 }
 if(location.hash === "#privacidade") window.addEventListener("load", () => abrirPrivacidade());
+if(location.hash === "#apoiar") window.addEventListener("load", () => abrirDoacao());
 function exportar(fmt, colunas){
   const p = query();
   (colunas||[]).forEach(c=>p.append("colunas", c));
@@ -2646,6 +2867,10 @@ function exportar(fmt, colunas){
 let _colunasExportCache = null;
 let _colunasExportSelecionadas = null;
 async function abrirExportar(fmt){
+  if(!(_conta && (_conta.logado || _conta.cadastro_ativo === false))){
+    await carregarConta();
+    if(!(_conta && (_conta.logado || _conta.cadastro_ativo === false))){ abrirConta("Para exportar em Excel ou PDF, entre na sua conta (grátis)."); return; }
+  }
   if(!_colunasExportCache){
     _colunasExportCache = await (await fetch("/export/colunas")).json();
     _colunasExportSelecionadas = new Set(_colunasExportCache.padrao);
@@ -3058,6 +3283,7 @@ window.addEventListener("popstate", ()=>{
   initMapa(); buscar(true);
   initEstat().catch(()=>{ $("stats").innerHTML = `<div class="empty">Não foi possível carregar as estatísticas. <button class="btn ghost" onclick="atualizar()">Tentar de novo</button></div>`; });
   initSegmentos().catch(()=>{});
+  carregarConta().catch(()=>{});
   const cnpjInicial = new URLSearchParams(location.search).get("empresa");
   if(cnpjInicial) abrir(cnpjInicial, true);
 })();

@@ -101,6 +101,9 @@ with gzip.open(gz_tmp, "rb") as fi, open(db_tmp, "wb") as fo:
 _INDICES = (
     ("grupo_economico", "CREATE INDEX IF NOT EXISTS idx_grupo_raiz ON grupo_economico(cnpj_basico)"),
     ("risco_pais_socios", "CREATE INDEX IF NOT EXISTS idx_risco_pais_raiz ON risco_pais_socios(cnpj_basico)"),
+    # Páginas de SEO (src/seo_paginas.py): listas por cidade+atividade e cidade+bairro.
+    ("empresas", "CREATE INDEX IF NOT EXISTS idx_empresas_mun_cnae ON empresas(municipio, cnae_principal)"),
+    ("empresas", "CREATE INDEX IF NOT EXISTS idx_empresas_mun_bairro ON empresas(municipio, bairro)"),
 )
 try:
     with contextlib.closing(sqlite3.connect(db_tmp)) as c:

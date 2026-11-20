@@ -64,6 +64,57 @@ https://empresas.brunokobi.tech/mcp/
 > Repare na **barra final** (`/mcp/`) — sem ela alguns clientes recebem um
 > redirect e podem não seguir automaticamente.
 
+## 🔑 Chave de API (para o relatório completo)
+
+No servidor remoto, **só a ferramenta `obter_empresa`** (visão 360º de um CNPJ)
+exige chave e gasta cota: **10 relatórios por mês, grátis**, a mesma cota do site
+e da API REST. Rever o mesmo CNPJ no mesmo mês não conta de novo. As demais
+ferramentas (`buscar_empresas`, `estatisticas`, `classificar_empresas`...)
+continuam livres, sem chave. Rodando localmente (Opção B) não há limite.
+
+1. Entre em **[empresas.brunokobi.tech](https://empresas.brunokobi.tech)** →
+   **👤 Entrar** (Google ou link por e-mail, sem senha).
+2. Em **Minha conta → Chaves de API**, crie uma chave (`gv_...`). Ela aparece
+   **uma vez só**: copie na hora. Dá para revogar e criar outra a qualquer momento.
+3. Envie a chave de um destes jeitos:
+   - cabeçalho `Authorization: Bearer gv_...` (recomendado — Claude Code, Cursor,
+     VS Code, Cline e `mcp-remote` aceitam cabeçalhos);
+   - na própria URL, para clientes que só aceitam a URL (ex.: conector
+     personalizado do Claude): `https://empresas.brunokobi.tech/mcp/?chave=gv_...`.
+     A chave fica visível na configuração do cliente — trate a URL como senha.
+
+Sem chave, `obter_empresa` devolve só os dados básicos da empresa e a explicação
+de como cadastrar. Com a cota do mês esgotada, devolve `cota_esgotada`. Toda
+resposta com sucesso traz `cota: {usados, cota, mes}`.
+
+### 🔐 Sem chave: endereço com login (OAuth)
+
+Clientes que fazem login sozinhos — como o **conector personalizado do Claude**
+(claude.ai / Claude Desktop: *Settings → Connectors → Add custom connector*) —
+podem usar o endereço com login, sem chave na URL:
+
+```
+https://empresas.brunokobi.tech/mcp-conta/
+```
+
+Ao conectar, o cliente abre o site para você entrar (Google ou e-mail) e pede
+autorização ("Autorizar acesso"). Depois disso as mesmas ferramentas ficam
+disponíveis, e o `obter_empresa` gasta a cota da sua conta. Para desconectar:
+**Minha conta → Aplicativos conectados → Desconectar**. (Por baixo: OAuth 2.1
+com registro dinâmico de cliente e PKCE S256; metadados em
+`/.well-known/oauth-protected-resource/mcp-conta` e
+`/.well-known/oauth-authorization-server`.)
+
+Exemplo de chave no Claude Code:
+
+```bash
+claude mcp add --transport http grande-vitoria-empresas https://empresas.brunokobi.tech/mcp/ \
+  --header "Authorization: Bearer gv_SUA_CHAVE"
+```
+
+Nos clientes com JSON (`"url": ...`), acrescente `"headers": {"Authorization": "Bearer gv_SUA_CHAVE"}`
+ao lado da `url`. No `mcp-remote`: `"args": ["mcp-remote", "https://empresas.brunokobi.tech/mcp/", "--header", "Authorization: Bearer gv_SUA_CHAVE"]`.
+
 ### 🟢 Claude Code
 Arquivo `.mcp.json` (raiz do projeto ou `~/.claude/.mcp.json` para todos os projetos):
 ```json
@@ -288,7 +339,8 @@ Se responder com os números do dataset, está conectado. 🎉
 ## Alternativa sem MCP: API REST
 
 Se seu cliente não suporta MCP, tudo também está disponível por HTTP:
-- **Remoto (já no ar):** `https://empresas.brunokobi.tech/docs`
+- **Remoto (já no ar):** `https://empresas.brunokobi.tech/docs` — `GET /empresas/{cnpj}`
+  exige a mesma chave (`Authorization: Bearer gv_...` ou `X-API-Key`) e usa a mesma cota
 - **Local:**
   ```bash
   source .venv/bin/activate

@@ -175,6 +175,69 @@ circularidade com a hipótese de metapath sócio-comum daquela dissertação (ve
   gratuito quando indisponível).
 - Doação: `.github/FUNDING.yml` → GitHub Sponsors (`brunokobi`).
 
+## Contas, cota mensal e doação (20/11/2026)
+
+- **Regra:** busca/filtros/mapa/estatísticas livres. Relatório (visão 360º,
+  `GET /empresas/{cnpj}` e o `obter_empresa` do MCP **remoto**) exige login ou
+  chave e gasta cota: 10/mês grátis (`COTA_MENSAL`), mesmo CNPJ no mesmo mês
+  não conta de novo. Export, mídia e detalhes de processo pedem login, sem
+  cota. MCP local (stdio) não tem limite: `_requisicao_http(ctx)` é `None`.
+- **Código:** `src/contas.py` (banco, sessões, chaves, cota, e-mail, Google,
+  Pix BR Code) e `src/contas_rotas.py` (rotas `/auth/*`, `/conta*`,
+  `/doacao*`). No dashboard: `carregarConta`, `abrirConta`, `renderBloqueio`,
+  `abrirDoacao`.
+- **Banco separado `data/contas.db`** (ou `CONTAS_DB`). NÃO mover para o
+  `grande_vitoria.db`: o `refresh_dataset.py` troca esse arquivo inteiro a
+  cada 2h e apagaria os usuários. Tokens, chaves e links guardados só como
+  hash SHA-256.
+- **Variáveis** (sem elas o método some da tela): `GOOGLE_CLIENT_ID`,
+  `GOOGLE_CLIENT_SECRET`, `EMAIL_PROVIDER` (brevo|resend), `EMAIL_API_KEY`,
+  `EMAIL_FROM`, `SITE_URL` (padrão o domínio de produção; troque para testar
+  local, senão o cookie sai `Secure` e o redirect do Google aponta pra
+  produção). O serviço `gv-dashboard` não tinha `EnvironmentFile`: é preciso
+  acrescentar para ler o `.env` da pasta do app.
+- **Sem nenhum método configurado** (`contas.cadastro_ativo()` falso) o
+  site fica aberto como antes: sem cota, sem login, sem botão "Entrar".
+- **Link por e-mail** abre uma página com botão (POST) em vez de logar no
+  GET: filtros de e-mail corporativo abrem links sozinhos e queimariam o link
+  de uso único.
+- **Pix:** chave celular do mantenedor em `config.PIX_CHAVE` (pública por
+  decisão dele). Doação não dá cota extra.
+- Planos e próximas fases: `docs/PLANOS.md`.
+
+## Páginas de SEO (20/11/2026)
+
+`src/seo_paginas.py`: `/empresa/{cnpj}-{slug}`, `/cidade/{slug}`,
+`/cidade/{slug}/atividade/{cnae}-{slug}`, `/cidade/{slug}/bairro/{slug}` e
+sitemaps (`/sitemap.xml` é índice). Regras que NÃO devem regredir: só dado
+cadastral neutro (nada de processos/dívidas/sanções/sócios/nota no HTML
+indexável); MEI sem logradouro/número/CEP/mapa/coordenadas; telefone e e-mail
+nunca; `data/seo_remocoes.txt` → 410. Cache em memória chaveado pelo mtime do
+banco. A tela de privacidade descreve essas páginas.
+
+Cidade/atividade/bairro também em inglês (`/en/city/...`) e espanhol
+(`/es/ciudad/...`), textos em `seo_paginas.T` e CNAE em
+`reference/cnaes_{en,es}.json` (tradução própria, não oficial). Página de
+empresa só em português.
+
+## AdSense
+
+`config.ADSENSE_CLIENT` (env `ADSENSE_CLIENT`, vazio = desligado). Anúncios
+automáticos só no `_pagina` de `src/seo_paginas.py` (status 200); NUNCA no
+dashboard/relatório. `/ads.txt` em `api.py`. O dashboard recebe
+`window.GV_ANUNCIOS=true`, que liga os trechos de anúncios na política de
+privacidade.
+
+## MCP com login (OAuth 2.1)
+
+`src/oauth_mcp.py`: `/mcp-conta/` é o mesmo `mcp_app` envolvido por
+`ExigirToken` (401 + `WWW-Authenticate` com `resource_metadata`, é o que faz
+o claude.ai iniciar o login). `/mcp/` continua aberto. Registro dinâmico,
+PKCE S256 obrigatório, token de acesso `gvat_` (24h) e refresh `gvrt_` (90
+dias, rotativo), tudo como hash em `contas.db`. `contas.usuario_da_requisicao`
+aceita `gvat_` além das chaves `gv_`. Relatório que falha depois de cobrado é
+estornado (`contas.estornar`).
+
 ## Site e redes sociais × etapa antiga `contato`
 
 - **Atual:** tabela `redes_sociais`, gerada no ETL (`src/redes_sociais.py`

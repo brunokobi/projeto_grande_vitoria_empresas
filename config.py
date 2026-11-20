@@ -54,3 +54,19 @@ SEGMENTOS_CNAE = {
     "10": "Indústria de alimentos",
     "94": "Organizações associativas",
 }
+
+# Doação via Pix (chave celular do mantenedor, exibida publicamente no site
+# a pedido dele). Nome/cidade vão no BR Code — o app do banco mostra o
+# titular real da chave na confirmação.
+PIX_CHAVE = os.environ.get("PIX_CHAVE") or "+5527999452979"
+PIX_NOME = os.environ.get("PIX_NOME") or "BRUNO KOBI"
+PIX_CIDADE = os.environ.get("PIX_CIDADE") or "SERRA"
+GITHUB_SPONSORS_URL = "https://github.com/sponsors/brunokobi"
+
+# Google AdSense (anúncios automáticos só nas páginas públicas de SEO —
+# src/seo_paginas.py; nunca no dashboard/relatório). Vazio = desligado.
+# Formato: ca-pub-XXXXXXXXXXXXXXXX (é público, aparece no HTML).
+import re as _re
+ADSENSE_CLIENT = (os.environ.get("ADSENSE_CLIENT") or "").strip()
+if not _re.fullmatch(r"ca-pub-\d{10,20}", ADSENSE_CLIENT):
+    ADSENSE_CLIENT = ""

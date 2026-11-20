@@ -5,3 +5,6 @@ mcp>=1.2,<2.0     # 2.0 removeu/renomeou mcp.server.fastmcp (import usado em mcp
 reportlab>=4.0      # export PDF
 pandas>=2.0         # export Excel
 openpyxl>=3.1       # export Excel
+qrcode>=7.4         # QR Code do Pix (SVG, sem Pillow)
+python-multipart>=0.0.9  # formulário do login por link de e-mail
+httpx>=0.27          # login Google e envio do link por e-mail (src/contas.py)
