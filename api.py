@@ -10,6 +10,7 @@ Rodar:
 Docs da API: http://localhost:8000/docs
 """
 import contextlib
+import hashlib
 import io
 import json
 import re
@@ -484,24 +485,63 @@ _MAPA_JSON_CACHE_MAX = 30
 
 @app.get("/mapa", summary="Pontos geocodificados (lat/long) para o mapa, com os mesmos filtros")
 def get_mapa(
+    request: Request,
     filtros: dict = Depends(filtros_comuns),
     limite: int = Query(20000, ge=1, le=400000),
+    formato: str = Query("completo", pattern="^(completo|compacto)$",
+                         description="completo = [{cnpj,nome,lat,lng,tem_pendencia}]; compacto = colunas "
+                                     "sem o nome (usado pelo dashboard; ~1/6 do tamanho)"),
 ):
     try:
         db_mtime = config.DB_PATH.stat().st_mtime
     except OSError:
         db_mtime = None
-    chave = json.dumps({"limite": limite, **filtros}, sort_keys=True, default=str)
+    chave = json.dumps({"limite": limite, "formato": formato, **filtros}, sort_keys=True, default=str)
+    # ETag: o navegador revalida e recebe 304 (sem corpo) enquanto o banco não muda.
+    etag = 'W/"' + hashlib.sha1(f"{chave}|{db_mtime}".encode()).hexdigest()[:20] + '"'
+    cabecalhos = {"ETag": etag, "Cache-Control": "no-cache"}
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers=cabecalhos)
     cacheado = _MAPA_JSON_CACHE.get(chave)
     if cacheado and cacheado[0] == db_mtime:
         corpo = cacheado[1]
     else:
         resultado = dataset_queries.pontos_mapa(limite=limite, **filtros)
-        corpo = json.dumps(resultado, ensure_ascii=False).encode("utf-8")
+        if formato == "compacto":
+            resultado = _mapa_compacto(resultado)
+        corpo = json.dumps(resultado, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
         if len(_MAPA_JSON_CACHE) >= _MAPA_JSON_CACHE_MAX:
             _MAPA_JSON_CACHE.pop(next(iter(_MAPA_JSON_CACHE)))
         _MAPA_JSON_CACHE[chave] = (db_mtime, corpo)
-    return Response(content=corpo, media_type="application/json")
+    return Response(content=corpo, media_type="application/json", headers=cabecalhos)
+
+
+def _mapa_compacto(resultado: dict) -> dict:
+    """Pontos do mapa em colunas, ~1/6 do JSON completo (48 MB -> ~8 MB com a
+    base inteira). Sem o nome (o dashboard busca ao passar o mouse).
+    - ordenados pela latitude: `lat` vem como diferença para o anterior, em
+      1e-5 grau (~1 m), quase sempre 1-2 dígitos;
+    - `lng` em 1e-5 grau a partir de `base_lng`;
+    - `cnpj`: os 14 dígitos de todos os pontos concatenados, na mesma ordem;
+    - `pend`: "1"/"0" por ponto (tem pendência jurídico-fiscal).
+    Decodificação: lat_i = base_lat + soma(lat[0..i]) / 1e5."""
+    pts = [p for p in resultado.get("pontos", []) if p.get("lat") is not None and p.get("lng") is not None]
+    pts.sort(key=lambda p: p["lat"])
+    if not pts:
+        return {"total": resultado.get("total", 0), "limite": resultado.get("limite"), "v": 1,
+                "base_lat": 0, "base_lng": 0, "lat": [], "lng": [], "cnpj": "", "pend": ""}
+    lats = [round(p["lat"] * 1e5) for p in pts]
+    lngs = [round(p["lng"] * 1e5) for p in pts]
+    base_lat, base_lng = lats[0], min(lngs)
+    dlat, ant = [], base_lat
+    for v in lats:
+        dlat.append(v - ant)
+        ant = v
+    return {"total": resultado.get("total", len(pts)), "limite": resultado.get("limite"), "v": 1,
+            "base_lat": base_lat / 1e5, "base_lng": base_lng / 1e5,
+            "lat": dlat, "lng": [v - base_lng for v in lngs],
+            "cnpj": "".join(str(p["cnpj"]).zfill(14)[:14] for p in pts),
+            "pend": "".join("1" if p.get("tem_pendencia") else "0" for p in pts)}
 
 
 @app.get("/empresas/perto", summary="Empresas geocodificadas num raio (km) de um ponto — combine com /geocode pra buscar perto de um endereço")

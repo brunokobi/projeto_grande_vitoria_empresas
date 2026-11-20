@@ -220,6 +220,15 @@ Cidade/atividade/bairro também em inglês (`/en/city/...`) e espanhol
 `reference/cnaes_{en,es}.json` (tradução própria, não oficial). Página de
 empresa só em português.
 
+## Desempenho do mapa (20/11/2026)
+
+O `/mapa` com a base inteira era 99% do peso da página (10,9 MB baixados,
+48 MB de JSON, ~12 s). O dashboard agora pede `formato=compacto`
+(`api._mapa_compacto`: colunas, latitude ordenada em diferenças de 1e-5 grau,
+CNPJs concatenados, sem nome) e busca o nome só ao passar o mouse
+(`/empresas?cnpj=`). `ETag` + `Cache-Control: no-cache` → 304 na volta. O
+formato completo continua o padrão da API.
+
 ## AdSense
 
 `config.ADSENSE_CLIENT` (env `ADSENSE_CLIENT`, vazio = desligado). Anúncios

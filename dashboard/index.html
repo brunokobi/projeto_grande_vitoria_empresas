@@ -97,8 +97,35 @@
   pre.cfg{background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:10px;overflow:auto;font-size:12px;white-space:pre-wrap;word-break:break-all}
   .pix-qr{background:#fff;border-radius:10px;padding:8px;width:220px;max-width:70vw;display:block;margin:8px auto}
   .bloqueio{text-align:center;max-width:520px;margin:0 auto}
+  /* Cabeçalho (20/11/2026): ações discretas e iguais, Apoiar com cor própria,
+     Entrar como ação principal; Excel/PDF num menu só. */
+  .hbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+  .hbtn{height:36px;display:inline-flex;align-items:center;gap:7px;padding:0 12px;border-radius:9px;
+    background:transparent;border:1px solid var(--line);color:#c9d4dc;font:600 13px/1 'Segoe UI',system-ui,sans-serif;
+    cursor:pointer;text-decoration:none;transition:background .15s,border-color .15s,color .15s;white-space:nowrap}
+  .hbtn:hover{border-color:var(--green-dim);color:var(--green);background:rgba(0,255,136,.06)}
+  .hbtn:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+  .hbtn.icon{width:36px;padding:0;justify-content:center}
+  .hbtn .ico{width:16px;height:16px;flex:none}
+  .hbtn .ico.chev{width:13px;height:13px;opacity:.7;margin-left:-2px}
+  .hbtn.apoiar{color:#ff8fab;border-color:rgba(255,143,171,.35)}
+  .hbtn.apoiar:hover{background:rgba(255,143,171,.08);border-color:#ff8fab;color:#ffb3c6}
+  .hbtn.cta{background:var(--green);border-color:var(--green);color:#04060a}
+  .hbtn.cta:hover{background:#4dffab;border-color:#4dffab;color:#04060a;box-shadow:0 0 14px rgba(0,255,136,.35)}
+  .hbtn.cta.conta-on{background:rgba(0,255,136,.08);border-color:var(--green-dim);color:var(--green)}
+  .hbtn.cta.conta-on:hover{background:rgba(0,255,136,.14);box-shadow:none}
+  .hsep{width:1px;height:22px;background:var(--line);margin:0 4px}
+  .hmenu{position:relative}
+  .hmenu-pop{display:none;position:absolute;right:0;top:calc(100% + 6px);min-width:170px;z-index:30;
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:5px;box-shadow:0 12px 28px rgba(0,0,0,.5)}
+  .hmenu.open .hmenu-pop{display:block}
+  .hmenu-pop button{display:flex;align-items:center;gap:9px;width:100%;background:none;border:0;border-radius:7px;
+    color:var(--text);font:600 13px 'Segoe UI',system-ui,sans-serif;padding:9px 10px;cursor:pointer;text-align:left}
+  .hmenu-pop button span{margin-left:auto;color:var(--muted);font-weight:400;font-size:12px}
+  .hmenu-pop button:hover{background:rgba(0,255,136,.08);color:var(--green)}
+  .hmenu-pop .ico{width:15px;height:15px}
   .helpbtn:hover{background:var(--green-dim);color:#04060a;box-shadow:0 0 14px rgba(0,255,136,.4)}
-  main{max-width:1500px;margin:0 auto;padding:20px}
+  main{max-width:none;margin:0;padding:20px 22px}
   /* stat cards */
   .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:18px}
   .stat{background:linear-gradient(160deg,var(--panel),var(--bg2));border:1px solid var(--line);
@@ -295,6 +322,8 @@
     color:var(--muted);font-size:13px;text-align:center;padding:12px}
   .mapaprox{position:absolute;bottom:6px;left:6px;z-index:2;background:#0b1a0f;color:#f5a623;
     border:1px solid #f5a623;border-radius:5px;font-size:11px;padding:2px 6px}
+  /* 4 cards de totais: 4 colunas, 2x2 em telas médias (evita 3 + 1 sobrando). */
+  @media(max-width:1180px){ .stats{grid-template-columns:1fr 1fr} }
   @media(max-width:900px){
     .grid{grid-template-columns:1fr}
     .filtercard{position:static}
@@ -307,18 +336,42 @@
     .logo small{font-size:9px;letter-spacing:1px}
     .btn{padding:6px 9px;font-size:12px}
     .lbl{display:none}
-    .stats{grid-template-columns:1fr;gap:8px}
-    .stat{padding:12px}
-    .stat .n{font-size:19px}
+    .hbar{width:100%;justify-content:space-between;gap:4px;flex-wrap:nowrap}
+    .hbtn{height:34px;padding:0 9px;gap:6px}
+    .hbtn.icon{width:34px}
+    .hsep{display:none}
+    .stats{gap:8px}
     #mapa{height:280px !important}
     .maplegend{display:none}
     .toolbar{flex-direction:column;align-items:flex-start}
     .toolbar .spacer{display:none}
-    #citychips{gap:6px !important;flex-wrap:nowrap !important;overflow-x:auto;padding-bottom:4px}
+    #citychips{gap:6px !important;flex-wrap:nowrap !important;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+    #citychips::-webkit-scrollbar{display:none}
+    /* Abas do mapa: 3 por linha, sem cortar "Risco Geo". */
+    .mapcontrols{width:100%}
+    .maptoggle{display:grid;grid-template-columns:repeat(3,1fr);width:100%}
+    .maptoggle button{padding:8px 4px;font-size:12px}
+    /* Cards de totais em 2x2 em vez de 4 linhas. */
+    .stats{grid-template-columns:1fr 1fr !important}
+    .stat{padding:10px;gap:8px}
+    .stat .ic{width:30px;height:30px;font-size:14px}
+    .stat .n{font-size:17px}
+    .stat .sub{display:none}
     .citychip{padding:4px 8px;font-size:10px;flex:none}
     table{font-size:12px}
     th,td{padding:8px 6px}
     .col-chk,.col-atividade{display:none}
+    /* Lista de empresas vira cartões no celular: nome em cima, o resto numa linha. */
+    table.lista-emp,table.lista-emp tbody{display:block}
+    table.lista-emp thead{display:none}
+    table.lista-emp tr{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;padding:12px 2px;border-bottom:1px solid var(--line)}
+    table.lista-emp td{display:block;padding:0;border:0}
+    table.lista-emp td.col-chk{display:none}
+    table.lista-emp td.col-nome{flex:1 1 100%;min-width:0}
+    table.lista-emp td.col-mun{color:var(--muted);font-size:11.5px;margin-right:auto}
+    table.lista-emp td{order:2}
+    table.lista-emp td.col-nome{order:0}
+    table.lista-emp td.col-atividade{order:1;flex:1 1 100%;max-width:none;color:#b9c4cc;font-size:12.5px;margin-top:-4px}
     .overlay{padding:14px 8px}
     .modal .top{padding:14px 16px}
     .modal .top h2{font-size:17px}
@@ -346,14 +399,22 @@
     <div class="logo">EMPRESAS · GRANDE VITÓRIA<small>📍 Espírito Santo · BR</small></div>
   </div>
   <div class="spacer"></div>
-  <button class="btn" onclick="atualizar()" title="Recarregar dados">↻<span class="lbl"> Atualizar</span></button>
-  <button class="btn" onclick="abrirExportar('xlsx')" title="Exportar Excel">⬇<span class="lbl"> Excel</span></button>
-  <button class="btn" onclick="abrirExportar('pdf')" title="Exportar PDF">⬇<span class="lbl"> PDF</span></button>
-  <button class="btn" onclick="abrirRankingDoacoes()" title="Ranking de doações eleitorais">🗳️<span class="lbl"> Eleições</span></button>
-  <a class="btn" href="https://github.com/brunokobi/projeto_grande_vitoria_empresas" target="_blank" rel="noopener" title="Ver no GitHub" style="text-decoration:none">🐙<span class="lbl"> GitHub</span></a>
-  <button class="btn" onclick="abrirDoacao()" title="Apoie o projeto (Pix ou GitHub Sponsors)">💛<span class="lbl"> Apoiar</span></button>
-  <button class="btn" id="btnConta" onclick="abrirConta()" title="Entrar / minha conta">👤<span class="lbl" id="btnContaLbl"> Entrar</span></button>
-  <button class="helpbtn" onclick="abrirSobre()" title="Sobre as fontes de dados">?</button>
+  <nav class="hbar" aria-label="Ações">
+    <button class="hbtn icon" onclick="atualizar()" title="Recarregar dados" aria-label="Recarregar dados"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></button>
+    <div class="hmenu" id="menuExport">
+      <button class="hbtn" onclick="toggleMenuExport(event)" title="Exportar a lista filtrada" aria-haspopup="true" aria-expanded="false"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span class="lbl">Exportar</span><svg class="ico chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg></button>
+      <div class="hmenu-pop" role="menu">
+        <button role="menuitem" onclick="fecharMenuExport();abrirExportar('xlsx')"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/></svg>Excel <span>.xlsx</span></button>
+        <button role="menuitem" onclick="fecharMenuExport();abrirExportar('pdf')"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>PDF <span>.pdf</span></button>
+      </div>
+    </div>
+    <button class="hbtn" onclick="abrirRankingDoacoes()" title="Ranking de doações eleitorais (TSE)"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span class="lbl">Eleições</span></button>
+    <a class="hbtn icon" href="https://github.com/brunokobi/projeto_grande_vitoria_empresas" target="_blank" rel="noopener" title="Código no GitHub" aria-label="Código no GitHub"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg></a>
+    <span class="hsep" aria-hidden="true"></span>
+    <button class="hbtn apoiar" onclick="abrirDoacao()" title="Apoie o projeto (Pix ou GitHub Sponsors)"><svg class="ico" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg><span class="lbl">Apoiar</span></button>
+    <button class="hbtn cta" id="btnConta" onclick="abrirConta()" title="Entrar / minha conta"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span id="btnContaLbl">Entrar</span></button>
+    <button class="hbtn icon" onclick="abrirSobre()" title="Fontes de dados e metodologia" aria-label="Fontes de dados e metodologia"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></button>
+  </nav>
 </header>
 
 <main>
@@ -567,7 +628,7 @@
         <div class="spacer" style="flex:1"></div>
       </div>
       <div style="overflow-x:auto">
-        <table>
+        <table class="lista-emp">
           <thead><tr>
             <th class="col-chk" style="width:30px"><input type="checkbox" id="chk_all" onchange="toggleSelecionarTodos(this)"></th>
             <th class="sortable active col-nome" data-ord="razao_social" onclick="ordenarPor('razao_social')">Razão social <span class="arrow">⇅</span></th>
@@ -586,7 +647,7 @@
   </div>
 </main>
 
-<footer style="max-width:1500px;margin:8px auto 0;padding:20px 22px 30px;border-top:1px solid var(--line);text-align:center;color:var(--muted);font-size:12px;letter-spacing:.3px">
+<footer style="margin:8px 0 0;padding:20px 22px 30px;border-top:1px solid var(--line);text-align:center;color:var(--muted);font-size:12px;letter-spacing:.3px">
   Empresas por cidade: <a href="/cidade/vitoria">Vitória</a> · <a href="/cidade/vila-velha">Vila Velha</a> · <a href="/cidade/serra">Serra</a> · <a href="/cidade/cariacica">Cariacica</a> · <a href="/cidade/viana">Viana</a> · <a href="/cidade/guarapari">Guarapari</a> · <a href="/cidade/fundao">Fundão</a><br>
   © 2026 <a href="https://brunokobi.tech/" target="_blank" rel="noopener" style="font-weight:600">Bruno Kobi</a>. Todos os direitos reservados.<br>
   Dados de fontes públicas oficiais (CPF sempre mascarado) — uso responsável e conforme a LGPD.<br>
@@ -878,7 +939,7 @@ async function buscar(reset){
     return `<tr onclick="abrir('${e.cnpj}')">
       <td class="col-chk" onclick="event.stopPropagation()"><input type="checkbox" class="rowchk" onchange="onLinhaChk(this)"></td>
       <td class="col-nome"><div class="nome-principal" title="${nome}"><b>${nome}</b></div><div class="nome-sub mono" title="${subpartes.join(" · ")}">${subpartes.join(" &middot; ")}</div></td>
-      <td>${esc(e.municipio||"—")}</td><td class="col-atividade" title="${esc(e.cnae_desc||e.cnae_principal||"—")}">${esc(e.cnae_desc||e.cnae_principal||"—")}</td>
+      <td class="col-mun">${esc(e.municipio||"—")}</td><td class="col-atividade" title="${esc(e.cnae_desc||e.cnae_principal||"—")}">${esc(e.cnae_desc||e.cnae_principal||"—")}</td>
       <td>${porte}</td><td>${contato}</td><td>${sit}</td>
       <td class="col-chk" onclick="event.stopPropagation();abrir('${e.cnpj}')"><span class="iconbtn" title="Abrir">↗</span></td></tr>`;
   }).join("");
@@ -2638,11 +2699,11 @@ function atualizarBotaoConta(){
   // Sem método de login configurado no servidor, o site segue aberto: some o botão.
   b.style.display = (_conta && _conta.cadastro_ativo === false) ? "none" : "";
   if(_conta && _conta.logado){
-    l.textContent = ` ${_conta.uso.usados}/${_conta.uso.cota}`;
+    l.textContent = `${_conta.uso.usados}/${_conta.uso.cota}`;
     b.title = `${_conta.email} — ${_conta.uso.usados} de ${_conta.uso.cota} relatórios usados este mês`;
     b.classList.add("conta-on");
   }else{
-    l.textContent = " Entrar"; b.title = "Entrar / cadastrar (grátis)"; b.classList.remove("conta-on");
+    l.textContent = "Entrar"; b.title = "Entrar / cadastrar (grátis)"; b.classList.remove("conta-on");
   }
 }
 function htmlLogin(voltarCnpj){
@@ -2765,6 +2826,17 @@ async function revogarChave(prefixo){
   await fetch(`/conta/chaves/${encodeURIComponent(prefixo)}`, {method:"DELETE"});
   abrirConta();
 }
+function toggleMenuExport(ev){
+  ev.stopPropagation();
+  const m = $("menuExport"), aberto = m.classList.toggle("open");
+  m.querySelector(".hbtn").setAttribute("aria-expanded", aberto);
+}
+function fecharMenuExport(){
+  const m = $("menuExport"); if(!m) return;
+  m.classList.remove("open"); m.querySelector(".hbtn").setAttribute("aria-expanded", "false");
+}
+document.addEventListener("click", e=>{ if(!e.target.closest("#menuExport")) fecharMenuExport(); });
+document.addEventListener("keydown", e=>{ if(e.key==="Escape") fecharMenuExport(); });
 async function revogarApp(clientId){
   if(!confirm("Desconectar este aplicativo? Ele perde o acesso à sua conta.")) return;
   await fetch(`/conta/aplicativos/${encodeURIComponent(clientId)}`, {method:"DELETE"});
@@ -2964,9 +3036,21 @@ function initMapa(){
         "circle-color":["case",["get","pend"],"#ff5470","#39ff14"],
         "circle-opacity":0.85}});
     MAPA.on("click","ponto",(e)=>{ const p=e.features[0].properties; if(p.cnpj) abrir(p.cnpj); });
-    MAPA.on("mouseenter","ponto",(e)=>{ MAPA.getCanvas().style.cursor="pointer";
-      popup.setLngLat(e.features[0].geometry.coordinates.slice()).setText(e.features[0].properties.nome).addTo(MAPA); });
-    MAPA.on("mouseleave","ponto",()=>{ MAPA.getCanvas().style.cursor=""; popup.remove(); });
+    // O nome não vem no mapa (payload ~6x menor): busca ao passar o mouse, com cache.
+    MAPA.on("mouseenter","ponto",async (e)=>{ MAPA.getCanvas().style.cursor="pointer";
+      const cnpj = e.features[0].properties.cnpj;
+      _hoverCnpj = cnpj;
+      popup.setLngLat(e.features[0].geometry.coordinates.slice()).setText(_nomesMapa.get(cnpj)||"…").addTo(MAPA);
+      if(!_nomesMapa.has(cnpj)){
+        try{
+          const r = await (await fetch(`/empresas?cnpj=${cnpj}&limite=1`)).json();
+          const it = (r.itens||[])[0];
+          _nomesMapa.set(cnpj, it ? (it.razao_social||it.nome_fantasia||cnpj).trim() : cnpj);
+        }catch(_){ return; }
+      }
+      if(_hoverCnpj===cnpj && popup.isOpen()) popup.setText(_nomesMapa.get(cnpj));
+    });
+    MAPA.on("mouseleave","ponto",()=>{ MAPA.getCanvas().style.cursor=""; _hoverCnpj=null; popup.remove(); });
 
     // "Risco" (choropleth por município) removido da UI a pedido -- lógica
     // mantida comentada pra reativar fácil depois, se precisar. Descomentar
@@ -3257,17 +3341,25 @@ function atualizarLegendaMapa(){
     ? "🚨 ocorrências criminais por bairro (SESP-ES, 2018–2026) — furto/roubo/estelionato, passe o mouse pra ver detalhe"
     : "🟢 sem pendência · 🔴 com pendência · clique num ponto p/ abrir a empresa";
 }
+const _nomesMapa = new Map();
+let _hoverCnpj = null;
 async function carregarMapa(){
   if(!MAPA) return;
   $("mapinfo").textContent = "carregando…";
   let d;
-  const p = query(); p.set("limite", 400000);
+  const p = query(); p.set("limite", 400000); p.set("formato", "compacto");
   try{ d = await fetchJSONCached("/mapa?"+p.toString()); }
   catch(e){ $("mapinfo").textContent = "erro ao carregar o mapa"; return; }
-  const fc = {type:"FeatureCollection", features:(d.pontos||[]).map(e=>({
-    type:"Feature", geometry:{type:"Point", coordinates:[e.lng, e.lat]},
-    properties:{cnpj:e.cnpj, nome:e.nome, pend: !!e.tem_pendencia}
-  }))};
+  // Formato compacto (ver api._mapa_compacto): colunas, latitude em diferenças.
+  const features = new Array(d.lat.length);
+  let lat = Math.round(d.base_lat*1e5);
+  const baseLng = Math.round(d.base_lng*1e5);
+  for(let i=0;i<d.lat.length;i++){
+    lat += d.lat[i];
+    features[i] = {type:"Feature", geometry:{type:"Point", coordinates:[(baseLng+d.lng[i])/1e5, lat/1e5]},
+      properties:{cnpj:d.cnpj.substr(i*14,14), pend: d.pend.charCodeAt(i)===49}};
+  }
+  const fc = {type:"FeatureCollection", features};
   if(MAPA_READY) MAPA.getSource("empresas").setData(fc); else _pendentes = fc;
   const cap = (d.total>d.limite) ? ` (mostrando ${d.limite.toLocaleString('pt-BR')} de ${d.total.toLocaleString('pt-BR')})` : "";
   $("mapinfo").textContent = `${(d.total||0).toLocaleString('pt-BR')} empresas geolocalizadas${cap}`;
