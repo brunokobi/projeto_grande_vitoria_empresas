@@ -64,3 +64,53 @@ def notificar_visita_dashboard(ip_forwarded, client_host):
         urllib.request.urlopen(req, timeout=5)
     except Exception:
         pass
+
+
+def enviar(texto: str):
+    """Envia uma mensagem qualquer (em thread própria: não atrasa a resposta,
+    falha em silêncio). Sem TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID, não faz nada."""
+    if not (config.TELEGRAM_BOT_TOKEN and config.TELEGRAM_CHAT_ID):
+        return
+    import threading
+
+    def _go():
+        body = json.dumps({"chat_id": config.TELEGRAM_CHAT_ID, "text": texto}).encode("utf-8")
+        req = urllib.request.Request(TELEGRAM_API_URL.format(token=config.TELEGRAM_BOT_TOKEN),
+                                     data=body, headers={"Content-Type": "application/json"})
+        try:
+            urllib.request.urlopen(req, timeout=5)
+        except Exception:
+            pass
+    threading.Thread(target=_go, daemon=True).start()
+
+
+def _agora() -> str:
+    return datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%d/%m/%Y %H:%M:%S")
+
+
+def mascarar_email(email: str) -> str:
+    """fulano.silva@gmail.com -> fu***@gmail.com (o aviso não precisa do e-mail inteiro)."""
+    nome, _, dominio = (email or "").partition("@")
+    return (nome[:2] + "***@" + dominio) if dominio else "***"
+
+
+def notificar_cadastro(email: str, provedor: str, total_contas: int):
+    enviar("🆕 Novo cadastro no Empresas GV\n"
+           f"👤 {mascarar_email(email)} (via {'Google' if provedor == 'google' else 'link por e-mail'})\n"
+           f"📊 Total de contas: {total_contas}\n"
+           f"🕒 {_agora()} (horário de Brasília)")
+
+
+_ACOES_DOACAO = {
+    "abriu": "💛 Alguém abriu a tela de doação",
+    "copiou_pix": "💸 Alguém COPIOU o Pix copia e cola",
+    "sponsors": "🐙 Alguém clicou no GitHub Sponsors",
+}
+
+
+def notificar_doacao(acao: str, ip_forwarded, client_host):
+    if acao not in _ACOES_DOACAO:
+        return
+    local = _geolocalizar(_resolver_ip(ip_forwarded, client_host))
+    enviar(f"{_ACOES_DOACAO[acao]}\n📍 {local}\n🕒 {_agora()} (horário de Brasília)\n"
+           "(clique não confirma pagamento: confira o extrato do Pix/Sponsors)")

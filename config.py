@@ -67,6 +67,11 @@ GITHUB_SPONSORS_URL = "https://github.com/sponsors/brunokobi"
 # src/seo_paginas.py; nunca no dashboard/relatório). Vazio = desligado.
 # Formato: ca-pub-XXXXXXXXXXXXXXXX (é público, aparece no HTML).
 import re as _re
-ADSENSE_CLIENT = (os.environ.get("ADSENSE_CLIENT") or "").strip()
+# ID de editor do mantenedor (público: aparece no HTML de qualquer site com
+# AdSense). ADSENSE_CLIENT= (vazio) no ambiente NÃO desliga, por causa do `or`;
+# para desligar, use ADSENSE_CLIENT=off.
+ADSENSE_CLIENT = (os.environ.get("ADSENSE_CLIENT") or "ca-pub-1803671473296579").strip()
+if ADSENSE_CLIENT == "off":
+    ADSENSE_CLIENT = ""
 if not _re.fullmatch(r"ca-pub-\d{10,20}", ADSENSE_CLIENT):
     ADSENSE_CLIENT = ""

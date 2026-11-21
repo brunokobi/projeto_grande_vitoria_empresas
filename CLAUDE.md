@@ -204,6 +204,25 @@ circularidade com a hipótese de metapath sócio-comum daquela dissertação (ve
 - **Pix:** chave celular do mantenedor em `config.PIX_CHAVE` (pública por
   decisão dele). Doação não dá cota extra.
 - Planos e próximas fases: `docs/PLANOS.md`.
+- **Avisos no Telegram** (`src/notificar_telegram.py`, precisam de
+  `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID` no `.env`): visita ao dashboard,
+  novo cadastro (e-mail mascarado) e doação — abrir a tela, copiar o Pix ou
+  clicar no Sponsors (`POST /doacao/evento`, 1 aviso por IP e ação a cada
+  10 min). Clique não confirma pagamento.
+
+## Planos pagos (21/11/2026)
+
+`src/assinaturas.py` + `contas.PLANOS`: Profissional (100/mês, R$ 19,90
+mensal ou R$ 9,99/mês no anual = R$ 119,88) e Empresa (1.000/mês, R$ 79,90
+ou R$ 59,99/mês no anual = R$ 719,88). Sem provedor de pagamento: Pix na
+chave do mantenedor com valor e código do pedido (txid `GVxxxxxx`) → "Já
+paguei" → Telegram com link assinado (HMAC, segredo em `contas.db`, tabela
+`config`) → página `/admin/assinatura/{codigo}` com botão Ativar (POST; o GET
+não ativa porque o Telegram abre links para a prévia). `usuarios.plano`/
+`plano_ate` (30/365 dias; renovação do mesmo plano soma ao vencimento).
+`contas.cota_do_usuario` usa a cota do plano enquanto `plano_ate` não passou.
+Sem renovação automática. Para trocar por provedor com webhook (Asaas/Mercado
+Pago), basta o webhook chamar a mesma ativação.
 
 ## Páginas de SEO (20/11/2026)
 
@@ -229,13 +248,25 @@ CNPJs concatenados, sem nome) e busca o nome só ao passar o mouse
 (`/empresas?cnpj=`). `ETag` + `Cache-Control: no-cache` → 304 na volta. O
 formato completo continua o padrão da API.
 
+## Estatísticas (cache em disco, 21/11/2026)
+
+`dataset_queries.estatisticas()` leva ~40 s com a base inteira (84 consultas).
+`api._estatisticas_json` guarda o resultado em memória e em
+`data/estatisticas_cache.json` (chave = mtime+tamanho do banco), com trava; banco
+novo → responde com os números anteriores e recalcula em segundo plano; o
+`lifespan` aquece ao iniciar. Antes disso o 1º visitante após um deploy
+esperava o cálculo inteiro (deu 524 no Cloudflare).
+
 ## AdSense
 
-`config.ADSENSE_CLIENT` (env `ADSENSE_CLIENT`, vazio = desligado). Anúncios
-automáticos só no `_pagina` de `src/seo_paginas.py` (status 200); NUNCA no
-dashboard/relatório. `/ads.txt` em `api.py`. O dashboard recebe
-`window.GV_ANUNCIOS=true`, que liga os trechos de anúncios na política de
-privacidade.
+`config.ADSENSE_CLIENT` (padrão `ca-pub-1803671473296579`, o ID público do mantenedor; `ADSENSE_CLIENT=off` desliga). Anúncios
+automáticos para **visitantes e contas grátis**, no dashboard e nas páginas de
+SEO; **assinante com plano em dia não vê** (21/11/2026). `contas.html_adsense()`
+carrega o script no navegador só se não houver o cookie `gv_sem_anuncio=1`
+(as páginas de SEO ficam em cache e são iguais para todos); `GET /conta`
+grava o cookie até `plano_ate` e apaga quando vence; sair também apaga.
+`/ads.txt` em `api.py`. `window.GV_ANUNCIOS=true` liga os trechos de
+anúncios na política de privacidade.
 
 ## MCP com login (OAuth 2.1)
 

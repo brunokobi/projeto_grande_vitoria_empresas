@@ -88,8 +88,33 @@
   .btn.conta-on{border-color:var(--green);box-shadow:0 0 10px rgba(0,255,136,.25)}
   .login-box{max-width:420px;margin:6px auto 0;display:flex;flex-direction:column;gap:10px}
   .login-box .btn{justify-content:center;padding:11px 15px;font-size:14px}
+  .btn-google{display:inline-flex;align-items:center;justify-content:center;gap:10px;height:42px;padding:0 16px;border-radius:8px;
+    background:#fff;color:#1f1f1f;border:1px solid #dadce0;font:600 14px 'Segoe UI',Roboto,system-ui,sans-serif;text-decoration:none;cursor:pointer}
+  .btn-google:hover{background:#f6f8fa;box-shadow:0 1px 6px rgba(0,0,0,.25)}
+  .btn-google .g-logo{width:18px;height:18px;flex:none}
   .login-box input{width:100%;box-sizing:border-box;padding:10px 12px}
   .login-ou{text-align:center;color:var(--muted);font-size:12px}
+  .planos-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:10px}
+  .plano-card{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:8px}
+  .plano-card.dest{border-color:var(--green-dim);box-shadow:0 0 18px rgba(0,255,136,.12)}
+  .plano-card h3{margin:0;font-size:16px;color:#fff}
+  .plano-card .preco{font:700 26px 'Courier New',monospace;color:var(--green)}
+  .plano-card .preco small{font-size:13px;color:var(--muted);font-weight:400}
+  .plano-card .det{font-size:12.5px;color:var(--muted);min-height:34px}
+  .plano-card .btn{justify-content:center;margin-top:auto}
+  .periodo-toggle{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:3px;gap:3px}
+  .periodo-toggle button{background:none;border:0;color:var(--muted);padding:6px 14px;border-radius:999px;cursor:pointer;font-weight:600}
+  .periodo-toggle button.on{background:var(--green-deep);color:var(--green)}
+  .selo{display:inline-block;font-size:11px;font-weight:700;color:#04060a;background:var(--green);border-radius:999px;padding:2px 8px}
+  .plano-linha{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
+    background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px}
+  @media(max-width:640px){ .planos-grid{grid-template-columns:1fr} }
+  .uso-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:4px 0 8px}
+  .uso-tile{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center}
+  .uso-tile .n{font:700 20px 'Courier New',monospace;color:var(--green)}
+  .uso-tile .l{font-size:11px;color:var(--muted);margin-top:2px}
+  .uso-tile.zerado .n{color:#ff5470}
+  @media(max-width:640px){ .uso-grid{grid-template-columns:repeat(2,1fr)} .uso-grid .uso-tile:last-child{grid-column:1/-1} }
   .cota-barra{height:8px;border-radius:5px;background:var(--bg2);border:1px solid var(--line);overflow:hidden;margin:6px 0 4px}
   .cota-barra > div{height:100%;background:var(--green-dim)}
   .chave-nova{font-family:'Courier New',monospace;word-break:break-all;background:var(--bg2);border:1px dashed var(--green-dim);
@@ -2700,7 +2725,8 @@ function atualizarBotaoConta(){
   b.style.display = (_conta && _conta.cadastro_ativo === false) ? "none" : "";
   if(_conta && _conta.logado){
     l.textContent = `${_conta.uso.usados}/${_conta.uso.cota}`;
-    b.title = `${_conta.email} — ${_conta.uso.usados} de ${_conta.uso.cota} relatórios usados este mês`;
+    const ren = _conta.uso.renova_em ? _conta.uso.renova_em.split("-").reverse().join("/") : "dia 1º";
+    b.title = `${_conta.email} — ${_conta.uso.usados} de ${_conta.uso.cota} relatórios usados este mês · renova em ${ren}`;
     b.classList.add("conta-on");
   }else{
     l.textContent = "Entrar"; b.title = "Entrar / cadastrar (grátis)"; b.classList.remove("conta-on");
@@ -2715,7 +2741,8 @@ function htmlLogin(voltarCnpj){
     return `<p class="bloqueio">O cadastro está sendo ativado. Volte em breve.</p>`;
   return `<div class="login-box">
     <p style="margin:0;color:var(--muted);text-align:center">Cadastro grátis, sem senha: <b>${cota} relatórios completos por mês</b> no site, na API e no MCP.</p>
-    ${m.google?`<a class="btn" href="/auth/google${v?`?voltar=${v}`:""}" style="text-decoration:none">🔑 Entrar com Google</a>`:""}
+    <p style="margin:0;color:var(--muted);text-align:center;font-size:12px">O limite existe para evitar abuso (robôs copiando a base inteira) e sobrecarga do servidor, que é pequeno e mantido por uma pessoa, e assim manter o site rápido e gratuito para todos.</p>
+    ${m.google?`<a class="btn-google" href="/auth/google${v?`?voltar=${v}`:""}"><svg class="g-logo" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>Entrar com Google</a>`:""}
     ${m.google&&m.email?`<div class="login-ou">ou receba um link no e-mail</div>`:""}
     ${m.email?`<form onsubmit="pedirLinkEmail(event,'${esc(voltarCnpj||"")}')" style="display:flex;flex-direction:column;gap:8px">
       <input type="email" id="loginEmail" required placeholder="seu@email.com" autocomplete="email">
@@ -2742,8 +2769,11 @@ function renderBloqueio(status, det, cnpj){
   const corpo = status === 401
     ? `<p>O relatório completo (processos, dívidas, sanções, sócios, contratos e nota de integridade) é liberado para quem tem cadastro.</p>${htmlLogin(cnpj)}`
     : `<p>${esc(det.mensagem || "A cota de relatórios deste mês acabou.")}</p>
-       <p style="color:var(--muted);font-size:13px">Gosta do projeto? Uma doação ajuda a manter o servidor e as coletas.</p>
-       <button class="btn" onclick="abrirDoacao()">💛 Apoiar o projeto</button>`;
+       <p style="color:var(--muted);font-size:13px">O limite existe para evitar abuso (robôs copiando a base inteira) e sobrecarga do servidor, que é pequeno e mantido por uma pessoa, e assim manter o site rápido e gratuito para todos. Precisa de mais? O banco completo é público para download no <a href="https://github.com/brunokobi/projeto_grande_vitoria_empresas" target="_blank" rel="noopener">GitHub</a>, sem limite.</p>
+       <p style="font-size:14px">Precisa de mais relatórios? Assine um plano: <b>100 por mês a partir de R$ 9,99/mês</b>.</p>
+       <button class="btn" onclick="abrirPlanos()">⭐ Ver planos</button>
+       <p style="color:var(--muted);font-size:13px;margin-top:16px">Gosta do projeto? Uma doação ajuda a manter o servidor e as coletas.</p>
+       <button class="btn ghost" onclick="abrirDoacao()">💛 Apoiar o projeto</button>`;
   $("modal").innerHTML = `<div class="top"><span class="close" onclick="fechar()">&times;</span>
       <h2>${nome}${fant}</h2>
       <div class="sub">CNPJ ${esc(cnpj)}${emp.municipio?` · ${esc(emp.municipio)}`:""}</div></div>
@@ -2784,9 +2814,26 @@ async function abrirConta(aviso){
     : `<div class="item" style="color:var(--muted)">Nenhum aplicativo conectado.</div>`;
   $("modal").innerHTML = topo("👤 Minha conta") + `<div class="body">
     <p style="margin-top:0"><b>${esc(_conta.nome||_conta.email)}</b>${_conta.nome?` <span style="color:var(--muted)">· ${esc(_conta.email)}</span>`:""}</p>
-    <div class="sec">Relatórios de ${mes}/${ano}</div>
+    <div class="sec">Seu plano</div>
+    <div class="plano-linha">
+      <span><b>${esc(u.plano||"Grátis")}</b>${u.plano_ate?` <span style="color:var(--muted)">· válido até ${u.plano_ate.split("-").reverse().join("/")}</span>`:` <span style="color:var(--muted)">· ${u.cota} relatórios/mês</span>`}</span>
+      <button class="btn" onclick="abrirPlanos()">${u.plano_codigo?"Renovar ou mudar plano":"⭐ Ver planos"}</button>
+    </div>
+    ${(_conta.pedidos||[]).filter(p=>p.status==="aguardando"||p.status==="informado").map(p=>`<div class="plano-linha" style="border-color:#f5a623">
+      <span>Pedido <b class="mono">${esc(p.codigo)}</b> · ${esc(p.plano_nome)} ${esc(p.periodo)} · ${esc(p.valor)} ·
+        <span style="color:#f5a623">${p.status==="informado"?"pagamento informado, aguardando confirmação":"aguardando pagamento"}</span></span>
+      <button class="btn ghost" onclick='mostrarPedido(${JSON.stringify(p).replace(/'/g,"&#39;")})'>Ver Pix</button></div>`).join("")}
+    <div class="sec">Seu uso · ${mes}/${ano}</div>
+    <div class="uso-grid">
+      <div class="uso-tile"><div class="n">${u.usados}</div><div class="l">usados no mês</div></div>
+      <div class="uso-tile${u.restantes===0?' zerado':''}"><div class="n">${u.restantes ?? Math.max(0,u.cota-u.usados)}</div><div class="l">restantes</div></div>
+      <div class="uso-tile"><div class="n">${u.cota}</div><div class="l">limite por mês</div></div>
+      <div class="uso-tile"><div class="n">${u.renova_em ? u.renova_em.split("-").reverse().join("/") : "dia 1º"}</div><div class="l">renova em</div></div>
+      <div class="uso-tile"><div class="n">${u.total_historico ?? u.usados}</div><div class="l">total desde o cadastro</div></div>
+    </div>
     <div class="cota-barra"><div style="width:${pct}%"></div></div>
-    <div style="font-size:13px"><b>${u.usados}</b> de <b>${u.cota}</b> usados · renova no dia 1º · rever a mesma empresa no mês não conta de novo</div>
+    <div style="font-size:13px">Rever a mesma empresa no mês não conta de novo.</div>
+    <div style="font-size:12px;color:var(--muted);margin-top:4px">O limite existe para evitar abuso (robôs copiando a base inteira) e sobrecarga do servidor, que é pequeno e mantido por uma pessoa, e assim manter o site rápido e gratuito para todos. Precisa de mais? O banco completo é público para download no <a href="https://github.com/brunokobi/projeto_grande_vitoria_empresas" target="_blank" rel="noopener">GitHub</a>, sem limite.</div>
     <div class="lista" style="margin-top:8px">${consultas}</div>
     <div class="sec">Chaves de API (API REST e MCP)</div>
     <p style="font-size:13px;color:var(--muted);margin-top:0">A chave usa a mesma cota. No MCP, só o relatório completo (<span class="mono">obter_empresa</span>) gasta cota; busca e estatísticas são livres.</p>
@@ -2852,7 +2899,104 @@ async function excluirConta(){
   if(r.ok){ _reqCache.clear(); await carregarConta(); alert("Conta excluída."); fechar(); }
   else alert("Não foi possível excluir agora.");
 }
+// ---------------------------------------------------------------- planos pagos (src/assinaturas.py)
+let _planosCache = null, _periodoPlano = "anual", _pollPedido = null;
+async function abrirPlanos(){
+  $("overlay").classList.add("open");
+  $("modal").innerHTML = `<div class="body loading">carregando…</div>`;
+  try{ _planosCache = _planosCache || await (await fetch("/planos")).json(); }catch(_){}
+  if(!_conta) await carregarConta();
+  desenharPlanos();
+}
+function desenharPlanos(){
+  const d = _planosCache || {planos:[], gratis:{cota:10}};
+  const anual = _periodoPlano === "anual";
+  const cards = d.planos.map((p,i)=>`<div class="plano-card${i===0?" dest":""}">
+      <h3>${esc(p.nome)} ${i===0?`<span class="selo">recomendado</span>`:""}</h3>
+      <div class="preco">${esc(anual?p.anual_por_mes:p.mensal)}<small>/mês</small></div>
+      <div class="det">${anual?`<b>${esc(p.anual_total)}</b> cobrados de uma vez por 12 meses (${p.desconto_anual_pct}% de desconto)`:"cobrado a cada mês, sem fidelidade"}</div>
+      <div><b>${p.cota.toLocaleString("pt-BR")}</b> relatórios completos por mês</div>
+      <div style="font-size:12.5px;color:var(--muted)"><b style="color:var(--text)">Sem anúncios</b> · site, API e MCP · chaves de API · exportação Excel/PDF</div>
+      <button class="btn" onclick="assinar('${esc(p.codigo)}')">Assinar com Pix</button>
+    </div>`).join("");
+  $("modal").innerHTML = `<div class="top"><span class="close" onclick="fechar()">&times;</span>
+      <h2>⭐ Planos</h2><div class="sub">Mais relatórios por mês · pagamento por Pix</div></div>
+    <div class="body">
+      <div style="display:flex;justify-content:center"><div class="periodo-toggle">
+        <button class="${anual?"":"on"}" onclick="_periodoPlano='mensal';desenharPlanos()">Mensal</button>
+        <button class="${anual?"on":""}" onclick="_periodoPlano='anual';desenharPlanos()">Anual · economize até 50%</button>
+      </div></div>
+      <div class="planos-grid">
+        <div class="plano-card"><h3>Grátis</h3><div class="preco">R$ 0</div>
+          <div class="det">com cadastro (Google ou e-mail)</div>
+          <div><b>${d.gratis.cota}</b> relatórios completos por mês</div>
+          <div style="font-size:12.5px;color:var(--muted)">Busca, mapa e filtros sempre livres · com anúncios</div>
+          <button class="btn ghost" onclick="abrirConta()">${_conta&&_conta.logado?"Sua conta":"Criar conta"}</button></div>
+        ${cards}
+      </div>
+      <div class="sec">Como funciona</div>
+      <div class="lista">
+        <div class="item">Pagamento único por <b>Pix</b>: o plano mensal vale 30 dias e o anual, 365 dias. <b>Não há renovação automática</b>: perto do vencimento, sua conta mostra o botão para renovar.</div>
+        <div class="item">A liberação é feita após a conferência do Pix, normalmente em minutos em horário comercial (no máximo 24 h).</div>
+        <div class="item">Arrependimento em até <b>7 dias</b> da compra: devolvemos o valor integral (Código de Defesa do Consumidor, art. 49). Escreva para <a href="mailto:${EMAIL_TITULAR}?subject=Assinatura%20-%20reembolso">${EMAIL_TITULAR}</a>.</div>
+        <div class="item">O limite existe para evitar abuso e sobrecarga do servidor. Os dados vêm de fontes públicas e podem ter erros: confira na fonte antes de decidir. Doação é separada e não dá plano.</div>
+      </div>
+    </div>`;
+}
+async function assinar(plano){
+  if(!(_conta && _conta.logado)){ abrirConta("Entre na sua conta (grátis) para assinar um plano."); return; }
+  const r = await fetch("/assinatura/pedido", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({plano, periodo:_periodoPlano})});
+  const j = await r.json().catch(()=>({}));
+  if(!r.ok){ alert(j.detail || "Não foi possível criar o pedido agora."); return; }
+  mostrarPedido(j);
+}
+function mostrarPedido(p){
+  if(_pollPedido){ clearInterval(_pollPedido); _pollPedido = null; }
+  $("overlay").classList.add("open");
+  const informado = p.status === "informado";
+  $("modal").innerHTML = `<div class="top"><span class="close" onclick="fechar()">&times;</span>
+      <h2>⭐ ${esc(p.plano_nome)} ${esc(p.periodo)}</h2><div class="sub">Pedido ${esc(p.codigo)} · ${esc(p.valor)}</div></div>
+    <div class="body" style="text-align:center">
+      <p style="margin-top:0">Pague <b>${esc(p.valor)}</b> pelo Pix abaixo. O QR Code já vem com o valor e o código <b class="mono">${esc(p.codigo)}</b>.
+        Se o seu banco pedir, escreva <b class="mono">${esc(p.codigo)}</b> na mensagem do Pix.</p>
+      <img class="pix-qr" src="${esc(p.pix_qrcode)}" alt="QR Code Pix do pedido">
+      <div class="chave-nova" id="pixPedido" style="font-size:11px">${esc(p.pix_copia_e_cola)}</div>
+      <button class="btn ghost" onclick="navigator.clipboard.writeText($('pixPedido').textContent).then(()=>this.textContent='Copiado!')">Copiar Pix copia e cola</button>
+      <div id="pedidoEstado" style="margin-top:16px">${informado
+        ? `<p style="color:#f5a623"><b>Pagamento informado.</b> Assim que for conferido, seu plano é ativado e esta tela atualiza sozinha.</p>`
+        : `<button class="btn" onclick="jaPaguei('${esc(p.codigo)}')">✅ Já paguei</button>`}</div>
+      <p style="font-size:12px;color:var(--muted);margin-top:14px">Ativação após conferência do Pix, normalmente em minutos (horário comercial; no máximo 24 h). Pode fechar esta tela: o plano aparece em "Minha conta".</p>
+    </div>`;
+  if(informado) esperarAtivacao(p);
+}
+async function jaPaguei(codigo){
+  const r = await fetch(`/assinatura/pedido/${encodeURIComponent(codigo)}/paguei`, {method:"POST"});
+  if(!r.ok){ alert("Não foi possível registrar agora. Tente de novo."); return; }
+  $("pedidoEstado").innerHTML = `<p style="color:#f5a623"><b>Pagamento informado.</b> Assim que for conferido, seu plano é ativado e esta tela atualiza sozinha.</p>`;
+  esperarAtivacao({codigo});
+}
+function esperarAtivacao(p){
+  _pollPedido = setInterval(async ()=>{
+    if(!$("pedidoEstado")){ clearInterval(_pollPedido); _pollPedido = null; return; }
+    await carregarConta();
+    const ped = (_conta && _conta.pedidos || []).find(x=>x.codigo===p.codigo);
+    if(ped && ped.status==="ativado"){
+      clearInterval(_pollPedido); _pollPedido = null;
+      $("pedidoEstado").innerHTML = `<p style="font-size:18px;color:var(--green)"><b>✅ Plano ativado!</b></p>
+        <p>Agora você tem ${_conta.uso.cota} relatórios por mês, válido até ${(_conta.uso.plano_ate||"").split("-").reverse().join("/")}.</p>
+        <button class="btn" onclick="abrirConta()">Ver minha conta</button>`;
+    } else if(ped && ped.status==="recusado"){
+      clearInterval(_pollPedido); _pollPedido = null;
+      $("pedidoEstado").innerHTML = `<p style="color:#ff8a80">Não localizamos esse pagamento. Se você pagou, escreva para ${EMAIL_TITULAR} com o comprovante e o código ${esc(p.codigo)}.</p>`;
+    }
+  }, 8000);
+}
+function avisarDoacao(acao){
+  // Só um sinal para o aviso no Telegram (sem dados da pessoa); falha em silêncio.
+  try{ navigator.sendBeacon("/doacao/evento", new Blob([JSON.stringify({acao})], {type:"application/json"})); }catch(_){}
+}
 async function abrirDoacao(){
+  avisarDoacao("abriu");
   $("overlay").classList.add("open");
   $("modal").innerHTML = `<div class="body loading">carregando…</div>`;
   let d = {};
@@ -2866,9 +3010,9 @@ async function abrirDoacao(){
       <img class="pix-qr" src="${esc(pix.qrcode_svg||"/doacao/pix.svg")}" alt="QR Code Pix">
       <div style="font-size:13px">Chave Pix (celular): <b class="mono">(27) 99945-2979</b></div>
       <div class="chave-nova" id="pixCopia" style="font-size:11px">${esc(pix.copia_e_cola||"")}</div>
-      <button class="btn" onclick="navigator.clipboard.writeText($('pixCopia').textContent).then(()=>this.textContent='Copiado!')">Copiar Pix copia e cola</button>
+      <button class="btn" onclick="navigator.clipboard.writeText($('pixCopia').textContent).then(()=>this.textContent='Copiado!');avisarDoacao('copiou_pix')">Copiar Pix copia e cola</button>
       <div class="sec" style="text-align:left">Outras formas</div>
-      <a class="btn ghost" href="${esc(d.github_sponsors||"https://github.com/sponsors/brunokobi")}" target="_blank" rel="noopener" style="text-decoration:none">🐙 GitHub Sponsors (mensal ou única)</a>
+      <a class="btn ghost" onclick="avisarDoacao('sponsors')" href="${esc(d.github_sponsors||"https://github.com/sponsors/brunokobi")}" target="_blank" rel="noopener" style="text-decoration:none">🐙 GitHub Sponsors (mensal ou única)</a>
       <p style="font-size:11.5px;color:var(--muted);margin-top:14px">Doação é apoio voluntário: não dá direito a cota extra nem a outro benefício.</p>
     </div>`;
 }
@@ -2885,13 +3029,14 @@ function abrirPrivacidade(){
       <p>Projeto independente mantido por <b>Bruno Kobi</b> (pessoa física), que atua como controlador e encarregado pelo tratamento de dados. Contato para qualquer assunto de privacidade: <a href="mailto:${EMAIL_TITULAR}">${EMAIL_TITULAR}</a>.</p>
 
       <div class="sec">Finalidade</div>
-      <p>Reunir, numa consulta só, informações <b>públicas</b> sobre as empresas ativas da Grande Vitória (ES) para transparência, pesquisa, avaliação de risco de integridade antes de contratar ou se relacionar com uma empresa (due diligence) e prospecção comercial entre empresas. ${window.GV_ANUNCIOS ? "O site não vende dados. As páginas públicas de cidades, atividades, bairros e empresas exibem anúncios do Google AdSense (veja \"Anúncios\" abaixo); o painel, o relatório e a conta não têm anúncios." : "O site não vende dados e não faz publicidade."}</p>
+      <p>Reunir, numa consulta só, informações <b>públicas</b> sobre as empresas ativas da Grande Vitória (ES) para transparência, pesquisa, avaliação de risco de integridade antes de contratar ou se relacionar com uma empresa (due diligence) e prospecção comercial entre empresas. ${window.GV_ANUNCIOS ? "O site não vende dados. Para visitantes e contas grátis, o site exibe anúncios do Google AdSense (veja \"Anúncios\" abaixo); assinantes de um plano não veem anúncios." : "O site não vende dados e não faz publicidade."}</p>
 
       <div class="sec">Se você cria uma conta</div>
       <div class="lista">
         <div class="item"><b>O que guardamos:</b> seu e-mail, o nome que o Google informa (se entrar com Google), a data do cadastro e do último acesso, os CNPJs cujo relatório você abriu no mês (para contar a cota) e as chaves de API que você criar (guardadas só de forma cifrada, sem como recuperar o valor).</div>
         <div class="item"><b>Para quê:</b> só para identificar você, controlar a cota mensal de relatórios e permitir o uso pela API e pelo MCP (base legal: execução do serviço que você pediu, art. 7º, V). Não enviamos e-mail de marketing e não repassamos esses dados a ninguém.</div>
-        <div class="item"><b>Serviços envolvidos:</b> o Google, se você escolher entrar com Google, e o serviço que entrega o e-mail com o link de acesso, se escolher o link.</div>
+        <div class="item"><b>Serviços envolvidos:</b> o Google, se você escolher entrar com Google, e o serviço que entrega o e-mail com o link de acesso, se escolher o link. O mantenedor recebe um aviso interno (Telegram) a cada novo cadastro, com o e-mail parcialmente oculto (ex.: fu***@gmail.com).</div>
+        <div class="item"><b>Se você assina um plano:</b> guardamos o plano, a validade e os pedidos (código, valor, data e situação), para liberar e conferir o pagamento. O pagamento é por Pix direto ao mantenedor; o site não recebe dados bancários nem de cartão.</div>
         <div class="item"><b>Excluir:</b> em <a href="#" onclick="abrirConta();return false">Minha conta</a> → "Excluir minha conta", tudo isso é apagado na hora.</div>
       </div>
 
@@ -2916,10 +3061,10 @@ function abrirPrivacidade(){
       </div>
 
       <div class="sec">Cookies e registros</div>
-      <p>${window.GV_ANUNCIOS ? "Fora os cookies do Google AdSense nas páginas públicas (veja \"Anúncios\"), o site não usa cookies de rastreamento nem ferramentas de análise de visitantes." : "O site não usa cookies de rastreamento nem ferramentas de análise de visitantes."} Quem entra na conta recebe um único cookie essencial de sessão (dura 30 dias ou até sair), usado só para manter o login. O servidor pode manter registros técnicos de acesso (como endereço IP, data e página) para segurança e funcionamento.</p>
+      <p>${window.GV_ANUNCIOS ? "Fora os cookies do Google AdSense para quem vê anúncios (veja \"Anúncios\"), o site não usa cookies de rastreamento nem ferramentas de análise de visitantes. Assinantes recebem um cookie simples (gv_sem_anuncio) que só serve para esconder os anúncios até o fim do plano." : "O site não usa cookies de rastreamento nem ferramentas de análise de visitantes."} Quem entra na conta recebe um único cookie essencial de sessão (dura 30 dias ou até sair), usado só para manter o login. O servidor pode manter registros técnicos de acesso (como endereço IP, data e página) para segurança e funcionamento.</p>
 
       ${window.GV_ANUNCIOS ? `<div class="sec">Anúncios</div>
-      <p>As páginas públicas (cidades, atividades, bairros e empresas) exibem anúncios do <b>Google AdSense</b>. O Google e seus parceiros podem usar cookies e identificadores para exibir e medir anúncios, inclusive com base em visitas anteriores a este e a outros sites. Este site não envia ao Google dados das empresas consultadas, da sua conta ou do relatório. Veja <a href="https://policies.google.com/technologies/partner-sites?hl=pt-BR" target="_blank" rel="noopener">como o Google usa dados de sites parceiros</a> e desative anúncios personalizados em <a href="https://adssettings.google.com" target="_blank" rel="noopener">Configurações de anúncios</a>.</p>` : ""}
+      <p>Para visitantes e contas grátis, o site exibe anúncios do <b>Google AdSense</b>; quem assina um plano não vê anúncios. O Google e seus parceiros podem usar cookies e identificadores para exibir e medir anúncios, inclusive com base em visitas anteriores a este e a outros sites. Este site não envia ao Google dados das empresas consultadas, da sua conta ou do relatório. Veja <a href="https://policies.google.com/technologies/partner-sites?hl=pt-BR" target="_blank" rel="noopener">como o Google usa dados de sites parceiros</a> e desative anúncios personalizados em <a href="https://adssettings.google.com" target="_blank" rel="noopener">Configurações de anúncios</a>.</p>` : ""}
 
       <div class="sec">Seus direitos como titular (art. 18)</div>
       <p>Você pode pedir <b>confirmação e acesso</b> aos dados, <b>correção</b> de dado incompleto ou errado (por exemplo, um homônimo atribuído a você), <b>oposição</b> ao tratamento e <b>eliminação</b> do que não for necessário à finalidade. Escreva para <a href="mailto:${EMAIL_TITULAR}?subject=${encodeURIComponent("LGPD - pedido do titular")}">${EMAIL_TITULAR}</a> dizendo o CNPJ ou a página e o que deseja. Em cada empresa, o link "Solicitar correção ou remoção" no fim da página já preenche o e-mail. A resposta vem em até 15 dias. Correções feitas aqui não alteram a fonte original: se o erro estiver lá, indicamos onde pedir a correção.</p>

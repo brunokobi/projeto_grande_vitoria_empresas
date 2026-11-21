@@ -446,7 +446,8 @@ def _cobrar_relatorio_mcp(ctx, cnpj: str):
         return {"ok": False, "bloqueio": {
             "erro": "cota_esgotada", "empresa": basico, "usados": uso["usados"], "cota": uso["cota"],
             "mensagem": f"A cota de {uso['cota']} relatórios de {uso['mes']} acabou; renova no dia 1º. "
-                        "Relatórios já abertos neste mês continuam liberados."}}
+                        "Relatórios já abertos neste mês continuam liberados. O limite evita abuso e sobrecarga "
+                        "do servidor; o banco completo é público para download no GitHub do projeto, sem limite."}}
     return uso
 
 

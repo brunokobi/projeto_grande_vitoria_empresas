@@ -411,10 +411,8 @@ def _adsense(status: int) -> str:
     """Anúncios automáticos do AdSense, só em página pública com conteúdo (200)."""
     if not config.ADSENSE_CLIENT or status != 200:
         return ""
-    c = config.ADSENSE_CLIENT
-    return (f'<meta name="google-adsense-account" content="{c}">'
-            f'<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client={c}" '
-            'crossorigin="anonymous"></script>')
+    from src import contas
+    return contas.html_adsense()  # assinante com plano em dia não vê anúncio
 
 
 def _cidade_ou_404(slug: str, lang: str = "pt"):

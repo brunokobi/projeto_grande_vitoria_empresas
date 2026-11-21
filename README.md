@@ -39,6 +39,7 @@
 | 🔌 **API REST** | [empresas.brunokobi.tech/docs](https://empresas.brunokobi.tech/docs) |
 | 🤖 **MCP** (Claude, Cursor, Windsurf, VS Code, Cline...) | `https://empresas.brunokobi.tech/mcp/` — instruções por cliente em **[MCP.md](MCP.md)** |
 | 👤 **Cadastro grátis** (Google ou link por e-mail, sem senha) | **10 relatórios completos por mês** (visão 360º de uma empresa), a mesma cota no site, na API e no MCP |
+| ⭐ **Planos** | Profissional (100 relatórios/mês, R$ 19,90 ou R$ 9,99/mês no anual) e Empresa (1.000/mês, R$ 79,90 ou R$ 59,99/mês no anual), pagos por Pix — botão **Ver planos** em "Minha conta" |
 | 💛 **Apoie** | Pix (celular) `(27) 99945-2979` ou [GitHub Sponsors](https://github.com/sponsors/brunokobi) — botão **Apoiar** no site |
 
 Busca, filtros, mapa, estatísticas e ranking de doações continuam livres, sem

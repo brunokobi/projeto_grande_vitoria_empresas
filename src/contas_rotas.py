@@ -37,7 +37,11 @@ def _voltar_url(cnpj: str | None) -> str:
 
 
 def _logar(resposta: Response, email: str, nome: str | None, provedor: str) -> Response:
+    novo = not contas.usuario_existe(email)
     uid = contas.obter_ou_criar_usuario(email, nome, provedor)
+    if novo:
+        from src import notificar_telegram
+        notificar_telegram.notificar_cadastro(email, provedor, contas.total_usuarios())
     token = contas.criar_sessao(uid)
     resposta.set_cookie(contas.COOKIE_SESSAO, token, max_age=contas.SESSAO_DIAS * 86400,
                         httponly=True, secure=_COOKIE_SEGURO, samesite="lax", path="/")
@@ -159,14 +163,27 @@ def auth_sair(request: Request):
     contas.encerrar_sessao(request.cookies.get(contas.COOKIE_SESSAO))
     r = JSONResponse({"ok": True})
     r.delete_cookie(contas.COOKIE_SESSAO, path="/")
+    r.delete_cookie(contas.COOKIE_SEM_ANUNCIO, path="/")
     return r
 
 
 # ---------------------------------------------------------------- conta
 
+def _cookie_anuncio(request: Request, response: Response, usuario):
+    """Assinante com plano em dia: cookie que esconde os anúncios até o
+    vencimento. Sem plano em dia: apaga o cookie, se existir."""
+    import time as _t
+    if usuario and contas.plano_ativo(usuario):
+        response.set_cookie(contas.COOKIE_SEM_ANUNCIO, "1", max_age=max(60, int(usuario["plano_ate"] - _t.time())),
+                            secure=_COOKIE_SEGURO, samesite="lax", path="/")
+    elif request.cookies.get(contas.COOKIE_SEM_ANUNCIO):
+        response.delete_cookie(contas.COOKIE_SEM_ANUNCIO, path="/")
+
+
 @router.get("/conta", summary="Conta do usuário logado: cota do mês e chaves de API", tags=["Conta"])
-def get_conta(request: Request):
+def get_conta(request: Request, response: Response):
     u = contas.usuario_da_requisicao(request)
+    _cookie_anuncio(request, response, u)
     base = {"metodos_login": contas.metodos_login(), "cota_gratis": contas.COTA_MENSAL,
             "cadastro_ativo": contas.cadastro_ativo()}
     if not u:
@@ -174,7 +191,8 @@ def get_conta(request: Request):
     from src import oauth_mcp
     return {"logado": True, **base, "email": u["email"], "nome": u["nome"],
             "uso": contas.uso_do_mes(u), "chaves": contas.listar_chaves(u["id"]),
-            "aplicativos": oauth_mcp.aplicativos_conectados(u["id"])}
+            "aplicativos": oauth_mcp.aplicativos_conectados(u["id"]),
+            "pedidos": __import__("src.assinaturas", fromlist=["x"]).pedidos_do_usuario(u["id"], 5)}
 
 
 @router.delete("/conta/aplicativos/{client_id}", summary="Revoga o acesso de um aplicativo MCP conectado por OAuth", tags=["Conta"])
@@ -220,6 +238,7 @@ def delete_conta(request: Request):
     contas.excluir_usuario(u["id"])
     r = JSONResponse({"ok": True})
     r.delete_cookie(contas.COOKIE_SESSAO, path="/")
+    r.delete_cookie(contas.COOKIE_SEM_ANUNCIO, path="/")
     return r
 
 
@@ -234,6 +253,32 @@ def get_doacao():
                     "copia_e_cola": contas.pix_copia_e_cola(config.PIX_CHAVE, config.PIX_NOME, config.PIX_CIDADE),
                     "qrcode_svg": "/doacao/pix.svg"},
             "github_sponsors": config.GITHUB_SPONSORS_URL}
+
+
+_ULTIMO_AVISO_DOACAO = {}
+
+
+@router.post("/doacao/evento", include_in_schema=False)
+async def doacao_evento(request: Request):
+    """Aviso no Telegram quando alguém abre a doação, copia o Pix ou clica no
+    Sponsors. No máximo 1 aviso por IP e ação a cada 10 min (sem spam)."""
+    from src import notificar_telegram
+    try:
+        acao = str((await request.json()).get("acao") or "")
+    except Exception:
+        acao = ""
+    if acao not in ("abriu", "copiou_pix", "sponsors"):
+        return {"ok": False}
+    import time as _t
+    chave = (_ip(request), acao)
+    if _t.time() - _ULTIMO_AVISO_DOACAO.get(chave, 0) < 600:
+        return {"ok": True}
+    if len(_ULTIMO_AVISO_DOACAO) > 5000:
+        _ULTIMO_AVISO_DOACAO.clear()
+    _ULTIMO_AVISO_DOACAO[chave] = _t.time()
+    notificar_telegram.notificar_doacao(acao, request.headers.get("x-forwarded-for"),
+                                        request.client.host if request.client else None)
+    return {"ok": True}
 
 
 @router.get("/doacao/pix.svg", include_in_schema=False)

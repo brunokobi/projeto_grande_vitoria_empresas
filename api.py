@@ -10,6 +10,8 @@ Rodar:
 Docs da API: http://localhost:8000/docs
 """
 import contextlib
+import threading
+import os
 import hashlib
 import io
 import json
@@ -23,7 +25,7 @@ from src import dataset_queries, geocode as geocode_lib, midia, notificar_telegr
 from mcp_server import mcp
 from src import contas
 from src.contas_rotas import router as contas_router, exigir_usuario, SITE_URL as _SITE_URL_CONTAS
-from src import seo_paginas, oauth_mcp
+from src import seo_paginas, oauth_mcp, assinaturas
 
 # Expõe o mesmo servidor MCP (mcp_server.py) por HTTP em /mcp, além do uso
 # local via stdio (.mcp.json). streamable_http_path vira "/" porque o mount
@@ -39,6 +41,18 @@ mcp_app = mcp.streamable_http_app()
 
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Aquecimento: monta as estatísticas (usadas no HTML da página inicial) logo
+    # ao iniciar, em segundo plano. Sem isso o 1º visitante depois de um deploy
+    # esperava o cálculo inteiro — em 21/11/2026, com o servidor ocupado, passou
+    # dos 100 s do Cloudflare (erro 524).
+    import threading
+
+    def _aquecer():
+        try:
+            _dashboard_com_numeros()
+        except Exception as e:  # não pode derrubar o serviço
+            print("[aquecimento] falhou:", repr(e), flush=True)
+    threading.Thread(target=_aquecer, daemon=True).start()
     async with mcp_app.router.lifespan_context(mcp_app):
         yield
 
@@ -68,6 +82,7 @@ app = FastAPI(
 app.include_router(contas_router)
 app.include_router(seo_paginas.router)
 app.include_router(oauth_mcp.router)
+app.include_router(assinaturas.router)
 app.mount("/mcp", mcp_app)
 # Mesmo servidor MCP, mas exigindo login (OAuth 2.1): é o endereço para os
 # conectores do claude.ai e outros clientes que fazem o login sozinhos.
@@ -224,10 +239,9 @@ def _dashboard_com_numeros() -> str:
     for chave, valor in valores.items():
         html = html.replace("{{" + chave + "}}", valor)
     if config.ADSENSE_CLIENT:
-        # Dashboard não exibe anúncio: só a marca de verificação da conta e o
-        # aviso para a política de privacidade mencionar os anúncios das páginas públicas.
-        html = html.replace("</head>", f'<meta name="google-adsense-account" content="{config.ADSENSE_CLIENT}">'
-                            "<script>window.GV_ANUNCIOS=true</script></head>", 1)
+        # Anúncios automáticos para quem não é assinante (contas.html_adsense);
+        # GV_ANUNCIOS liga os trechos de anúncios na política de privacidade.
+        html = html.replace("</head>", contas.html_adsense() + "<script>window.GV_ANUNCIOS=true</script></head>", 1)
     return html
 
 
@@ -248,7 +262,7 @@ def robots_txt():
     # Páginas indexáveis: home, /cidade/... e /empresa/... (src/seo_paginas.py).
     # Rotas de API/JSON, login e conta ficam de fora (respostas 401 ou sem valor de busca).
     bloqueadas = ["/empresas", "/mapa", "/export/", "/auth/", "/conta", "/mcp/", "/classificar",
-                  "/geocode", "/processos/", "/kobi-api/", "/oauth/", "/mcp-conta/"]
+                  "/geocode", "/processos/", "/kobi-api/", "/oauth/", "/mcp-conta/", "/admin/", "/assinatura/"]
     conteudo = ("User-agent: *\nAllow: /\n" + "".join(f"Disallow: {b}\n" for b in bloqueadas)
                 + f"Sitemap: {SITE_URL}/sitemap.xml\n")
     return Response(content=conteudo, media_type="text/plain")
@@ -321,18 +335,75 @@ def get_estatisticas():
     return Response(content=_estatisticas_json(), media_type="application/json")
 
 
-def _estatisticas_json() -> bytes:
+_ESTATISTICAS_ARQUIVO = config.BASE_DIR / "data" / "estatisticas_cache.json"
+_ESTATISTICAS_LOCK = threading.Lock()
+_ESTATISTICAS_RECALCULANDO = threading.Event()
+
+
+def _versao_db():
     try:
-        db_mtime = config.DB_PATH.stat().st_mtime
+        st = config.DB_PATH.stat()
+        return [st.st_mtime, st.st_size]
     except OSError:
-        db_mtime = None
-    cacheado = _ESTATISTICAS_CACHE.get("v")
-    if cacheado and cacheado[0] == db_mtime:
-        return cacheado[1]
-    resultado = dataset_queries.estatisticas()
-    corpo = json.dumps(resultado, ensure_ascii=False).encode("utf-8")
-    _ESTATISTICAS_CACHE["v"] = (db_mtime, corpo)
+        return None
+
+
+def _calcular_estatisticas(versao) -> bytes:
+    """Calcula (~40 s com a base inteira) e grava em memória e em disco."""
+    corpo = json.dumps(dataset_queries.estatisticas(), ensure_ascii=False).encode("utf-8")
+    _ESTATISTICAS_CACHE["v"] = (versao, corpo)
+    try:
+        tmp = _ESTATISTICAS_ARQUIVO.with_suffix(".tmp")
+        tmp.write_text(json.dumps({"versao": versao, "corpo": corpo.decode("utf-8")}), encoding="utf-8")
+        os.replace(tmp, _ESTATISTICAS_ARQUIVO)
+    except OSError as e:
+        print("[estatisticas] não gravei o cache em disco:", repr(e), flush=True)
     return corpo
+
+
+def _recalcular_em_segundo_plano(versao):
+    if _ESTATISTICAS_RECALCULANDO.is_set():
+        return
+    _ESTATISTICAS_RECALCULANDO.set()
+
+    def _go():
+        try:
+            with _ESTATISTICAS_LOCK:
+                if (_ESTATISTICAS_CACHE.get("v") or [None])[0] != versao:
+                    _calcular_estatisticas(versao)
+        except Exception as e:
+            print("[estatisticas] recálculo falhou:", repr(e), flush=True)
+        finally:
+            _ESTATISTICAS_RECALCULANDO.clear()
+    threading.Thread(target=_go, daemon=True).start()
+
+
+def _estatisticas_json() -> bytes:
+    """Estatísticas do banco com cache em memória + disco (sobrevive a
+    reinício). Banco trocado pelo refresh_dataset: responde na hora com os
+    números anteriores e recalcula em segundo plano (stale-while-revalidate).
+    Sem nenhum cache (1ª vez): calcula na hora, uma única vez (trava)."""
+    versao = _versao_db()
+    cacheado = _ESTATISTICAS_CACHE.get("v")
+    if cacheado and cacheado[0] == versao:
+        return cacheado[1]
+    if not cacheado:
+        try:
+            d = json.loads(_ESTATISTICAS_ARQUIVO.read_text(encoding="utf-8"))
+            cacheado = (d["versao"], d["corpo"].encode("utf-8"))
+            _ESTATISTICAS_CACHE["v"] = cacheado
+            if cacheado[0] == versao:
+                return cacheado[1]
+        except (OSError, ValueError, KeyError):
+            pass
+    if cacheado:
+        _recalcular_em_segundo_plano(versao)
+        return cacheado[1]
+    with _ESTATISTICAS_LOCK:
+        cacheado = _ESTATISTICAS_CACHE.get("v")
+        if cacheado and cacheado[0] == versao:
+            return cacheado[1]
+        return _calcular_estatisticas(versao)
 
 
 @app.get("/segmentos", summary="Segmentos (divisões CNAE) com contagem")
@@ -589,7 +660,8 @@ def _cobrar_relatorio(request: Request, cnpj: str, origem: str) -> dict:
         raise HTTPException(status_code=429, detail={
             "erro": "cota_esgotada", "empresa": basico, **uso,
             "mensagem": f"Você já usou os {uso['cota']} relatórios de {uso['mes']}. A cota renova no dia 1º; "
-                        "relatórios já abertos neste mês continuam liberados."})
+                        "relatórios já abertos neste mês continuam liberados. O limite evita abuso e sobrecarga "
+                        "do servidor; o banco completo é público para download no GitHub do projeto, sem limite."})
     return uso
 
 

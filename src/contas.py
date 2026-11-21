@@ -122,6 +122,12 @@ def _criar_tabelas(c):
     CREATE INDEX IF NOT EXISTS ix_sessoes_usuario ON sessoes(usuario_id);
     CREATE INDEX IF NOT EXISTS ix_chaves_usuario ON chaves_api(usuario_id);
     """)
+    # Planos pagos (src/assinaturas.py): colunas novas em bancos já existentes.
+    for col in ("plano TEXT", "plano_ate INTEGER"):
+        try:
+            c.execute(f"ALTER TABLE usuarios ADD COLUMN {col}")
+        except sqlite3.OperationalError:
+            pass  # já existe
     c.commit()
 
 
@@ -174,6 +180,16 @@ def obter_ou_criar_usuario(email: str, nome: str = None, provedor: str = None) -
         return cur.lastrowid
 
 
+def usuario_existe(email: str) -> bool:
+    with _conn() as c:
+        return c.execute("SELECT 1 FROM usuarios WHERE email = ?", (email,)).fetchone() is not None
+
+
+def total_usuarios() -> int:
+    with _conn() as c:
+        return c.execute("SELECT COUNT(*) FROM usuarios").fetchone()[0]
+
+
 def criar_sessao(usuario_id: int) -> str:
     token = secrets.token_urlsafe(32)
     agora = _agora()
@@ -191,7 +207,7 @@ def encerrar_sessao(token: str):
 
 
 def _usuario(c, usuario_id: int):
-    row = c.execute("SELECT id, email, nome, provedor, cota_mensal, criado_em FROM usuarios WHERE id = ?",
+    row = c.execute("SELECT id, email, nome, provedor, cota_mensal, criado_em, plano, plano_ate FROM usuarios WHERE id = ?",
                     (usuario_id,)).fetchone()
     return dict(row) if row else None
 
@@ -277,7 +293,23 @@ def revogar_chave(usuario_id: int, prefixo: str) -> bool:
 
 # ---------------------------------------------------------------- cota
 
+# Planos pagos (preço em centavos; anual = equivalente mensal x 12, cobrado de uma vez).
+PLANOS = {
+    "pro": {"nome": "Profissional", "cota": 100, "mensal": 1990, "anual_mes": 999},
+    "empresa": {"nome": "Empresa", "cota": 1000, "mensal": 7990, "anual_mes": 5999},
+}
+
+
+def plano_ativo(usuario: dict):
+    """Código do plano pago em vigor, ou None (grátis)."""
+    p = usuario.get("plano")
+    return p if p in PLANOS and (usuario.get("plano_ate") or 0) > _agora() else None
+
+
 def cota_do_usuario(usuario: dict) -> int:
+    p = plano_ativo(usuario)
+    if p:
+        return PLANOS[p]["cota"]
     return usuario.get("cota_mensal") if usuario.get("cota_mensal") is not None else COTA_MENSAL
 
 
@@ -311,7 +343,15 @@ def uso_do_mes(usuario: dict) -> dict:
         consultas = [dict(r) for r in c.execute(
             "SELECT cnpj, origem, criado_em FROM consumo WHERE usuario_id = ? AND mes = ? ORDER BY criado_em DESC",
             (usuario["id"], mes))]
-    return {"mes": mes, "cota": cota_do_usuario(usuario), "usados": len(consultas), "consultas": consultas}
+        total = c.execute("SELECT COUNT(*) FROM consumo WHERE usuario_id = ?", (usuario["id"],)).fetchone()[0]
+    cota = cota_do_usuario(usuario)
+    ano, m = map(int, mes.split("-"))
+    renova = f"{ano + (m == 12)}-{1 if m == 12 else m + 1:02d}-01"  # dia 1º do mês seguinte (Brasília)
+    p = plano_ativo(usuario)
+    return {"mes": mes, "cota": cota, "usados": len(consultas), "restantes": max(0, cota - len(consultas)),
+            "renova_em": renova, "total_historico": total, "consultas": consultas,
+            "plano": PLANOS[p]["nome"] if p else "Grátis", "plano_codigo": p,
+            "plano_ate": datetime.fromtimestamp(usuario["plano_ate"], _TZ).strftime("%Y-%m-%d") if p else None}
 
 
 # ---------------------------------------------------------------- login por e-mail
@@ -388,6 +428,26 @@ def usuario_google(code: str, redirect_uri: str):
     return email, (d.get("name") or "").strip()[:120] or None
 
 
+# ---------------------------------------------------------------- anúncios (grátis vê, assinante não)
+
+COOKIE_SEM_ANUNCIO = "gv_sem_anuncio"
+
+
+def html_adsense() -> str:
+    """Trecho do <head> que carrega os anúncios automáticos do AdSense, exceto
+    para assinante com plano em dia (cookie `gv_sem_anuncio`, gravado em
+    GET /conta). Feito no navegador porque as páginas de SEO ficam em cache e
+    são iguais para todos. Vazio quando ADSENSE_CLIENT não está definido."""
+    c = config.ADSENSE_CLIENT
+    if not c:
+        return ""
+    return (f'<meta name="google-adsense-account" content="{c}">'
+            '<script>(function(){try{if(document.cookie.indexOf("' + COOKIE_SEM_ANUNCIO + '=1")>-1)return;}catch(e){}'
+            'window.GV_ANUNCIOS_VISIVEIS=true;var s=document.createElement("script");s.async=true;s.crossOrigin="anonymous";'
+            f's.src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client={c}";'
+            'document.head.appendChild(s);})();</script>')
+
+
 # ---------------------------------------------------------------- Pix (doação)
 
 def _tlv(ident: str, valor: str) -> str:
@@ -404,11 +464,12 @@ def _crc16(dados: str) -> str:
     return f"{crc:04X}"
 
 
-def pix_copia_e_cola(chave: str, nome: str, cidade: str, txid: str = "***") -> str:
+def pix_copia_e_cola(chave: str, nome: str, cidade: str, txid: str = "***", valor: float = None) -> str:
     """BR Code estático (padrão EMV do Banco Central), sem valor fixo: quem
     doa escolhe o valor no app do banco."""
     conta = _tlv("00", "br.gov.bcb.pix") + _tlv("01", chave)
     corpo = (_tlv("00", "01") + _tlv("26", conta) + _tlv("52", "0000") + _tlv("53", "986")
+             + (_tlv("54", f"{valor:.2f}") if valor else "")
              + _tlv("58", "BR") + _tlv("59", nome[:25]) + _tlv("60", cidade[:15])
              + _tlv("62", _tlv("05", txid)) + "6304")
     return corpo + _crc16(corpo)

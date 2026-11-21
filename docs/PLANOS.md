@@ -6,7 +6,7 @@ Atualizado em 20/11/2026. Ordem de prioridade decidida com o mantenedor.
 
 - **Cadastro sem senha:** "Entrar com Google" (OAuth 2.0) ou link de acesso
   por e-mail (Brevo ou Resend). Sessão em cookie HttpOnly de 30 dias.
-- **Cota:** 10 relatórios completos por mês, grátis. Relatório = visão 360º
+- **Cota:** 10 relatórios completos por mês, grátis. O motivo aparece para o usuário: evitar abuso (robôs copiando a base) e sobrecarga do servidor; quem precisa de mais baixa o banco completo no GitHub. Relatório = visão 360º
   de uma empresa (`GET /empresas/{cnpj}`, o modal do site ou a ferramenta MCP
   `obter_empresa` remota). Rever o mesmo CNPJ no mesmo mês não conta de novo;
   a cota renova no dia 1º (horário de Brasília).
@@ -101,10 +101,29 @@ não tem limite.
 - Risco: o Google pode recusar sites de listas de dados como "conteúdo de
   baixo valor"; as páginas de cidade/atividade/bairro ajudam.
 
+## Planos pagos (implementado em 21/11/2026, aguardando deploy)
+
+| Plano | Relatórios/mês | Mensal | Anual |
+|---|---|---|---|
+| Grátis | 10 | — | — |
+| Profissional | 100 | R$ 19,90 | R$ 9,99/mês = R$ 119,88 de uma vez |
+| Empresa | 1.000 | R$ 79,90 | R$ 59,99/mês = R$ 719,88 de uma vez |
+
+- Pagamento por Pix na chave do mantenedor, sem taxa de provedor. O QR Code
+  já vem com o valor e o código do pedido. "Já paguei" manda aviso no
+  Telegram com um link assinado; o mantenedor confere o extrato e toca em
+  "Ativar". A tela do cliente atualiza sozinha.
+- Assinante não vê anúncios; visitantes e contas grátis veem (quando o AdSense estiver ligado).
+- Sem renovação automática; 7 dias de arrependimento com reembolso (CDC,
+  art. 49); doação continua separada e não dá plano.
+- Próximo passo quando houver volume: provedor com webhook (Asaas ou Mercado
+  Pago, sem mensalidade, com taxa por pagamento) para ativar sem
+  intervenção. Antes de cobrar, confirmar com um contador a parte de nota
+  fiscal e imposto (pessoa física x MEI).
+
 ## Ideias para depois (sem data)
 
 - Relatório de due diligence em PDF por CNPJ.
 - Monitoramento por assinatura: alerta quando um CNPJ acompanhado ganhar
   processo, dívida ativa ou sanção.
 - "Reivindique sua empresa": o dono confirma o CNPJ e completa o perfil.
-- Planos pagos com cota maior (separados da doação; conversar com contador antes).
