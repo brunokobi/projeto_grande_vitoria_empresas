@@ -164,7 +164,8 @@ circularidade com a hipótese de metapath sócio-comum daquela dissertação (ve
   (MapLibre), filtros, visão 360º por empresa em modal, export Excel/PDF. A
   página de fontes é a função `abrirSobre()` (botão **?**) — revisada contra
   código e produção em 15/11/2026; use como referência do que cada fonte é e
-  das ressalvas.
+  das ressalvas. A seção "Due diligence dos sócios" foi reescrita em
+  21/11/2026 com o critério de cada fonte e as contagens de produção.
 - Todos usam `src/dataset_queries.py` (SQLite somente-leitura) — sem duplicar
   SQL. A nota de integridade é `src/avaliacao_integridade.py` (mesma função no
   modal e no pré-cálculo em lote).
