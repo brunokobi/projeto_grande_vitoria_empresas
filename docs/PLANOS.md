@@ -63,7 +63,7 @@ não tem limite.
   Processos, dívidas, sanções e nota de integridade ficam no relatório com
   login, fora do Google, para evitar exposição indevida e ações por dano
   moral (empresa também pode pedir indenização, Súmula 227 do STJ).
-- Sitemaps divididos (45 mil URLs cada), schema.org `Organization` e
+- Sitemaps divididos (10 mil URLs cada; desde 26/11/2026 só empresas não-MEI, maiores primeiro), schema.org `Organization` e
   `BreadcrumbList`, links internos (empresa → atividade → cidade, bairro,
   empresas do mesmo ramo).
 - Depois, com tráfego medido: anúncios e afiliados contextuais (contabilidade

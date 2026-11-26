@@ -18,6 +18,12 @@ Regras de conteúdo (decididas em 20/11/2026, ver docs/PLANOS.md):
   fora do git) respondem 410 e saem do sitemap.
 - Páginas de atividade/bairro com poucas empresas ficam `noindex` e fora do
   sitemap (conteúdo raso prejudica o site inteiro no Google).
+- Sitemap de empresas (26/11/2026): só as que não são MEI, das maiores para as
+  menores (porte, depois capital social), em blocos de 10 mil. Com ~380 mil
+  URLs de uma vez o Search Console deixou ~376 mil como "detectada, mas não
+  indexada"; as páginas de MEI (~200 mil, quase iguais entre si) continuam no
+  ar e acessíveis pelas listas de cidade/atividade/bairro, só não são
+  oferecidas no sitemap.
 """
 import json
 import os
@@ -38,7 +44,7 @@ router = APIRouter()
 
 SITE_URL = (os.environ.get("SITE_URL") or "https://empresas.brunokobi.tech").rstrip("/")
 POR_PAGINA = 100
-URLS_POR_SITEMAP = 45000
+URLS_POR_SITEMAP = 10000
 MIN_EMPRESAS_ATIVIDADE = 3   # abaixo disso: noindex e fora do sitemap
 MIN_EMPRESAS_BAIRRO = 5
 REMOCOES_PATH = config.BASE_DIR / "data" / "seo_remocoes.txt"
@@ -717,10 +723,16 @@ def _xml(conteudo: str) -> Response:
                     headers={"Cache-Control": "public, max-age=3600"})
 
 
+# Empresas oferecidas no sitemap e a ordem (maiores primeiro). Ver docstring.
+_FILTRO_SITEMAP = "COALESCE(regime_tributario, '') != 'MEI'"
+_ORDEM_SITEMAP = ("CASE porte WHEN '05' THEN 0 WHEN '03' THEN 1 ELSE 2 END, "
+                  "COALESCE(capital_social, 0) DESC, cnpj")
+
+
 def _n_sitemaps_empresas() -> int:
     def gerar():
         with dataset_queries._conn() as c:
-            n = c.execute("SELECT COUNT(*) FROM empresas").fetchone()[0]
+            n = c.execute(f"SELECT COUNT(*) FROM empresas WHERE {_FILTRO_SITEMAP}").fetchone()[0]
         return max(1, -(-n // URLS_POR_SITEMAP))
     return _em_cache(("n_sitemaps",), gerar)
 
@@ -764,7 +776,8 @@ def sitemap_empresas(n: int):
 
     def gerar():
         with dataset_queries._conn() as c:
-            linhas = c.execute("SELECT cnpj, TRIM(razao_social), TRIM(nome_fantasia) FROM empresas ORDER BY cnpj LIMIT ? OFFSET ?",
+            linhas = c.execute(f"SELECT cnpj, TRIM(razao_social), TRIM(nome_fantasia) FROM empresas "
+                               f"WHERE {_FILTRO_SITEMAP} ORDER BY {_ORDEM_SITEMAP} LIMIT ? OFFSET ?",
                                (URLS_POR_SITEMAP, (n - 1) * URLS_POR_SITEMAP)).fetchall()
         removidos = _remocoes()
         corpo = "".join(f"<url><loc>{escape(SITE_URL + url_empresa(r[0], r[1], r[2]))}</loc></url>"

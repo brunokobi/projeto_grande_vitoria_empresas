@@ -267,7 +267,7 @@ As páginas de cidade, atividade e bairro existem em **português, inglês e esp
 - **Anúncios (opcional):** com `ADSENSE_CLIENT=ca-pub-...` no ambiente, as páginas públicas exibem anúncios automáticos do Google AdSense e `/ads.txt` declara o vendedor; o dashboard e o relatório nunca têm anúncio. Sem a variável, nada muda.
 - **Remoção a pedido:** CNPJs em `data/seo_remocoes.txt` (um por linha, fora do git) respondem 410 e saem do sitemap.
 - Atividade com menos de 3 empresas ou bairro com menos de 5 ficam `noindex` e fora do sitemap.
-- `GET /sitemap.xml` é um índice: `/sitemaps/paginas.xml` (cidades, atividades e bairros) e `/sitemaps/empresas-N.xml` (45 mil empresas cada). `robots.txt` bloqueia as rotas de API, login e conta.
+- `GET /sitemap.xml` é um índice: `/sitemaps/paginas.xml` (cidades, atividades e bairros) e `/sitemaps/empresas-N.xml` (10 mil empresas cada, só as que não são MEI, das maiores para as menores; as páginas de MEI continuam no ar, linkadas pelas listas, mas ficam fora do sitemap para o Google não gastar o rastreamento em ~200 mil páginas quase iguais). `robots.txt` bloqueia as rotas de API, login e conta.
 - Páginas com cache em memória, renovado quando o banco é trocado; `refresh_dataset.py` cria os índices `empresas(municipio, cnae_principal)` e `empresas(municipio, bairro)`.
 
 ### Servidor MCP

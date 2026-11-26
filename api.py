@@ -272,7 +272,8 @@ def robots_txt():
 def sitemap_xml():
     """Índice de sitemaps: páginas fixas, cidades, cidade+atividade e
     cidade+bairro (/sitemaps/paginas.xml) e uma página por empresa, dividida
-    em blocos de 45 mil (/sitemaps/empresas-N.xml). Ver src/seo_paginas.py."""
+    em blocos de 10 mil, só as que não são MEI e das maiores para as menores
+    (/sitemaps/empresas-N.xml). Ver src/seo_paginas.py."""
     return seo_paginas.sitemap_indice()
 
 

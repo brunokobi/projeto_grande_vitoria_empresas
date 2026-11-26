@@ -235,6 +235,14 @@ indexável); MEI sem logradouro/número/CEP/mapa/coordenadas; telefone e e-mail
 nunca; `data/seo_remocoes.txt` → 410. Cache em memória chaveado pelo mtime do
 banco. A tela de privacidade descreve essas páginas.
 
+Sitemap de empresas (26/11/2026): só não-MEI (~164 mil), das maiores para
+as menores (porte, capital), 10 mil por arquivo (`_FILTRO_SITEMAP`/
+`_ORDEM_SITEMAP`). Motivo: com as ~380 mil URLs de uma vez o Search Console
+deixou ~376 mil em "detectada, mas não indexada". As páginas de MEI seguem no
+ar (linkadas pelas listas), só não vão no sitemap. "Página alternativa com
+tag canônica adequada" no Search Console = URLs `/?empresa=` do dashboard
+(canônica `/`), esperado.
+
 Cidade/atividade/bairro também em inglês (`/en/city/...`) e espanhol
 (`/es/ciudad/...`), textos em `seo_paginas.T` e CNAE em
 `reference/cnaes_{en,es}.json` (tradução própria, não oficial). Página de
