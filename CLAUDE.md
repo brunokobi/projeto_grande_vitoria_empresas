@@ -243,6 +243,12 @@ ar (linkadas pelas listas), só não vão no sitemap. "Página alternativa com
 tag canônica adequada" no Search Console = URLs `/?empresa=` do dashboard
 (canônica `/`), esperado.
 
+Cabeçalho das páginas de SEO (26/11/2026) = o do dashboard: mesmas classes
+(`brand`, `hbtn`, `apoiar`, `cta`), cores e comportamento no celular, copiados
+em `seo_paginas._CSS` (a página não carrega o CSS do dashboard). "Entrar" leva
+a `/#conta`, que o dashboard abre com `abrirConta()`. Mudou o cabeçalho de um,
+mude no outro.
+
 Cidade/atividade/bairro também em inglês (`/en/city/...`) e espanhol
 (`/es/ciudad/...`), textos em `seo_paginas.T` e CNAE em
 `reference/cnaes_{en,es}.json` (tradução própria, não oficial). Página de

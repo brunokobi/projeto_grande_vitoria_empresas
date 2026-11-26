@@ -3083,6 +3083,8 @@ function abrirPrivacidade(){
 }
 if(location.hash === "#privacidade") window.addEventListener("load", () => abrirPrivacidade());
 if(location.hash === "#apoiar") window.addEventListener("load", () => abrirDoacao());
+// "Entrar" das páginas de SEO: abre login/conta depois que a conta carregou.
+if(location.hash === "#conta") window.addEventListener("load", () => setTimeout(abrirConta, 400));
 function exportar(fmt, colunas){
   const p = query();
   (colunas||[]).forEach(c=>p.append("colunas", c));

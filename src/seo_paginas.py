@@ -247,7 +247,7 @@ def p_bairro(lang: str, cidade: str, bairro_slug: str) -> str:
 
 T = {
     "pt": {
-        "nav_busca": "Busca e mapa", "nav_cidades": "Cidades", "nav_apoiar": "Apoiar", "inicio": "Início",
+        "nav_busca": "Busca e mapa", "nav_cidades": "Cidades", "nav_apoiar": "Apoiar", "nav_entrar": "Entrar", "inicio": "Início",
         "rodape_cidades": "Empresas por cidade", "rodape_fonte": "Dados públicos da Receita Federal, atualizados periodicamente{base}. Confira na fonte oficial antes de decidir.",
         "rodape_base": " (base de {d})", "privacidade": "Política de privacidade", "remocao": "Solicitar correção ou remoção",
         "aviso_idioma": "",
@@ -272,7 +272,7 @@ T = {
         "e404_sem": "Nenhuma empresa ativa com esta atividade em {c}.", "e404_pag": "Página fora do intervalo.", "e404_bairro": "Bairro não encontrado em {c}.",
     },
     "en": {
-        "nav_busca": "Search & map", "nav_cidades": "Cities", "nav_apoiar": "Support", "inicio": "Home",
+        "nav_busca": "Search & map", "nav_cidades": "Cities", "nav_apoiar": "Support", "nav_entrar": "Sign in", "inicio": "Home",
         "rodape_cidades": "Companies by city", "rodape_fonte": "Public data from Brazil's Federal Revenue Service (Receita Federal), updated periodically{base}. Check the official source before deciding.",
         "rodape_base": " (data as of {d})", "privacidade": "Privacy policy (Portuguese)", "remocao": "Request correction or removal",
         "aviso_idioma": "Company names, addresses and registry records are shown as registered in Brazil, in Portuguese. Company pages and the full report are in Portuguese.",
@@ -297,7 +297,7 @@ T = {
         "e404_sem": "No active company with this activity in {c}.", "e404_pag": "Page out of range.", "e404_bairro": "Neighborhood not found in {c}.",
     },
     "es": {
-        "nav_busca": "Búsqueda y mapa", "nav_cidades": "Ciudades", "nav_apoiar": "Apoyar", "inicio": "Inicio",
+        "nav_busca": "Búsqueda y mapa", "nav_cidades": "Ciudades", "nav_apoiar": "Apoyar", "nav_entrar": "Entrar", "inicio": "Inicio",
         "rodape_cidades": "Empresas por ciudad", "rodape_fonte": "Datos públicos de la Receita Federal de Brasil, actualizados periódicamente{base}. Verifique en la fuente oficial antes de decidir.",
         "rodape_base": " (base del {d})", "privacidade": "Política de privacidad (en portugués)", "remocao": "Solicitar corrección o eliminación",
         "aviso_idioma": "Los nombres, direcciones y registros de las empresas se muestran como están registrados en Brasil, en portugués. Las páginas de cada empresa y el informe completo están en portugués.",
@@ -340,12 +340,35 @@ def _data_local(lang: str) -> str:
 # ---------------------------------------------------------------- layout
 
 _CSS = """
-:root{--bg:#04060a;--panel:#0d1117;--line:#21262d;--text:#e6edf3;--muted:#9aa4ae;--green:#00ff88;--green-dim:#12b866;--green-deep:#0a3d28}
+:root{--bg:#04060a;--panel:#0a1119;--line:#123322;--text:#d6f5e4;--muted:#8aa597;--green:#00ff88;--green-dim:#12b866;--green-deep:#0a3d28}
 *{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--text);
 font-family:'Segoe UI',system-ui,-apple-system,Roboto,sans-serif;font-size:15px;line-height:1.55}
-a{color:var(--green)}header{border-bottom:1px solid var(--line);padding:12px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-header .logo{font-family:'Courier New',monospace;font-weight:700;color:var(--green);text-decoration:none;letter-spacing:1px}
-header nav{margin-left:auto;display:flex;gap:14px;flex-wrap:wrap;font-size:13px}
+body{background-image:radial-gradient(circle at 20% -10%,rgba(0,255,136,.06),transparent 40%),radial-gradient(circle at 90% 0,rgba(0,255,136,.04),transparent 35%)}
+a{color:var(--green)}
+/* Cabeçalho igual ao do dashboard (mesmas classes e cores). */
+header{position:sticky;top:0;z-index:20;background:rgba(4,6,10,.92);border-bottom:1px solid var(--line);backdrop-filter:blur(6px);
+padding:14px 22px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:12px;text-decoration:none}
+.brand-icon{width:38px;height:38px;border-radius:10px;flex:none;background:linear-gradient(160deg,var(--green-dim),var(--green-deep));
+color:#04060a;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;font-family:'Courier New',monospace;
+box-shadow:0 0 14px rgba(0,255,136,.35)}
+.logo{font-family:'Courier New',monospace;font-weight:bold;font-size:18px;letter-spacing:1px;color:var(--green);text-shadow:0 0 12px rgba(0,255,136,.5);line-height:1.3}
+.logo small{color:var(--muted);font-size:11px;letter-spacing:2px;display:block;font-weight:normal;text-shadow:none}
+.spacer{flex:1}
+.hbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.hbtn{height:36px;display:inline-flex;align-items:center;gap:7px;padding:0 12px;border-radius:9px;background:transparent;
+border:1px solid var(--line);color:#c9d4dc;font:600 13px/1 'Segoe UI',system-ui,sans-serif;text-decoration:none;
+transition:background .15s,border-color .15s,color .15s;white-space:nowrap}
+.hbtn:hover{border-color:var(--green-dim);color:var(--green);background:rgba(0,255,136,.06)}
+.hbtn .ico{width:16px;height:16px;flex:none}
+.hbtn.apoiar{color:#ff8fab;border-color:rgba(255,143,171,.35)}
+.hbtn.apoiar:hover{background:rgba(255,143,171,.08);border-color:#ff8fab;color:#ffb3c6}
+.hbtn.cta{background:var(--green);border-color:var(--green);color:#04060a}
+.hbtn.cta:hover{background:#4dffab;border-color:#4dffab;color:#04060a;box-shadow:0 0 14px rgba(0,255,136,.35)}
+.hsep{width:1px;height:22px;background:var(--line);margin:0 4px}
+.idiomas{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;height:36px}
+.idiomas a{display:flex;align-items:center;padding:0 9px;font:600 12px/1 'Segoe UI',system-ui,sans-serif;color:var(--muted);text-decoration:none}
+.idiomas a:hover{color:var(--green)}.idiomas a.on{background:rgba(0,255,136,.1);color:var(--green)}
 main{max-width:980px;margin:0 auto;padding:18px 16px 40px}
 .trilha{font-size:12.5px;color:var(--muted);margin-bottom:6px}.trilha a{color:var(--muted)}
 h1{font-size:26px;line-height:1.25;margin:4px 0 4px}h2{font-size:17px;color:var(--green);margin:28px 0 10px;letter-spacing:.3px}
@@ -361,9 +384,20 @@ th{color:var(--muted);font-weight:600;font-size:12.5px}.n{color:var(--muted);fon
 .pag{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}.nota{font-size:12.5px;color:var(--muted)}
 iframe.mapa{width:100%;height:260px;border:1px solid var(--line);border-radius:10px}
 footer{border-top:1px solid var(--line);color:var(--muted);font-size:12.5px;text-align:center;padding:18px 16px 28px}
-@media(max-width:640px){h1{font-size:21px}dl{grid-template-columns:1fr}dt{margin-top:6px}ul.lista{columns:1}
+@media(max-width:640px){header{padding:10px 12px;gap:6px}header .spacer{flex-basis:100%;height:0}
+.logo{font-size:14px}.logo small{font-size:9px;letter-spacing:1px}.lbl{display:none}
+.hbar{width:100%;justify-content:space-between;gap:4px;flex-wrap:nowrap}.hbtn{height:34px;padding:0 9px;gap:6px}.hsep{display:none}
+h1{font-size:21px}dl{grid-template-columns:1fr}dt{margin-top:6px}ul.lista{columns:1}
 th:nth-child(3),td:nth-child(3){display:none}}
 """
+
+
+_SVG = ('<svg class="ico" viewBox="0 0 24 24" fill="{f}" stroke="currentColor" stroke-width="2" '
+        'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{d}</svg>')
+_ICO_BUSCA = _SVG.format(f="none", d='<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>')
+_ICO_CIDADES = _SVG.format(f="none", d='<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>')
+_ICO_APOIAR = _SVG.format(f="currentColor", d='<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>')
+_ICO_CONTA = _SVG.format(f="none", d='<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>')
 
 
 def _pagina(titulo_pag: str, descricao: str, canonica: str, corpo: str, trilha: list = None,
@@ -386,8 +420,8 @@ def _pagina(titulo_pag: str, descricao: str, canonica: str, corpo: str, trilha: 
         hreflang = "".join(f'<link rel="alternate" hreflang="{_HTML_LANG[l]}" href="{escape(SITE_URL + u)}">'
                            for l, u in alternativas.items())
         hreflang += f'<link rel="alternate" hreflang="x-default" href="{escape(SITE_URL + alternativas["pt"])}">'
-        seletor = " ".join(f'<a href="{escape(u)}" hreflang="{_HTML_LANG[l]}"' + (' style="font-weight:700"' if l == lang else "")
-                           + f'>{l.upper()}</a>' for l, u in alternativas.items())
+        seletor = "".join(f'<a href="{escape(u)}" hreflang="{_HTML_LANG[l]}"' + (' class="on"' if l == lang else "")
+                          + f'>{l.upper()}</a>' for l, u in alternativas.items())
     cidades = " · ".join(f'<a href="{p_cidade(lang, s)}">{escape(n)}</a>' for s, (_, n) in CIDADES.items())
     base = t["rodape_base"].format(d=_data_local(lang)) if _data_banco() else ""
     aviso = f'<p class="nota">{escape(t["aviso_idioma"])}</p>' if t["aviso_idioma"] else ""
@@ -401,8 +435,15 @@ def _pagina(titulo_pag: str, descricao: str, canonica: str, corpo: str, trilha: 
 <meta property="og:description" content="{escape(descricao)}"><meta property="og:url" content="{escape(SITE_URL + canonica)}">
 <meta property="og:image" content="{SITE_URL}/og-image.png"><meta property="og:locale" content="{_OG_LOCALE[lang]}">
 {_adsense(status)}<style>{_CSS}</style>{ld}</head><body>
-<header><a class="logo" href="/">EMPRESAS · GRANDE VITÓRIA</a>
-<nav><a href="/">{t["nav_busca"]}</a><a href="{p_cidade(lang, "vitoria")}">{t["nav_cidades"]}</a><a href="/#apoiar">{t["nav_apoiar"]}</a>{f'<span class="n">{seletor}</span>' if seletor else ''}</nav></header>
+<header><a class="brand" href="/"><span class="brand-icon">GV</span><span class="logo">EMPRESAS · GRANDE VITÓRIA<small>📍 Espírito Santo · BR</small></span></a>
+<span class="spacer"></span>
+<nav class="hbar">
+<a class="hbtn" href="/" aria-label="{t["nav_busca"]}">{_ICO_BUSCA}<span class="lbl">{t["nav_busca"]}</span></a>
+<a class="hbtn" href="{p_cidade(lang, "vitoria")}" aria-label="{t["nav_cidades"]}">{_ICO_CIDADES}<span class="lbl">{t["nav_cidades"]}</span></a>
+{f'<span class="idiomas">{seletor}</span>' if seletor else ''}
+<span class="hsep" aria-hidden="true"></span>
+<a class="hbtn apoiar" href="/#apoiar" aria-label="{t["nav_apoiar"]}">{_ICO_APOIAR}<span class="lbl">{t["nav_apoiar"]}</span></a>
+<a class="hbtn cta" href="/#conta">{_ICO_CONTA}<span>{t["nav_entrar"]}</span></a></nav></header>
 <main>{f'<div class="trilha">{trilha_html}</div>' if trilha else ''}{corpo}{aviso}</main>
 <footer>{t["rodape_cidades"]}: {cidades}<br>
 {escape(t["rodape_fonte"].format(base=base))}<br>
